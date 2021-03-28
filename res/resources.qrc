@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/">
+        <file>imgs/FolderOpened_32x.png</file>
+        <file>imgs/OpenFile_32x.png</file>
+        <file>imgs/FolderClosed_32x.png</file>
+        <file>imgs/Document_32x.png</file>
+        <file>imgs/Image_32x.png</file>
+        <file>imgs/Level_32x.png</file>
+        <file>imgs/Localization_32x.png</file>
+        <file>imgs/Sound_32x.png</file>
+        <file>imgs/Model_32x.png</file>
+        <file>imgs/LibrarySettings_32x.png</file>
+        <file>imgs/SettingsFile_32x.png</file>
+        <file>imgs/Transparency_32x.png</file>
+    </qresource>
+</RCC>

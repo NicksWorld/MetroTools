@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MdlInfoPanel</class>
+ <widget class="QFrame" name="MdlInfoPanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>692</width>
+    <height>80</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MdlInfoPanel</string>
+  </property>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>2</x>
+     <y>0</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Type:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>2</x>
+     <y>16</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Vertices:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_3">
+   <property name="geometry">
+    <rect>
+     <x>2</x>
+     <y>32</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Triangles:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_4">
+   <property name="geometry">
+    <rect>
+     <x>2</x>
+     <y>48</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Joints:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_5">
+   <property name="geometry">
+    <rect>
+     <x>2</x>
+     <y>64</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Animations:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblMdlPropType">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>0</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Animated</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblMdlPropVertices">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>16</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>100500</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblMdlPropTriangles">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>32</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>100500</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblMdlPropJoints">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>48</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>100500</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblMdlPropNumAnims">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>64</y>
+     <width>64</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>100500</string>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="lstMdlPropMotions">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>0</y>
+     <width>300</width>
+     <height>80</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnMdlPropPlayStopAnim">
+   <property name="geometry">
+    <rect>
+     <x>464</x>
+     <y>0</y>
+     <width>80</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Play</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnModelInfo">
+   <property name="geometry">
+    <rect>
+     <x>464</x>
+     <y>28</y>
+     <width>80</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Info</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnModelExportMotion">
+   <property name="geometry">
+    <rect>
+     <x>464</x>
+     <y>56</y>
+     <width>80</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Export...</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_6">
+   <property name="geometry">
+    <rect>
+     <x>560</x>
+     <y>4</y>
+     <width>47</width>
+     <height>14</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Show lod:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="lstLods">
+   <property name="geometry">
+    <rect>
+     <x>620</x>
+     <y>0</y>
+     <width>65</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

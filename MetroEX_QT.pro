@@ -78,7 +78,8 @@ SOURCES += libs/lz4/lz4hc.c \
     src/metro/reflection/MetroReflection.cpp \
     src/metro/reflection/MetroReflectionJson.cpp \
     src/metro/vfs/MetroVFS.cpp \
-    src/mex_settings.cpp
+    src/mex_settings.cpp \
+    src/ui/settingsdlg.cpp
 
 HEADERS += \
     libs/bc7enc16/bc7decomp.h \
@@ -153,12 +154,14 @@ HEADERS += \
     src/metro/vfs/MetroVFS.h \
     src/mex_settings.h \
     src/mycommon.h \
-    src/mymath.h
+    src/mymath.h \
+    src/ui/settingsdlg.h
 
 FORMS += \
     src/ui/imageinfopanel.ui \
     src/ui/mainwindow.ui \
-    src/ui/modelinfopanel.ui
+    src/ui/modelinfopanel.ui \
+    src/ui/settingsdlg.ui
 
 INCLUDEPATH += src \
     libs/glm \

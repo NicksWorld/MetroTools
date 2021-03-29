@@ -87,6 +87,7 @@ private slots:
     void on_actionOpen_archive_triggered();
     void on_actionOpen_triggered();
     void on_actionShow_transparency_triggered();
+    void on_actionSettings_triggered();
     void on_treeFiles_itemCollapsed(QTreeWidgetItem* item);
     void on_treeFiles_itemExpanded(QTreeWidgetItem* item);
     void on_treeFiles_customContextMenuRequested(const QPoint& pos);
@@ -121,7 +122,7 @@ private:
     void OnExtractFolderClicked(bool withConversion);
 
     // extraction helpers
-    bool EnsureExtractionOptions();
+    void EnsureExtractionOptions();
     CharString DecideTextureExtension(const FileExtractionCtx& ctx);
     CharString MakeFileOutputName(MyHandle file, const FileExtractionCtx& ctx);
     void TextureSaveHelper(const fs::path& folderPath, const FileExtractionCtx& ctx, const CharString& name);

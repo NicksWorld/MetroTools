@@ -245,6 +245,9 @@
     <ClCompile Include="src\ui\renderpanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\ui\settingsdlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="libs\jansson\src\strbuffer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -478,6 +481,9 @@
     <CustomBuild Include="src\ui\renderpanel.h">
       <Filter>Header Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="src\ui\settingsdlg.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
     <ClInclude Include="libs\xxhash\xxhash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -519,6 +525,12 @@
     <ClCompile Include="release\moc_renderpanel.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="debug\moc_settingsdlg.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="release\moc_settingsdlg.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
     <ClCompile Include="debug\qrc_resources.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
@@ -534,6 +546,9 @@
     <ClInclude Include="ui_modelinfopanel.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
+    <ClInclude Include="ui_settingsdlg.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\ui\imageinfopanel.ui">
@@ -543,6 +558,9 @@
       <Filter>Form Files</Filter>
     </CustomBuild>
     <CustomBuild Include="src\ui\modelinfopanel.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="src\ui\settingsdlg.ui">
       <Filter>Form Files</Filter>
     </CustomBuild>
   </ItemGroup>
@@ -575,6 +593,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="res\imgs\SettingsFile_32x.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="res\imgs\Settings_32x.png">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="res\imgs\Sound_32x.png">

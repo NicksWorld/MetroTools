@@ -12,5 +12,6 @@
         <file>imgs/LibrarySettings_32x.png</file>
         <file>imgs/SettingsFile_32x.png</file>
         <file>imgs/Transparency_32x.png</file>
+        <file>imgs/Settings_32x.png</file>
     </qresource>
 </RCC>

@@ -11,6 +11,7 @@
 #include "imageinfopanel.h"
 #include "modelinfopanel.h"
 
+#include "settingsdlg.h"
 #include "mex_settings.h"
 
 #include "metro/MetroContext.h"
@@ -230,6 +231,12 @@ void MainWindow::on_actionOpen_triggered() {
 
 void MainWindow::on_actionShow_transparency_triggered() {
     mImagePanel->ShowTransparency(ui->actionShow_transparency->isChecked());
+}
+
+void MainWindow::on_actionSettings_triggered() {
+    SettingsDlg dlg(this);
+    dlg.setWindowIcon(this->windowIcon());
+    dlg.exec();
 }
 
 
@@ -1043,19 +1050,14 @@ void MainWindow::OnExtractFolderClicked(bool withConversion) {
 
 
 // extraction helpers
-bool MainWindow::EnsureExtractionOptions() {
-    bool result = true;
-
+void MainWindow::EnsureExtractionOptions() {
     MEXSettings& s = MEXSettings::Get();
 
-    //if (s.extraction.askEveryTime) {
-    //    SettingsDlgImpl dlg;
-    //    dlg.Icon = this->Icon;
-    //    auto dlgResult = dlg.ShowDialog(this);
-    //    if (dlgResult == System::Windows::Forms::DialogResult::Cancel) {
-    //        result = false;
-    //    }
-    //}
+    if (s.extraction.askEveryTime) {
+        SettingsDlg dlg(this);
+        dlg.setWindowIcon(this->windowIcon());
+        dlg.exec();
+    }
 
     // models
     mExtractionCtx.mdlSaveAsObj = (s.extraction.modelFormat == MEXSettings::Extraction::MdlFormat::Obj);
@@ -1073,8 +1075,6 @@ bool MainWindow::EnsureExtractionOptions() {
     // sounds
     mExtractionCtx.sndSaveAsOgg = (s.extraction.soundFormat == MEXSettings::Extraction::SndFormat::Ogg);
     mExtractionCtx.sndSaveAsWav = (s.extraction.soundFormat == MEXSettings::Extraction::SndFormat::Wav);
-
-    return result;
 }
 
 CharString MainWindow::DecideTextureExtension(const FileExtractionCtx& ctx) {

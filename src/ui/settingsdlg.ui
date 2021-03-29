@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsDlg</class>
+ <widget class="QDialog" name="SettingsDlg">
+  <property name="windowModality">
+   <enum>Qt::WindowModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>510</width>
+    <height>422</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Settings</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>2</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tabExportOptions">
+      <attribute name="title">
+       <string>Export options</string>
+      </attribute>
+      <widget class="QGroupBox" name="groupBox">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>0</y>
+         <width>482</width>
+         <height>121</height>
+        </rect>
+       </property>
+       <property name="title">
+        <string>Textures options:</string>
+       </property>
+       <widget class="QRadioButton" name="radioTexAsDDS">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>20</y>
+          <width>150</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as DDS</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioTexAsLegacyDDS">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>44</y>
+          <width>150</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as legacy DDS</string>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioTexAsTGA">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>68</y>
+          <width>150</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as TGA</string>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioTexAsPNG">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>92</y>
+          <width>150</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as PNG</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>130</y>
+         <width>482</width>
+         <height>121</height>
+        </rect>
+       </property>
+       <property name="title">
+        <string>Models options:</string>
+       </property>
+       <widget class="QRadioButton" name="radioMdlAsOBJ">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>20</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as OBJ</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioMdlAsFBX">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>44</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as FBX</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="chkMdlExportAnims">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>68</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export animations</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="chkMdlExportAnimsSeparate">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>92</y>
+          <width>170</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Animations to separate files</string>
+        </property>
+       </widget>
+       <widget class="Line" name="line">
+        <property name="geometry">
+         <rect>
+          <x>240</x>
+          <y>20</y>
+          <width>3</width>
+          <height>98</height>
+         </rect>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="chkMdlSaveWithTextures">
+        <property name="geometry">
+         <rect>
+          <x>250</x>
+          <y>20</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Save with textures</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="chkMdlExcludeCollision">
+        <property name="geometry">
+         <rect>
+          <x>250</x>
+          <y>44</y>
+          <width>170</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Exclude collision geometry</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="chkMdlSaveSurfaceTextures">
+        <property name="geometry">
+         <rect>
+          <x>250</x>
+          <y>68</y>
+          <width>170</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Save all surface textures</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="chkMdlExportLods">
+        <property name="geometry">
+         <rect>
+          <x>250</x>
+          <y>92</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export lods</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QGroupBox" name="groupBox_3">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>260</y>
+         <width>482</width>
+         <height>71</height>
+        </rect>
+       </property>
+       <property name="title">
+        <string>Sound options:</string>
+       </property>
+       <widget class="QRadioButton" name="radioSndAsOGG">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>20</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as OGG</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="radioSndAsWAV">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>44</y>
+          <width>140</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Export as WAV</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QCheckBox" name="chkExportAskEveryTime">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>340</y>
+         <width>200</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Show this dialog before export</string>
+       </property>
+      </widget>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="btnBoxMain">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnBoxMain</sender>
+   <signal>accepted()</signal>
+   <receiver>SettingsDlg</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnBoxMain</sender>
+   <signal>rejected()</signal>
+   <receiver>SettingsDlg</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

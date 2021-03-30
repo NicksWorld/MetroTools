@@ -1,14 +1,17 @@
 #include "MetroEntityFactory.h"
+#include "mycommon.h"
+
+static_assert(CRC32("EFFECT") == 0x46985674);
 
 static UObjectPtr InstantiateUObject(const uint32_t classId) {
     switch (classId) {
-        case 0x46985674: // EFFECT
+        case CRC32("EFFECT"):
             return MakeStrongPtr<UObjectEffect>();
 
-        case 0x2301c4ef: // STATICPROP
+        case CRC32("STATICPROP"):
             return MakeStrongPtr<UObjectStatic>();
 
-        case 0x0f10b43b: // O_ENTITY
+        case CRC32("O_ENTITY"):
             return MakeStrongPtr<UEntity>();
 
         default:

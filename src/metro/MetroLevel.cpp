@@ -456,12 +456,14 @@ void MetroLevel::LoadTerrain(const CharString& levelFolder) {
     }
 }
 
+static_assert(0x6C76656Cu == 'lvel');
+
 void MetroLevel::LoadBin(const MetroFSPath& file) {
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
     MemStream stream = mfs.OpenFileStream(file);
     if (stream.Good()) {
         const uint32_t magic = stream.ReadTyped<uint32_t>();
-        if (magic == 0x6C76656C) {
+        if (magic == 'lvel') {
             stream.SetCursor(0);
 
             MetroBinArchive bin(kEmptyString, stream, 4);

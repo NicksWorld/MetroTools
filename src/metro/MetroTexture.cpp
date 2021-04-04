@@ -24,9 +24,9 @@
 #include "stb_image_resize.h"
 
 #ifndef METRO_NO_CRUNCH
-#include "../libs/crunch/inc/crnlib.h"
+#include <crnlib.h>
 #define CRND_HEADER_FILE_ONLY
-#include "../libs/crunch/inc/crn_decomp.h"
+#include <crn_decomp.h>
 #undef CRND_HEADER_FILE_ONLY
 #endif
 

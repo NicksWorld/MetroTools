@@ -1,0 +1,15 @@
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define PACKED_STRUCT_BEGIN
+#define PACKED_STRUCT_BEGIN __pragma(pack(push, 1))
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define IMPL_SINGLETON(T) public: T(T const&) = delete; void operator=(T const&) = delete; static T& Get() { static T _instance; return _instance; }
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define METRO_REGISTER_TYPE_ALIAS(type, alias) template <> inline const CharString& MetroTypeGetAlias<type>() { static const CharString METRO_MAKE_TYPE_ALIAS_STRING_NAME(type, alias) = STRINGIFY(alias); return METRO_MAKE_TYPE_ALIAS_STRING_NAME(type, alias); }
+#define METRO_REGISTER_INHERITED_TYPE_ALIAS(type, baseType, alias) template <> inline const CharString& MetroTypeGetAlias<type>() { static const CharString METRO_MAKE_TYPE_ALIAS_STRING_NAME(type, alias) = STRINGIFY(alias) ", " STRINGIFY(baseType); return METRO_MAKE_TYPE_ALIAS_STRING_NAME(type, alias); }
+#define METRO_REGISTER_TYPE_ARRAY_ALIAS(type, alias) template <> inline const CharString& MetroTypeArrayGetAlias<type>() { static const CharString METRO_MAKE_TYPE_ARRAY_ALIAS_STRING_NAME(type, alias) = STRINGIFY(alias) "_array"; return METRO_MAKE_TYPE_ARRAY_ALIAS_STRING_NAME(type, alias); }

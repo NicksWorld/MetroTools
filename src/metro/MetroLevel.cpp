@@ -70,8 +70,6 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
     this->uobject = MetroEntityFactory::CreateUObject(initData);
     if (this->uobject) {
         s >> (*this->uobject);
-        if (s.GetRemains() != 0)
-            LogPrintF(LogLevel::Warning, "UObject, remains [%zu] bytes", s.GetRemains());
 
         mat4 pose = MatFromPose(this->uobject->pose);
         vec3 pos, scale;
@@ -81,10 +79,12 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
         scale = MetroSwizzle(scale);
         rot = MetroSwizzle(rot);
 
-        LogPrintF(LogLevel::Info, "UObject, id = %d, parent_id = %d, name = %s, visual = %s, pos = (%f, %f, %f)",
+        LogPrintF(LogLevel::Info, "%s, id = %d, parent_id = %d, name = %s, visual = %s, pos = (%f, %f, %f)", this->uobject->cls.c_str(),
             this->uobject->initData.id, this->uobject->initData.parent_id, this->uobject->name.empty() ? "" : this->uobject->name.c_str(),
             this->uobject->visual.empty() ? "none" : this->uobject->visual.c_str(),
             pos.x, pos.y, pos.z);
+        if (s.GetRemains() != 0)
+            LogPrintF(LogLevel::Warning, "UObject, remains [%zu] bytes", s.GetRemains());
     }
 }
 

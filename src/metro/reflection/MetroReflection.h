@@ -472,6 +472,11 @@ struct ArrayElementTypeGetter {
     (s).SerializeTypeInfo(STRINGIFY(memberName), MetroTypeGetAlias<CLEAN_TYPE(memberName)>());  \
     (s) >> memberName;
 
+#define METRO_SERIALIZE_MEMBER_FLAGS32(s, memberName)                                           \
+    (s).SerializeEditorTag(STRINGIFY(memberName), 7);                                           \
+    (s).SerializeTypeInfo(STRINGIFY(memberName), MetroTypeGetAlias<CLEAN_TYPE(memberName)>());  \
+    (s) >> memberName;
+
 #define METRO_SERIALIZE_MEMBER_STRARRAY_CHOOSE(s, memberName)                       \
     (s).SerializeEditorTag(STRINGIFY(memberName));                                  \
     (s).SerializeTypeInfo(STRINGIFY(memberName), MetroTypeGetAlias<CharString>());  \

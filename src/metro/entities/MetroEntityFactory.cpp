@@ -1,32 +1,24 @@
 #include "MetroEntityFactory.h"
 #include "mycommon.h"
 
+const char* DecodeClassId(uint32_t classId);
 void LogUnknownClassId(uint32_t classId);
 
 static_assert(CRC32("EFFECT") == 0x46985674);
 
+#define MATCH_CLASS(cls, type) case CRC32(cls): return MakeStrongPtr<type>()
+
 static UObjectPtr InstantiateUObject(const uint32_t classId) {
     switch (classId) {
-        case CRC32("EFFECT"):
-            return MakeStrongPtr<UObjectEffect>();
-
-        case CRC32("STATICPROP"):
-            return MakeStrongPtr<UObjectStatic>();
-
-        case CRC32("O_ENTITY"):
-            return MakeStrongPtr<UEntity>();
-
-        case CRC32("o_hlamp"):
-            return MakeStrongPtr<EntityLamp>();
-
-        case CRC32("PROXY"):
-            return MakeStrongPtr<Proxy>();            
-
-        case CRC32("EFFECTM"):
-            return MakeStrongPtr<UObjectEffectM>();
-
-        case CRC32("O_HELPERTEXT"):
-            return MakeStrongPtr<HelperText>();
+        MATCH_CLASS("EFFECT", UObjectEffect);
+        MATCH_CLASS("STATICPROP", UObjectStatic);
+        MATCH_CLASS("O_ENTITY", UEntity);
+        MATCH_CLASS("o_hlamp", EntityLamp);
+        MATCH_CLASS("PROXY", Proxy);
+        MATCH_CLASS("EFFECTM", UObjectEffectM);
+        MATCH_CLASS("O_HELPERTEXT", HelperText);
+        MATCH_CLASS("O_AIPOINT", AiPoint);
+        MATCH_CLASS("PATROL_POINT", PatrolPoint);
 
         default:
             LogUnknownClassId(classId);
@@ -36,10 +28,8 @@ static UObjectPtr InstantiateUObject(const uint32_t classId) {
 
 UObjectPtr MetroEntityFactory::CreateUObject(const UObjectInitData& initData) {
     UObjectPtr object = InstantiateUObject(initData.cls);
-
-    if (object) {
-        object->initData = initData;
-    }
+    object->initData = initData;
+    object->cls = DecodeClassId(initData.cls);
 
     return std::move(object);
 }
@@ -281,10 +271,16 @@ MyDict<uint32_t, const char*> CreateClassMap() {
         result[Hash_CalculateCRC32(el)] = el;
     return result;
 }
+static const auto classMap = CreateClassMap();
+
+const char* DecodeClassId(uint32_t classId)
+{
+    auto it = classMap.find(classId);
+    return it == classMap.end() ? "" : it->second;
+}
 
 void LogUnknownClassId(uint32_t classId)
 {
-    static const auto classMap = CreateClassMap();
     if (auto it = classMap.find(classId); it == classMap.end())
         LogPrintF(LogLevel::Error, "UObject, unknown classId [%08X]", classId);
     else

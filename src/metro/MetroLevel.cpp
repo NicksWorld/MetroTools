@@ -70,6 +70,8 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
     this->uobject = MetroEntityFactory::CreateUObject(initData);
     if (this->uobject) {
         s >> (*this->uobject);
+        if (s.GetRemains() != 0)
+            LogPrintF(LogLevel::Warning, "UObject, remains [%zu] bytes", s.GetRemains());
 
         mat4 pose = MatFromPose(this->uobject->pose);
         vec3 pos, scale;

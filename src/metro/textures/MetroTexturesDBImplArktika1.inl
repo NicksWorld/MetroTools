@@ -82,7 +82,7 @@ namespace Arktika1Impl {
 
             const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
-            MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\scripts\texture_aliases.bin)") : ReadOSFile(binPath);
+            MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\scripts\texture_aliases.bin)") : OSReadFile(binPath);
             if (stream) {
                 result = this->LoadAliases(stream);
             }
@@ -129,7 +129,7 @@ namespace Arktika1Impl {
             return std::move(result);
         }
 
-        virtual bool IsAlbedo(const MyHandle file) const override {
+        virtual bool IsAlbedo(const MetroFSPath& file) const override {
             bool result = false;
 
             CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
@@ -147,7 +147,7 @@ namespace Arktika1Impl {
             return result;
         }
 
-        virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const override {
+        virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const override {
             CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
             CharString relativePath = fullPath.substr(MetroFileSystem::Paths::TexturesFolder.length());
 

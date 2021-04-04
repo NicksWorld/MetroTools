@@ -496,8 +496,8 @@ bool MetroWeaponry::Initialize() {
 
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
-    MyHandle fileHandle = mfs.FindFile(MetroFileSystem::Paths::WeaponryFolder + WeaponHandlesFileName);
-    if (fileHandle != kInvalidHandle) {
+    MetroFSPath fileHandle = mfs.FindFile(MetroFileSystem::Paths::WeaponryFolder + WeaponHandlesFileName);
+    if (fileHandle.IsValid()) {
         MemStream stream = mfs.OpenFileStream(fileHandle);
         if (stream) {
             this->ReadWeaponHandles(stream);
@@ -505,7 +505,7 @@ bool MetroWeaponry::Initialize() {
     }
 
     fileHandle = mfs.FindFile(MetroFileSystem::Paths::WeaponryFolder + WeaponAttachesFileName);
-    if (fileHandle != kInvalidHandle) {
+    if (fileHandle.IsValid()) {
         MemStream stream = mfs.OpenFileStream(fileHandle);
         if (stream) {
             this->ReadWeaponAttaches(stream);

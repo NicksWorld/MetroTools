@@ -37,7 +37,7 @@ public:
     const vec3&         GetScale() const;
 
     bool                UpdateTransform(const mat4& parentTransform, const bool parentIsDirty);
-    virtual void        Update(const float dt, const bool newTransform) { }
+    virtual void        Update(const float /*dt*/, const bool /*newTransform*/) { }
 
     const mat4&         GetLocalTransform() const;
     const mat4&         GetTransform() const;

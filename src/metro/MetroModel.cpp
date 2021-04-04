@@ -839,17 +839,26 @@ bool MetroModelSkeleton::LoadLodMeshes(MetroModelHierarchy* target, CharString& 
     MyArray<StringView> names = StrSplitViews(meshesNames, ',');
     if (!names.empty()) {
         for (StringView n : names) {
-            const size_t dotPos = n.find('.');
-            if (dotPos != StringView::npos) {
-                n = n.substr(0, dotPos);
+            MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
+
+            MetroFSPath file(MetroFSPath::Invalid);
+            if (n[0] == '.' && n[1] == kPathSeparator) { // relative path
+                MetroFSPath folder = mfs.GetParentFolder(params.srcFile);
+                file = mfs.FindFile(CharString(n.substr(2)) + ".mesh", folder);
+            } else {
+                CharString meshFilePath = CharString(MetroFileSystem::Paths::MeshesFolder).append(n).append(".mesh");
+                file = mfs.FindFile(meshFilePath);
             }
 
-            CharString fullMeshName = CharString(MetroFileSystem::Paths::MeshesFolder).append(n).append(".mesh");
-            MemStream stream = MetroContext::Get().GetFilesystem().OpenFileFromPath(fullMeshName);
-            stream.SetName(fullMeshName);
-            if (!this->LoadLodMesh(target, stream, params, lodIdx)) {
-                result = false;
-                break;
+            if (file.IsValid()) {
+                MemStream stream = mfs.OpenFileStream(file);
+                stream.SetName(mfs.GetName(file));
+                if (!this->LoadLodMesh(target, stream, params, lodIdx)) {
+                    result = false;
+                    break;
+                }
+            } else {
+                assert(false);
             }
         }
     } else {
@@ -953,7 +962,7 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromType(const MetroModelTy
     return result;
 }
 
-RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& stream, const uint32_t loadFlags) {
+RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& stream, const uint32_t loadFlags, const MetroFSPath& srcFile) {
     RefPtr<MetroModelBase> result;
 
     StreamChunker chunker(stream);
@@ -965,9 +974,13 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
 
         result = MetroModelFactory::CreateModelFromType(scast<MetroModelType>(hdr.type));
         if (result) {
-            MetroModelLoadParams params = {};
-            params.formatVersion = hdr.version;
-            params.loadFlags = loadFlags;
+            MetroModelLoadParams params = {
+                kEmptyString,
+                kEmptyString,
+                hdr.version,
+                loadFlags,
+                srcFile
+            };
 
             const bool success = result->Load(stream, params);
             if (!success) {
@@ -981,6 +994,15 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
     return result;
 }
 
+RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromFile(const MetroFSPath& file, const uint32_t loadFlags) {
+    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
+    if (stream) {
+        return MetroModelFactory::CreateModelFromStream(stream, loadFlags, file);
+    } else {
+        return nullptr;
+    }
+}
+
 
 
 
@@ -988,7 +1010,7 @@ MetroModel::MetroModel()
     : mType(0)
     , mSkeleton(nullptr)
     , mCurrentMesh(nullptr)
-    , mThisFileIdx(MetroFile::InvalidFileIdx)
+    , mThisFileIdx(MetroFSPath::Invalid)
 {
     for (size_t i = 0; i < kMetroModelMaxLods; ++i) {
         mLodModels[i] = nullptr;
@@ -1014,8 +1036,8 @@ bool MetroModel::LoadFromName(const CharString& name, const bool needAnimations)
     }
 
     CharString fullPath =  MetroFileSystem::Paths::MeshesFolder + modelPath + ".model";
-    MyHandle file = MetroContext::Get().GetFilesystem().FindFile(fullPath);
-    if (file != kInvalidHandle) {
+    MetroFSPath file = MetroContext::Get().GetFilesystem().FindFile(fullPath);
+    if (file.IsValid()) {
         MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
         if (stream.Good()) {
             result = this->LoadFromData(stream, file, needAnimations);
@@ -1028,7 +1050,7 @@ bool MetroModel::LoadFromName(const CharString& name, const bool needAnimations)
     return result;
 }
 
-bool MetroModel::LoadFromData(MemStream& stream, const size_t fileIdx, const bool needAnimations) {
+bool MetroModel::LoadFromData(MemStream& stream, const MetroFSPath& fileIdx, const bool needAnimations) {
     bool result = false;
 
 #if 0
@@ -1134,7 +1156,7 @@ size_t MetroModel::GetNumMotions() const {
 }
 
 CharString MetroModel::GetMotionName(const size_t idx) const {
-    const MyHandle file = mMotions[idx].file;
+    const MetroFSPath& file = mMotions[idx].file;
     const CharString& fileName = MetroContext::Get().GetFilesystem().GetName(file);
 
     CharString name = fileName.substr(0, fileName.length() - 3);
@@ -1154,7 +1176,7 @@ const MetroMotion* MetroModel::GetMotion(const size_t idx) {
 
     if (!motion) {
         const CharString& name = this->GetMotionName(idx);
-        const MyHandle file = mMotions[idx].file;
+        const MetroFSPath& file = mMotions[idx].file;
 
         motion = new MetroMotion(name);
         MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
@@ -1443,8 +1465,8 @@ void MetroModel::ReadSubChunks(MemStream& stream) {
             case MC_SkeletonLink: {
                 CharString skeletonRef = stream.ReadStringZ();
                 mSkeletonPath = MetroFileSystem::Paths::MeshesFolder + skeletonRef + MetroContext::Get().GetSkeletonExtension();
-                const MyHandle file = MetroContext::Get().GetFilesystem().FindFile(mSkeletonPath);
-                if (kInvalidHandle != file) {
+                const MetroFSPath file = MetroContext::Get().GetFilesystem().FindFile(mSkeletonPath);
+                if (file.IsValid()) {
                     MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
                     if (stream) {
                         mSkeleton = new MetroSkeleton();
@@ -1523,16 +1545,16 @@ void MetroModel::LoadLinkedMeshes(const StringArray& links) {
 
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
     for (const CharString& lnk : links) {
-        MyHandle file = kInvalidHandle;
+        MetroFSPath file(MetroFSPath::Invalid);
 
         if (lnk[0] == '.' && lnk[1] == kPathSeparator) { // relative path
-            const MyHandle folder = mfs.GetParentFolder(mThisFileIdx);
+            const MetroFSPath folder = mfs.GetParentFolder(mThisFileIdx);
             file = mfs.FindFile(lnk.substr(2) + ".mesh", folder);
         } else {
             CharString meshFilePath = MetroFileSystem::Paths::MeshesFolder + lnk + ".mesh";
             file = mfs.FindFile(meshFilePath);
         }
-        if (kInvalidHandle != file) {
+        if (file.IsValid()) {
             MemStream stream = mfs.OpenFileStream(file);
             if (stream) {
                 this->ReadSubChunks(stream);
@@ -1592,7 +1614,7 @@ void MetroModel::LoadMotions() {
 
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
-    MyArray<size_t> motionFiles;
+    MyArray<MetroFSPath> motionFiles;
 
     StringArray motionFolders = StrSplit(motionsStr, ',');
     StringArray motionPaths;
@@ -1602,7 +1624,7 @@ void MetroModel::LoadMotions() {
 
         const auto& files = mfs.FindFilesInFolder(fullFolderPath, motionsExt);
 
-        for (const MyHandle file : files) {
+        for (const auto& file : files) {
             motionPaths.push_back(fullFolderPath + mfs.GetName(file));
         }
 
@@ -1613,13 +1635,13 @@ void MetroModel::LoadMotions() {
 
     mMotions.reserve(motionFiles.size());
     size_t i = 0;
-    for (const size_t idx : motionFiles) {
-        MemStream stream = mfs.OpenFileStream(idx);
+    for (const MetroFSPath& fp : motionFiles) {
+        MemStream stream = mfs.OpenFileStream(fp);
         if (stream) {
             MetroMotion motion(kEmptyString);
             const bool loaded = is2033 ? motion.LoadHeader_2033(stream) : motion.LoadHeader(stream);
             if (loaded && motion.GetNumBones() == numBones) {
-                mMotions.push_back({idx, motion.GetNumFrames(), motionPaths[i], nullptr});
+                mMotions.push_back({fp, motion.GetNumFrames(), motionPaths[i], nullptr});
             }
         }
         ++i;

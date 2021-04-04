@@ -87,12 +87,15 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
 }
 
 
-MetroLevel::MetroLevel() {
+MetroLevel::MetroLevel()
+    : entities_params{}
+    , mTerrain{}
+{
 }
 MetroLevel::~MetroLevel() {
 }
 
-bool MetroLevel::LoadFromFileHandle(const MyHandle file) {
+bool MetroLevel::LoadFromFileHandle(const MetroFSPath& file) {
     bool result = false;
 
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
@@ -247,15 +250,15 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
 
     bool isBEData = false;
 
-    MyHandle sectorDescFile = mfs.FindFile(sectorDescPath);
-    MyHandle sectorGeomFile = mfs.FindFile(sectorGeomPath);
-    if (sectorGeomFile == kInvalidHandle) {
+    MetroFSPath sectorDescFile = mfs.FindFile(sectorDescPath);
+    MetroFSPath sectorGeomFile = mfs.FindFile(sectorGeomPath);
+    if (!sectorGeomFile.IsValid()) {
         sectorGeomPath = folder + sectorName + ".geom_xbox";
         sectorGeomFile = mfs.FindFile(sectorGeomPath);
         isBEData = true;
     }
 
-    if (sectorDescFile != kInvalidHandle && sectorGeomFile != kInvalidHandle) {
+    if (sectorDescFile.IsValid() && sectorGeomFile.IsValid()) {
         mSectors.emplace_back(sector);
 
         LevelSector& newSector = mSectors.back();
@@ -453,7 +456,7 @@ void MetroLevel::LoadTerrain(const CharString& levelFolder) {
     }
 }
 
-void MetroLevel::LoadBin(const MyHandle file) {
+void MetroLevel::LoadBin(const MetroFSPath& file) {
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
     MemStream stream = mfs.OpenFileStream(file);
     if (stream.Good()) {

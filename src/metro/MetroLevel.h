@@ -74,7 +74,7 @@ public:
     MetroLevel();
     ~MetroLevel();
 
-    bool                        LoadFromFileHandle(const MyHandle file);
+    bool                        LoadFromFileHandle(const MetroFSPath& file);
 
     // level geo
     size_t                      GetNumSectors() const;
@@ -111,7 +111,7 @@ private:
 
     void                        LoadTerrain(const CharString& levelFolder);
 
-    void                        LoadBin(const MyHandle file);
+    void                        LoadBin(const MetroFSPath& file);
 
 private:
     MyArray<LevelSector>        mSectors;

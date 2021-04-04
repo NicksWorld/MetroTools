@@ -30,6 +30,34 @@ struct MetroGuid {  // 16 bytes
     }
 } PACKED_STRUCT_END;
 
+struct MetroFSPath {
+    enum SpecialInvalidEnum {
+        Invalid
+    };
+
+    MetroFSPath() = delete;
+    MetroFSPath(const MetroFSPath& other) : fileHandle(other.fileHandle), filePath(other.filePath) {}
+
+    explicit MetroFSPath(SpecialInvalidEnum) : fileHandle(kInvalidHandle), filePath{} {}
+    explicit MetroFSPath(const MyHandle handle) : fileHandle(handle), filePath{} {}
+    explicit MetroFSPath(const fs::path& path) : fileHandle(kInvalidHandle), filePath(path) {}
+    explicit MetroFSPath(const MyHandle handle, const fs::path& path) : fileHandle(handle), filePath(path) {}
+    explicit MetroFSPath(MetroFSPath&& other) noexcept : fileHandle(other.fileHandle), filePath(std::move(other.filePath)) {}
+
+    inline bool IsValid() const {
+        return fileHandle != kInvalidHandle || !filePath.empty();
+    }
+
+    inline MetroFSPath& operator =(const MetroFSPath& other) {
+        this->fileHandle = other.fileHandle;
+        this->filePath = other.filePath;
+        return *this;
+    }
+
+    MyHandle    fileHandle; // if vfs
+    fs::path    filePath;   // if OS fs
+};
+
 struct MetroFile {
 public:
     enum : size_t {

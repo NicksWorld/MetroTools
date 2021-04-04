@@ -41,8 +41,8 @@ public:
     const CharString&       GetDetName(const HashString& name) const;
     const CharString&       GetAuxName(const HashString& name, const size_t idx) const;
     StringArray             GetAllLevels(const HashString& name) const;
-    bool                    IsAlbedo(const MyHandle file) const;
-    MetroSurfaceDescription GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const;
+    bool                    IsAlbedo(const MetroFSPath& file) const;
+    MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const;
     MetroSurfaceDescription GetSurfaceSetFromName(const HashString& textureName, const bool allMips) const;
 
     size_t                  GetNumTextures() const;

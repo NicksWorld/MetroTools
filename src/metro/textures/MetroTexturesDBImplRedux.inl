@@ -56,7 +56,7 @@ public:
         bool result = false;
 
         const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
-        MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\scripts\texture_aliases.bin)") : ReadOSFile(binPath);
+        MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\scripts\texture_aliases.bin)") : OSReadFile(binPath);
         if (stream) {
             result = this->LoadAliases(stream);
         }
@@ -101,7 +101,7 @@ public:
         return std::move(result);
     }
 
-    virtual bool IsAlbedo(const MyHandle file) const override {
+    virtual bool IsAlbedo(const MetroFSPath& file) const override {
         bool result = false;
 
         CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
@@ -119,7 +119,7 @@ public:
         return result;
     }
 
-    virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const override {
+    virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const override {
         CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
         CharString relativePath = fullPath.substr(MetroFileSystem::Paths::TexturesFolder.length());
 
@@ -216,8 +216,8 @@ private:
             //          was crunched or not, so using filesystem query for that :(
             if (texInfo.streamable) {
                 const CharString queryPath = MetroFileSystem::Paths::TexturesFolder + textureName.str + ".512c";
-                const MyHandle queryFileHandle = mfs.FindFile(queryPath);
-                texInfo.crunched = (queryFileHandle != kInvalidHandle);
+                const MetroFSPath& queryFileHandle = mfs.FindFile(queryPath);
+                texInfo.crunched = queryFileHandle.IsValid();
             } else {
                 texInfo.crunched = false;
             }

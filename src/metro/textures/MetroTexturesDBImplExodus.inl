@@ -108,7 +108,7 @@ public:
 
         const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
-        MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\textures_handles_storage.bin)") : ReadOSFile(binPath);
+        MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\textures_handles_storage.bin)") : OSReadFile(binPath);
         if (stream) {
             result = this->LoadHandles(stream);
         }
@@ -164,7 +164,7 @@ public:
         return std::move(result);
     }
 
-    virtual bool IsAlbedo(const MyHandle file) const override {
+    virtual bool IsAlbedo(const MetroFSPath& file) const override {
         bool result = false;
 
         CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
@@ -182,7 +182,7 @@ public:
         return result;
     }
 
-    virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const override {
+    virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const override {
         CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
         CharString relativePath = fullPath.substr(MetroFileSystem::Paths::TexturesFolder.length());
 

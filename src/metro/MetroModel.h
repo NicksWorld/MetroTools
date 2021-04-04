@@ -17,6 +17,7 @@ struct MetroModelLoadParams {
     CharString  tpresetName;
     uint32_t    formatVersion;
     uint32_t    loadFlags;
+    MetroFSPath srcFile;
 };
 
 
@@ -115,6 +116,8 @@ public:
     virtual void                    FreeGeometryMem()           { }
 
     virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result) const;
+
+    virtual bool                    IsSkeleton() const { return false; }
 
 protected:
     uint16_t                        mVersion;
@@ -225,6 +228,8 @@ public:
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
     virtual bool            Save(MemWriteStream& stream) override;
 
+    virtual bool            IsSkeleton() const override { return true; }
+
     RefPtr<MetroSkeleton>   GetSkeleton() const;
 
 protected:
@@ -248,7 +253,8 @@ class MetroModelFactory {
 
 public:
     static RefPtr<MetroModelBase>   CreateModelFromType(const MetroModelType type);
-    static RefPtr<MetroModelBase>   CreateModelFromStream(MemStream& stream, const uint32_t loadFlags);
+    static RefPtr<MetroModelBase>   CreateModelFromStream(MemStream& stream, const uint32_t loadFlags, const MetroFSPath& srcFile = MetroFSPath(MetroFSPath::Invalid));
+    static RefPtr<MetroModelBase>   CreateModelFromFile(const MetroFSPath& file, const uint32_t loadFlags);
 };
 
 
@@ -275,7 +281,7 @@ public:
     ~MetroModel();
 
     bool                    LoadFromName(const CharString& name, const bool needAnimations);
-    bool                    LoadFromData(MemStream& stream, const size_t fileIdx, const bool needAnimations = true);
+    bool                    LoadFromData(MemStream& stream, const MetroFSPath& fileIdx, const bool needAnimations = true);
 
     bool                    IsAnimated() const;
     const AABBox&           GetBBox() const;
@@ -305,7 +311,7 @@ private:
 
 private:
     struct MotionInfo {
-        MyHandle        file;
+        MetroFSPath     file;
         size_t          numFrames;
         CharString      path;
         MetroMotion*    motion;
@@ -326,5 +332,5 @@ private:
 
     // these are temp pointers, invalid after loading
     MetroMesh*                      mCurrentMesh;
-    size_t                          mThisFileIdx;
+    MetroFSPath                     mThisFileIdx;
 };

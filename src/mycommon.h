@@ -823,8 +823,13 @@ using Base = superName;
 
 
 // File I/O
-MemStream   ReadOSFile(const fs::path& filePath);
-size_t      WriteOSFile(const fs::path& filePath, const void* data, const size_t dataLength);
-bool        OSPathExists(const fs::path& pathToCheck);
+MemStream           OSReadFile(const fs::path& filePath);
+MemStream           OSReadFileEX(const fs::path& filePath, const size_t subOffset, const size_t subLength);
+size_t              OSWriteFile(const fs::path& filePath, const void* data, const size_t dataLength);
+size_t              OSGetFileSize(const fs::path& filePath);
+bool                OSPathExists(const fs::path& pathToCheck);
+bool                OSPathIsFile(const fs::path& pathToCheck);
+bool                OSPathIsFolder(const fs::path& pathToCheck);
+MyArray<fs::path>   OSPathGetEntriesList(const fs::path& pathToCheck, const bool recursive, const bool onlyFiles, const fs::path& ext = fs::path());
 
 #include "log.h"

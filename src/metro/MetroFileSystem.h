@@ -46,28 +46,28 @@ public:
     const MetroGuid&        GetVFXGUID() const;
     bool                    IsMetro2033() const;
 
-    MyHandle                GetRootFolder() const;
+    MetroFSPath             GetRootFolder() const;
 
-    bool                    IsFolder(const MyHandle entry) const;
-    bool                    IsFile(const MyHandle entry) const;
-    const CharString&       GetName(const MyHandle entry) const;
-    CharString              GetFullPath(const MyHandle entry) const;
-    size_t                  GetCompressedSize(const MyHandle entry) const;
-    size_t                  GetUncompressedSize(const MyHandle entry) const;
+    bool                    IsFolder(const MetroFSPath& entry) const;
+    bool                    IsFile(const MetroFSPath& entry) const;
+    const CharString&       GetName(const MetroFSPath& entry) const;
+    CharString              GetFullPath(const MetroFSPath& entry) const;
+    size_t                  GetCompressedSize(const MetroFSPath& entry) const;
+    size_t                  GetUncompressedSize(const MetroFSPath& entry) const;
 
-    size_t                  CountFilesInFolder(const MyHandle entry) const;
+    size_t                  CountFilesInFolder(const MetroFSPath& entry, const bool recursive) const;
 
-    MyHandle                GetParentFolder(const MyHandle entry) const;
-    MyHandle                FindFile(const CharString& fileName, const MyHandle inFolder = kInvalidHandle) const;
-    MyHandle                FindFolder(const CharString& folderPath, const MyHandle inFolder = kInvalidHandle) const;
-    MyArray<MyHandle>       FindFilesInFolder(const CharString& folder, const CharString& extension, const bool withSubfolders = true) const;
-    MyArray<MyHandle>       FindFilesInFolder(const MyHandle folder, const CharString& extension, const bool withSubfolders = true) const;
+    MetroFSPath             GetParentFolder(const MetroFSPath& entry) const;
+    MetroFSPath             FindFile(const CharString& fileName, const MetroFSPath& inFolder = MetroFSPath(MetroFSPath::Invalid)) const;
+    MetroFSPath             FindFolder(const CharString& folderPath, const MetroFSPath& inFolder = MetroFSPath(MetroFSPath::Invalid)) const;
+    MyArray<MetroFSPath>    FindFilesInFolder(const CharString& folder, const CharString& extension, const bool withSubfolders = true) const;
+    MyArray<MetroFSPath>    FindFilesInFolder(const MetroFSPath& folder, const CharString& extension, const bool withSubfolders = true) const;
 
     MyHandle                GetFirstChild(const MyHandle parentEntry) const;
     MyHandle                GetNextChild(const MyHandle currentChild) const;
     MyHandle                FindChild(const MyHandle parentEntry, const HashString& childName) const;
 
-    MemStream               OpenFileStream(const MyHandle entry, const size_t subOffset = kInvalidValue, const size_t subLength = kInvalidValue) const;
+    MemStream               OpenFileStream(const MetroFSPath& entry, const size_t subOffset = kInvalidValue, const size_t subLength = kInvalidValue) const;
     MemStream               OpenFileFromPath(const CharString& fileName) const;
 
 private:
@@ -79,6 +79,8 @@ private:
     MyHandle                AddEntryFolder(const MyHandle parentEntry, const HashString& name);
     MyHandle                AddEntryFile(const MyHandle parentEntry, const MetroFile& file);
     MyHandle                AddEntryCommon(const MyHandle parentEntry, const MetroFSEntry& entry);
+
+    fs::path                MakeProperFullPath(const fs::path& filePath) const;
 
 private:
     bool                    mIsMetro2033FS;

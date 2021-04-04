@@ -76,8 +76,8 @@ bool MetroLocalization::LoadFromPath(const CharString& path) {
     bool result = false;
 
     MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
-    MyHandle file = mfs.FindFile(path);
-    if (file != kInvalidHandle) {
+    MetroFSPath file = mfs.FindFile(path);
+    if (file.IsValid()) {
         MemStream stream = mfs.OpenFileStream(file);
         if (stream.Good()) {
             result = this->LoadFromData(stream);

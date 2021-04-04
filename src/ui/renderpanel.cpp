@@ -26,7 +26,7 @@ RenderPanel::RenderPanel(QWidget* parent)
     , mScene(nullptr)
     , mCamera(nullptr)
     // model viewer stuff
-    , mModel(nullptr)
+    , mModel{}
     , mModelNode(nullptr)
     , mCurrentMotion(nullptr)
     , mAnimPlaying(false)
@@ -80,13 +80,11 @@ bool RenderPanel::Initialize() {
     return result;
 }
 
-void RenderPanel::SetModel(MetroModel* model) {
+void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
     //mCubemap = nullptr;
     //MySafeDelete(mLightProbe);
 
     if (mModel != model) {
-        MySafeDelete(mModel);
-
         mModel = model;
         //mCurrentMotion = nullptr;
 
@@ -96,7 +94,7 @@ void RenderPanel::SetModel(MetroModel* model) {
         if (mModel) {
             u4a::ResourcesManager::Get().Clear();
 
-            mModelNode = u4a::Spawner::SpawnModel(*mScene, mModel, vec3(0.0f), true);
+            mModelNode = u4a::Spawner::SpawnModelNew(*mScene, mModel.get(), vec3(0.0f), true);
         }
 
         //    this->ResetAnimation();
@@ -107,7 +105,7 @@ void RenderPanel::SetModel(MetroModel* model) {
 void RenderPanel::SetLevel(MetroLevel* level) {
     //mCubemap = nullptr;
     //MySafeDelete(mLightProbe);
-    MySafeDelete(mModel);
+    mModel = nullptr;
 
     if (mLevel != level) {
         MySafeDelete(mLevel);
@@ -128,6 +126,7 @@ void RenderPanel::SetLevel(MetroLevel* level) {
 }
 
 void RenderPanel::SetLod(const size_t lodId) {
+#if 0
     if (mModel && lodId >= 0 && lodId <= 2) {
         MetroModel* baseModel = mModel;
 
@@ -141,10 +140,12 @@ void RenderPanel::SetLod(const size_t lodId) {
 
         mModel = baseModel;
     }
+#endif
 }
 
 void RenderPanel::SwitchMotion(const size_t idx) {
-    if (mModel && mModel->IsAnimated()) {
+#if 0
+    if (mModel && mModel->IsSkeleton()) {
         if (mModelNode) {
             u4a::Animator* animator = scast<u4a::ModelNode*>(mModelNode)->GetAnimator();
             if (animator) {
@@ -157,6 +158,7 @@ void RenderPanel::SwitchMotion(const size_t idx) {
             }
         }
     }
+#endif
 }
 
 bool RenderPanel::IsPlayingAnim() const {
@@ -171,7 +173,7 @@ bool RenderPanel::IsPlayingAnim() const {
 }
 
 void RenderPanel::PlayAnim(const bool play) {
-    if (mModel && mModel->IsAnimated() && mModelNode) {
+    if (mModel && mModel->IsSkeleton() && mModelNode) {
         u4a::Animator* animator = scast<u4a::ModelNode*>(mModelNode)->GetAnimator();
         if (animator) {
             if (play) {

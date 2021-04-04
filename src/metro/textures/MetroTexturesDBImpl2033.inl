@@ -49,7 +49,7 @@ namespace Metro2033Impl {
             bool result = false;
 
             const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
-            MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\textures\textures.bin)") : ReadOSFile(binPath);
+            MemStream stream = binPath.empty() ? mfs.OpenFileFromPath(R"(content\textures\textures.bin)") : OSReadFile(binPath);
             if (stream) {
                 result = this->LoadDB(stream);
             }
@@ -67,7 +67,7 @@ namespace Metro2033Impl {
 
             bin.Finalize();
 
-            const size_t written = WriteOSFile(binPath, stream.Data(), stream.GetWrittenBytesCount());
+            const size_t written = OSWriteFile(binPath, stream.Data(), stream.GetWrittenBytesCount());
 
             return written == stream.GetWrittenBytesCount();
         }
@@ -108,7 +108,7 @@ namespace Metro2033Impl {
             return std::move(result);
         }
 
-        bool IsAlbedo(const MyHandle file) const {
+        bool IsAlbedo(const MetroFSPath& file) const {
             bool result = false;
 
             CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
@@ -126,7 +126,7 @@ namespace Metro2033Impl {
             return result;
         }
 
-        MetroSurfaceDescription GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const override {
+        MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const override {
             CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
             CharString relativePath = fullPath.substr(MetroFileSystem::Paths::TexturesFolder.length());
 

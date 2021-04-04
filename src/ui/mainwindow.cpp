@@ -87,7 +87,7 @@ static size_t GetFileSubIdxFromTag(const uint64_t tag) {
 }
 
 
-static FileType DetectFileType(const MyHandle file) {
+static FileType DetectFileType(const MetroFSPath& file) {
     FileType result = FileType::Unknown;
 
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
@@ -310,7 +310,7 @@ void MainWindow::on_treeFiles_customContextMenuRequested(const QPoint& pos) {
         const bool isSubFile = subFileIdx != kInvalidValue;
 
         mExtractionCtx = {};
-        mExtractionCtx.file = file;
+        mExtractionCtx.file = MetroFSPath(file);
         mExtractionCtx.type = fileType;
         mExtractionCtx.customOffset = kInvalidValue;
         mExtractionCtx.customLength = kInvalidValue;
@@ -375,7 +375,7 @@ void MainWindow::on_treeFiles_itemSelectionChanged() {
         const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
         if (!mfs.Empty()) {
             if (!isSubFile) {
-                const bool isFolder = mfs.IsFolder(file);
+                const bool isFolder = mfs.IsFolder(MetroFSPath(file));
                 if (!isFolder) {
                     this->DetectFileAndShow(file);
                 }
@@ -397,7 +397,7 @@ void MainWindow::UpdateFilesList() {
         mOriginalTreeRootNodes.clear();
 
         // Get idx of config.bin
-        const MyHandle configBinFile = mfs.FindFile("content\\config.bin");
+        const MetroFSPath& configBinFile = mfs.FindFile("content\\config.bin");
 
         QString rootName = tr("FileSystem");
         if (mfs.IsSingleArchive()) {
@@ -415,14 +415,14 @@ void MainWindow::UpdateFilesList() {
         rootNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(rootIdx, FileType::Folder)));
         //UpdateNodeIcon(rootNode);
 
-        const MyHandle rootDir = mfs.GetRootFolder();
-        for (MyHandle child = mfs.GetFirstChild(rootDir); child != kInvalidHandle; child = mfs.GetNextChild(child)) {
-            if (mfs.IsFolder(child)) {
-                this->AddFoldersRecursive(child, rootNode, configBinFile);
+        const MetroFSPath& rootDir = mfs.GetRootFolder();
+        for (MyHandle child = mfs.GetFirstChild(rootDir.fileHandle); child != kInvalidHandle; child = mfs.GetNextChild(child)) {
+            if (mfs.IsFolder(MetroFSPath(child))) {
+                this->AddFoldersRecursive(child, rootNode, configBinFile.fileHandle);
             } else {
-                const FileType fileType = DetectFileType(child);
+                const FileType fileType = DetectFileType(MetroFSPath(child));
 
-                MyTreeWidgetItem* fileNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(child))));
+                MyTreeWidgetItem* fileNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(MetroFSPath(child)))));
                 fileNode->setToolTip(0, fileNode->text(0));
                 fileNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(child, fileType)));
                 this->UpdateNodeIcon(fileNode);
@@ -439,7 +439,7 @@ void MainWindow::AddFoldersRecursive(MyHandle folder, QTreeWidgetItem* rootItem,
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();;
 
     // Add root folder
-    MyTreeWidgetItem* dirLeafNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(folder))));
+    MyTreeWidgetItem* dirLeafNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(MetroFSPath(folder)))));
     dirLeafNode->setToolTip(0, dirLeafNode->text(0));
     dirLeafNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(folder, FileType::Folder)));
     dirLeafNode->setIcon(0, mIconFolderClosed);
@@ -447,7 +447,7 @@ void MainWindow::AddFoldersRecursive(MyHandle folder, QTreeWidgetItem* rootItem,
 
     // Add files and folders inside
     for (auto child = mfs.GetFirstChild(folder); child != kInvalidHandle; child = mfs.GetNextChild(child)) {
-        if (mfs.IsFolder(child)) {
+        if (mfs.IsFolder(MetroFSPath(child))) {
             // Add folder to list
             this->AddFoldersRecursive(child, dirLeafNode, configBinFile);
         } else {
@@ -457,9 +457,9 @@ void MainWindow::AddFoldersRecursive(MyHandle folder, QTreeWidgetItem* rootItem,
                 this->AddBinaryArchive(child, dirLeafNode);
             } else {
                 //====> any other file
-                const FileType fileType = DetectFileType(child);
+                const FileType fileType = DetectFileType(MetroFSPath(child));
 
-                MyTreeWidgetItem* fileNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(child))));
+                MyTreeWidgetItem* fileNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(MetroFSPath(child)))));
                 fileNode->setToolTip(0, fileNode->text(0));
                 fileNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(child, fileType)));
                 this->UpdateNodeIcon(fileNode);
@@ -472,7 +472,7 @@ void MainWindow::AddFoldersRecursive(MyHandle folder, QTreeWidgetItem* rootItem,
 void MainWindow::AddBinaryArchive(MyHandle file, QTreeWidgetItem* rootItem) {
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
-    MyTreeWidgetItem* fileNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(file))));
+    MyTreeWidgetItem* fileNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(MetroFSPath(file)))));
     fileNode->setToolTip(0, fileNode->text(0));
     fileNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(file, FileType::BinArchive)));
     this->UpdateNodeIcon(fileNode);
@@ -601,9 +601,9 @@ void MainWindow::FilterTree(QTreeWidgetItem* node, const QString& text) {
 }
 
 void MainWindow::DetectFileAndShow(MyHandle file) {
-    const bool isFolder = MetroContext::Get().GetFilesystem().IsFolder(file);
+    const bool isFolder = MetroContext::Get().GetFilesystem().IsFolder(MetroFSPath(file));
     if (!isFolder) {
-        const FileType fileType = DetectFileType(file);
+        const FileType fileType = DetectFileType(MetroFSPath(file));
 
         switch (fileType) {
             case FileType::Texture: {
@@ -637,9 +637,9 @@ void MainWindow::DetectFileAndShow(MyHandle file) {
 }
 
 void MainWindow::ShowTexture(MyHandle file) {
-    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
+    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(MetroFSPath(file));
     if (stream) {
-        const CharString& fileName = MetroContext::Get().GetFilesystem().GetName(file);
+        const CharString& fileName = MetroContext::Get().GetFilesystem().GetName(MetroFSPath(file));
 
         MetroTexture texture;
         if (texture.LoadFromData(stream, fileName)) {
@@ -668,60 +668,57 @@ void MainWindow::ShowModel(MyHandle file) {
     this->SwitchViewPanel(PanelType::Model);
     this->SwitchInfoPanel(PanelType::Model);
 
-    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
-    if (stream) {
-        MetroModel* mdl = new MetroModel();
-        if (mdl->LoadFromData(stream, file)) {
-            mRenderPanel->SetModel(nullptr);
+    RefPtr<MetroModelBase> mdl = MetroModelFactory::CreateModelFromFile(MetroFSPath(file), MetroModelLoadParams::LoadEverything);
+    if (mdl) {
+        mRenderPanel->SetModel(nullptr);
 
-            mModelInfoPanel->ClearLodsList();
-            mModelInfoPanel->AddLodIdxToList(0);
-            if (mdl->GetLodModel(0) != nullptr) {
-                mModelInfoPanel->AddLodIdxToList(1);
-                if (mdl->GetLodModel(1) != nullptr) {
-                    mModelInfoPanel->AddLodIdxToList(2);
-                }
+        mModelInfoPanel->ClearLodsList();
+        mModelInfoPanel->AddLodIdxToList(0);
+#if 0
+        if (mdl->GetLodModel(0) != nullptr) {
+            mModelInfoPanel->AddLodIdxToList(1);
+            if (mdl->GetLodModel(1) != nullptr) {
+                mModelInfoPanel->AddLodIdxToList(2);
             }
-            mModelInfoPanel->SelectLod(0);
-
-            mRenderPanel->SetModel(mdl);
-
-            mModelInfoPanel->ClearMotionsList();
-            if (mdl->IsAnimated()) {
-                const size_t numMotions = mdl->GetNumMotions();
-                for (size_t i = 0; i < numMotions; ++i) {
-                    const CharString& motionName = mdl->GetMotionName(i);
-                    mModelInfoPanel->AddMotionToList(QString::fromStdString(motionName));
-                }
-
-                mModelInfoPanel->SetModelTypeText(tr("Animated"));
-                mModelInfoPanel->SetNumJointsText(QString::number(mdl->GetSkeleton()->GetNumBones()));
-                mModelInfoPanel->SetNumAnimationsText(QString::number(numMotions));
-            } else {
-                mModelInfoPanel->SetModelTypeText(tr("Static"));
-                mModelInfoPanel->SetNumJointsText("0");
-                mModelInfoPanel->SetNumAnimationsText("0");
-            }
-
-            size_t numVertices = 0, numTriangles = 0;
-            const size_t numMeshes = mdl->GetNumMeshes();
-            for (size_t i = 0; i < numMeshes; ++i) {
-                const MetroMesh* mesh = mdl->GetMesh(i);
-                numVertices += mesh->numVertices;
-                numTriangles += mesh->faces.size();
-            }
-
-            mModelInfoPanel->SetNumVerticesText(QString::number(numVertices));
-            mModelInfoPanel->SetNumTrianglesText(QString::number(numTriangles));
-
-            //mModelInfoPanel->MdlPropPlayStopAnimBtnText = L"Play";
-
-            //if (mDlgModelInfo) {
-            //    mDlgModelInfo->SetModel(mdl);
-            //}
-        } else {
-            MySafeDelete(mdl);
         }
+#endif
+        mModelInfoPanel->SelectLod(0);
+
+        mRenderPanel->SetModel(mdl);
+
+        mModelInfoPanel->ClearMotionsList();
+        if (mdl->IsSkeleton()) {
+#if 0
+            const size_t numMotions = mdl->GetNumMotions();
+            for (size_t i = 0; i < numMotions; ++i) {
+                const CharString& motionName = mdl->GetMotionName(i);
+                mModelInfoPanel->AddMotionToList(QString::fromStdString(motionName));
+            }
+#else
+            const size_t numMotions = 0;
+#endif
+            RefPtr<MetroModelSkeleton> skelMdl = SCastRefPtr<MetroModelSkeleton>(mdl);
+
+            mModelInfoPanel->SetModelTypeText(tr("Animated"));
+            mModelInfoPanel->SetNumJointsText(QString::number(skelMdl->GetSkeleton()->GetNumBones()));
+            mModelInfoPanel->SetNumAnimationsText(QString::number(numMotions));
+        } else {
+            mModelInfoPanel->SetModelTypeText(tr("Static"));
+            mModelInfoPanel->SetNumJointsText("0");
+            mModelInfoPanel->SetNumAnimationsText("0");
+        }
+
+        const size_t numVertices = mdl->GetVerticesCount();
+        const size_t numTriangles = mdl->GetFacesCount();
+
+        mModelInfoPanel->SetNumVerticesText(QString::number(numVertices));
+        mModelInfoPanel->SetNumTrianglesText(QString::number(numTriangles));
+
+        mModelInfoPanel->SetPlayStopButtonText(tr("Play"));
+
+        //if (mDlgModelInfo) {
+        //    mDlgModelInfo->SetModel(mdl);
+        //}
     }
 }
 
@@ -730,7 +727,7 @@ void MainWindow::ShowLevel(MyHandle file) {
     this->SwitchInfoPanel(PanelType::Sound);
 
     MetroLevel* level = new MetroLevel();
-    if (level->LoadFromFileHandle(file)) {
+    if (level->LoadFromFileHandle(MetroFSPath(file))) {
         mRenderPanel->SetLevel(level);
     } else {
         MySafeDelete(level);
@@ -741,7 +738,7 @@ void MainWindow::ShowLocalization(MyHandle file) {
     this->SwitchViewPanel(PanelType::Localization);
     this->SwitchInfoPanel(PanelType::Localization);
 
-    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
+    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(MetroFSPath(file));
     if (stream) {
         MetroLocalization loc;
         if (loc.LoadFromData(stream)) {
@@ -998,7 +995,7 @@ void MainWindow::ShowContextMenuConfigBin(QTreeWidgetItem* /*node*/, const QPoin
             QString saveName = QFileDialog::getSaveFileName(this, tr("Save Configs database..."), QString("config.bin"), tr("Bin file (*.bin)"));
 
             if (saveName.length() > 3) {
-                const bool result = WriteOSFile(saveName.toStdWString(), stream.Data(), stream.Length()) == stream.Length();
+                const bool result = OSWriteFile(saveName.toStdWString(), stream.Data(), stream.Length()) == stream.Length();
 
                 if (!result) {
                     QMessageBox::critical(this, this->windowTitle(), tr("Failed to save Configs Database!"));
@@ -1029,7 +1026,7 @@ void MainWindow::OnExtractFolderClicked(bool withConversion) {
     if (!folderPath.empty()) {
         mExtractionCtx.batch = true;
         mExtractionCtx.raw = !withConversion;
-        mExtractionCtx.numFilesTotal = MetroContext::Get().GetFilesystem().CountFilesInFolder(mExtractionCtx.file);
+        mExtractionCtx.numFilesTotal = MetroContext::Get().GetFilesystem().CountFilesInFolder(mExtractionCtx.file, true);
         mExtractionCtx.progress = 0;
 
         HRESULT hr = ::CoCreateInstance(CLSID_ProgressDialog, nullptr, CLSCTX_INPROC_SERVER, __uuidof(IProgressDialog), (void**)&mExtractionProgressDlg);
@@ -1083,7 +1080,7 @@ CharString MainWindow::DecideTextureExtension(const FileExtractionCtx& ctx) {
 }
 
 CharString MainWindow::MakeFileOutputName(MyHandle file, const FileExtractionCtx& ctx) {
-    CharString name = MetroContext::Get().GetFilesystem().GetName(file);
+    CharString name = MetroContext::Get().GetFilesystem().GetName(MetroFSPath(file));
 
     switch (ctx.type) {
         case FileType::Texture: {
@@ -1140,28 +1137,28 @@ void MainWindow::TextureSaveHelper(const fs::path& folderPath, const FileExtract
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
     CharString textureNameSrc = textureName + ".2048";
-    MyHandle textureHandle = mfs.FindFile(textureNameSrc);
-    if (textureHandle == kInvalidHandle) {
+    MetroFSPath textureHandle = mfs.FindFile(textureNameSrc);
+    if (!textureHandle.IsValid()) {
         textureNameSrc = textureName + ".1024";
         textureHandle = mfs.FindFile(textureNameSrc);
     }
-    if (textureHandle == kInvalidHandle) {
+    if (!textureHandle.IsValid()) {
         textureNameSrc = textureName + ".512";
         textureHandle = mfs.FindFile(textureNameSrc);
     }
 
-    if (textureHandle == kInvalidHandle) {
+    if (!textureHandle.IsValid()) {
         // last try - Redux .bin
         textureNameSrc = textureName + ".bin";
         textureHandle = mfs.FindFile(textureNameSrc);
     }
 
-    if (textureHandle != kInvalidHandle) {
+    if (textureHandle.IsValid()) {
         FileExtractionCtx tmpCtx = ctx;
         tmpCtx.type = FileType::Texture;
         tmpCtx.file = textureHandle;
 
-        CharString outName = this->MakeFileOutputName(textureHandle, tmpCtx);
+        CharString outName = this->MakeFileOutputName(textureHandle.fileHandle, tmpCtx);
         this->ExtractTexture(tmpCtx, folderPath / outName);
     }
 }
@@ -1199,7 +1196,7 @@ bool MainWindow::ExtractFile(const FileExtractionCtx& ctx, const fs::path& outPa
                 }
             }
 
-            const size_t bytesWritten = WriteOSFile(resultPath, stream.GetDataAtCursor(), lengthToWrite);
+            const size_t bytesWritten = OSWriteFile(resultPath, stream.GetDataAtCursor(), lengthToWrite);
             result = (bytesWritten == lengthToWrite);
         }
     }
@@ -1225,7 +1222,7 @@ bool MainWindow::ExtractTexture(const FileExtractionCtx& ctx, const fs::path& ou
             filter = tr("PNG images (*.png)");
         }
 
-        CharString nameWithExt = this->MakeFileOutputName(ctx.file, ctx);
+        CharString nameWithExt = this->MakeFileOutputName(ctx.file.fileHandle, ctx);
 
         QString saveName = QFileDialog::getSaveFileName(this, title, QString::fromStdString(nameWithExt), filter);
 
@@ -1277,10 +1274,10 @@ bool MainWindow::ExtractSurfaceSet(const FileExtractionCtx& ctx, const MetroSurf
 
 #define EXTRACT_SURFACE_TEXTURE(tex_name)                                                       \
             if (!surface.tex_name##Paths.empty()) {                                             \
-                const MyHandle file = mfs.FindFile(surface.tex_name##Paths.front());            \
-                if (file != kInvalidHandle) {                                                   \
+                const MetroFSPath& file = mfs.FindFile(surface.tex_name##Paths.front());        \
+                if (file.IsValid()) {                                                           \
                     setCtx.file = file;                                                         \
-                    CharString nameWithExt = this->MakeFileOutputName(file, setCtx);            \
+                    CharString nameWithExt = this->MakeFileOutputName(file.fileHandle, setCtx); \
                     result = this->ExtractTexture(setCtx, folderPath / nameWithExt) && result;  \
                 }                                                                               \
             }
@@ -1311,7 +1308,7 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
             filter = tr("FBX model (*.fbx)");
         }
 
-        CharString nameWithExt = this->MakeFileOutputName(ctx.file, ctx);
+        CharString nameWithExt = this->MakeFileOutputName(ctx.file.fileHandle, ctx);
 
         QString saveName = QFileDialog::getSaveFileName(this, title, QString::fromStdString(nameWithExt), filter);
 
@@ -1483,7 +1480,7 @@ bool MainWindow::ExtractSound(const FileExtractionCtx& ctx, const fs::path& outP
             filter = tr("Wave sounds (*.wav)");
         }
 
-        CharString nameWithExt = this->MakeFileOutputName(ctx.file, ctx);
+        CharString nameWithExt = this->MakeFileOutputName(ctx.file.fileHandle, ctx);
 
         QString saveName = QFileDialog::getSaveFileName(this, title, QString::fromStdString(nameWithExt), filter);
 
@@ -1516,7 +1513,7 @@ bool MainWindow::ExtractLocalization(const FileExtractionCtx& ctx, const fs::pat
 
     fs::path resultPath = outPath;
     if (resultPath.empty()) {
-        CharString nameWithExt = this->MakeFileOutputName(ctx.file, ctx);
+        CharString nameWithExt = this->MakeFileOutputName(ctx.file.fileHandle, ctx);
 
         QString saveName = QFileDialog::getSaveFileName(this, tr("Save Excel 2003 XML..."), QString::fromStdString(nameWithExt), tr("Excel 2003 XML (*.xml)"));
 
@@ -1550,16 +1547,16 @@ bool MainWindow::ExtractFolderComplete(const FileExtractionCtx& ctx, const fs::p
     fs::create_directories(curPath);
 
     FileExtractionCtx tmpCtx = ctx;
-    for (MyHandle child = mfs.GetFirstChild(ctx.file); child != kInvalidHandle; child = mfs.GetNextChild(child)) {
-        tmpCtx.file = child;
-        tmpCtx.type = DetectFileType(child);
+    for (MyHandle child = mfs.GetFirstChild(ctx.file.fileHandle); child != kInvalidHandle; child = mfs.GetNextChild(child)) {
+        tmpCtx.file = MetroFSPath(child);
+        tmpCtx.type = DetectFileType(tmpCtx.file);
 
-        const bool isFolder = mfs.IsFolder(child);
+        const bool isFolder = mfs.IsFolder(tmpCtx.file);
         if (isFolder) {
             this->ExtractFolderComplete(tmpCtx, curPath);
         } else {
             if (ctx.raw) {
-                const CharString& childName = mfs.GetName(child);
+                const CharString& childName = mfs.GetName(tmpCtx.file);
                 fs::path filePath = curPath / childName;
                 this->ExtractFile(tmpCtx, filePath);
             } else {

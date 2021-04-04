@@ -194,44 +194,50 @@ bool MetroFileSystem::IsMetro2033() const {
     return mIsMetro2033FS;
 }
 
-MyHandle MetroFileSystem::GetRootFolder() const {
-    return 0;
+MetroFSPath MetroFileSystem::GetRootFolder() const {
+    return MetroFSPath(mIsRealFS ? kInvalidHandle : 0, mRealFSRoot);
 }
 
-bool MetroFileSystem::IsFolder(const MyHandle entry) const {
+bool MetroFileSystem::IsFolder(const MetroFSPath& entry) const {
     bool result = false;
 
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& fsEntry = mEntries[entry];
+    if (mIsRealFS) {
+        result = OSPathIsFolder(entry.filePath);
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& fsEntry = mEntries[entry.fileHandle];
         result = fsEntry.fileIdx == kInvalidValue;
     }
 
     return result;
 }
 
-bool MetroFileSystem::IsFile(const MyHandle entry) const {
+bool MetroFileSystem::IsFile(const MetroFSPath& entry) const {
     return !this->IsFolder(entry);
 }
 
-const CharString& MetroFileSystem::GetName(const MyHandle entry) const {
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& fsEntry = mEntries[entry];
+const CharString& MetroFileSystem::GetName(const MetroFSPath& entry) const {
+    if (mIsRealFS) {
+        return entry.filePath.filename().string();
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& fsEntry = mEntries[entry.fileHandle];
         return fsEntry.name.str;
     } else {
         return kEmptyString;
     }
 }
 
-CharString MetroFileSystem::GetFullPath(const MyHandle entry) const {
+CharString MetroFileSystem::GetFullPath(const MetroFSPath& entry) const {
     CharString result;
 
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& fsEntry = mEntries[entry];
+    if (mIsRealFS) {
+        result = (mRealFSRoot / entry.filePath).string();
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& fsEntry = mEntries[entry.fileHandle];
         result = fsEntry.name.str;
 
         MyHandle parentHandle = fsEntry.parent;
-        const MyHandle rootHandle = this->GetRootFolder();
-        while (parentHandle != kInvalidHandle && parentHandle != rootHandle) {
+        const MetroFSPath& root = this->GetRootFolder();
+        while (parentHandle != kInvalidHandle && parentHandle != root.fileHandle) {
             const CharString& parentName = mEntries[parentHandle].name.str;
             result = parentName + kPathSeparator + result;
 
@@ -242,11 +248,13 @@ CharString MetroFileSystem::GetFullPath(const MyHandle entry) const {
     return result;
 }
 
-size_t MetroFileSystem::GetCompressedSize(const MyHandle entry) const {
+size_t MetroFileSystem::GetCompressedSize(const MetroFSPath& entry) const {
     size_t result = 0;
 
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& fsEntry = mEntries[entry];
+    if (mIsRealFS) {
+        result = OSGetFileSize(entry.filePath);
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& fsEntry = mEntries[entry.fileHandle];
 
         const size_t archIdx = fsEntry.dupIdx == kInvalidValue ? fsEntry.archIdx : mDupEntries[fsEntry.dupIdx].archIdx;
         const size_t fileIdx = fsEntry.dupIdx == kInvalidValue ? fsEntry.fileIdx : mDupEntries[fsEntry.dupIdx].fileIdx;
@@ -264,11 +272,13 @@ size_t MetroFileSystem::GetCompressedSize(const MyHandle entry) const {
     return result;
 }
 
-size_t MetroFileSystem::GetUncompressedSize(const MyHandle entry) const {
+size_t MetroFileSystem::GetUncompressedSize(const MetroFSPath& entry) const {
     size_t result = 0;
 
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& fsEntry = mEntries[entry];
+    if (mIsRealFS) {
+        result = OSGetFileSize(entry.filePath);
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& fsEntry = mEntries[entry.fileHandle];
 
         const size_t archIdx = fsEntry.dupIdx == kInvalidValue ? fsEntry.archIdx : mDupEntries[fsEntry.dupIdx].archIdx;
         const size_t fileIdx = fsEntry.dupIdx == kInvalidValue ? fsEntry.fileIdx : mDupEntries[fsEntry.dupIdx].fileIdx;
@@ -286,15 +296,18 @@ size_t MetroFileSystem::GetUncompressedSize(const MyHandle entry) const {
     return result;
 }
 
-size_t MetroFileSystem::CountFilesInFolder(const MyHandle entry) const {
+size_t MetroFileSystem::CountFilesInFolder(const MetroFSPath& entry, const bool recursive) const {
     size_t result = 0;
 
-    if (entry < mEntries.size()) {
+    if (mIsRealFS) {
+        const MyArray<fs::path>& list = OSPathGetEntriesList(entry.filePath, recursive, true);
+        result = list.size();
+    } else if (entry.fileHandle < mEntries.size()) {
         const bool isFolder = this->IsFolder(entry);
         if (isFolder) {
-            for (MyHandle child = this->GetFirstChild(entry); child != kInvalidHandle; child = this->GetNextChild(child)) {
-                if (this->IsFolder(child)) {
-                    result += this->CountFilesInFolder(child);
+            for (MyHandle child = this->GetFirstChild(entry.fileHandle); child != kInvalidHandle; child = this->GetNextChild(child)) {
+                if (this->IsFolder(MetroFSPath(child)) && recursive) {
+                    result += this->CountFilesInFolder(MetroFSPath(child), recursive);
                 } else {
                     ++result;
                 }
@@ -305,27 +318,29 @@ size_t MetroFileSystem::CountFilesInFolder(const MyHandle entry) const {
     return result;
 }
 
-MyHandle MetroFileSystem::GetParentFolder(const MyHandle entry) const {
-    MyHandle parent = this->GetRootFolder();
+MetroFSPath MetroFileSystem::GetParentFolder(const MetroFSPath& entry) const {
+    MetroFSPath parent = this->GetRootFolder();
 
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& fsEntry = mEntries[entry];
-        parent = fsEntry.parent;
+    if (mIsRealFS) {
+        parent.filePath = entry.filePath.parent_path();
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& fsEntry = mEntries[entry.fileHandle];
+        parent.fileHandle = fsEntry.parent;
     }
 
     return parent;
 }
 
-MyHandle MetroFileSystem::FindFile(const CharString& fileName, const MyHandle inFolder) const {
-    MyHandle result = kInvalidHandle;
+MetroFSPath MetroFileSystem::FindFile(const CharString& fileName, const MetroFSPath& inFolder) const {
+    MetroFSPath result(MetroFSPath::Invalid);
 
     if (mIsRealFS) {
-        fs::path fullPath = mRealFSRoot / fileName;
+        fs::path fullPath = inFolder.IsValid() ? (inFolder.filePath / fileName) : (mRealFSRoot / fileName);
         if (OSPathExists(fullPath)) {
-            result = 1;
+            result.filePath = fullPath;
         }
     } else {
-        MyHandle folder = (inFolder == kInvalidHandle) ? this->GetRootFolder() : inFolder;
+        MetroFSPath folder = inFolder.IsValid() ? inFolder : this->GetRootFolder();
 
         CharString::size_type lastSlashPos = fileName.find_last_of('\\');
         if (lastSlashPos != CharString::npos) {
@@ -335,13 +350,13 @@ MyHandle MetroFileSystem::FindFile(const CharString& fileName, const MyHandle in
             lastSlashPos = 0;
         }
 
-        if (folder) {
+        if (folder.IsValid()) {
             CharString name = fileName.substr(lastSlashPos);
 
-            for (MyHandle child = this->GetFirstChild(folder); child != kInvalidHandle; child = this->GetNextChild(child)) {
-                const CharString& childName = this->GetName(child);
+            for (MyHandle child = this->GetFirstChild(folder.fileHandle); child != kInvalidHandle; child = this->GetNextChild(child)) {
+                const CharString& childName = this->GetName(MetroFSPath(child));
                 if (name == childName) {
-                    result = child;
+                    result.fileHandle = child;
                     break;
                 }
             }
@@ -351,61 +366,75 @@ MyHandle MetroFileSystem::FindFile(const CharString& fileName, const MyHandle in
     return result;
 }
 
-MyHandle MetroFileSystem::FindFolder(const CharString& folderPath, const MyHandle inFolder) const {
-    CharString::size_type slashPos = folderPath.find_first_of('\\'), lastSlashPos = 0;
-    MyHandle folder = (inFolder == kInvalidHandle) ? this->GetRootFolder() : inFolder;
-    while (slashPos != CharString::npos) {
-        MyHandle folderTestHandle = kInvalidHandle;
+MetroFSPath MetroFileSystem::FindFolder(const CharString& folderPath, const MetroFSPath& inFolder) const {
+    MetroFSPath folder = inFolder.IsValid() ? inFolder : this->GetRootFolder();
 
-        CharString name = folderPath.substr(lastSlashPos, slashPos - lastSlashPos);
-        for (MyHandle child = this->GetFirstChild(folder); child != kInvalidHandle; child = this->GetNextChild(child)) {
-            const CharString& childName = this->GetName(child);
-            if (name == childName) {
-                folderTestHandle = child;
-                break;
+    if (mIsRealFS) {
+        fs::path fullPath = folder.filePath / folderPath;
+        if (OSPathIsFolder(fullPath)) {
+            folder.filePath = fullPath;
+        }
+    } else {
+        CharString::size_type slashPos = folderPath.find_first_of('\\'), lastSlashPos = 0;
+        while (slashPos != CharString::npos) {
+            MyHandle folderTestHandle = kInvalidHandle;
+
+            CharString name = folderPath.substr(lastSlashPos, slashPos - lastSlashPos);
+            for (MyHandle child = this->GetFirstChild(folder.fileHandle); child != kInvalidHandle; child = this->GetNextChild(child)) {
+                const CharString& childName = this->GetName(MetroFSPath(child));
+                if (name == childName) {
+                    folderTestHandle = child;
+                    break;
+                }
             }
-        }
 
-        if (folderTestHandle == kInvalidHandle) { // failed to find
-            return folderTestHandle;
-        }
+            if (folderTestHandle == kInvalidHandle) { // failed to find
+                return MetroFSPath(MetroFSPath::Invalid);
+            }
 
-        lastSlashPos = slashPos + 1;
-        slashPos = folderPath.find_first_of('\\', lastSlashPos);
-        folder = folderTestHandle;
+            lastSlashPos = slashPos + 1;
+            slashPos = folderPath.find_first_of('\\', lastSlashPos);
+            folder.fileHandle = folderTestHandle;
+        }
     }
 
     return folder;
 }
 
-MyArray<MyHandle> MetroFileSystem::FindFilesInFolder(const CharString& folder, const CharString& extension, const bool withSubfolders) const {
-    MyArray<MyHandle> result;
+MyArray<MetroFSPath> MetroFileSystem::FindFilesInFolder(const CharString& folder, const CharString& extension, const bool withSubfolders) const {
+    MyArray<MetroFSPath> result;
 
-    if (!mIsRealFS) {
-        const MyHandle folderHandle = this->FindFolder(folder);
-        if (kInvalidHandle != folderHandle) {
-            result = this->FindFilesInFolder(folderHandle, extension, withSubfolders);
-        }
+    MetroFSPath folderHandle = this->FindFolder(folder);
+    if (folderHandle.IsValid()) {
+        result = this->FindFilesInFolder(folderHandle, extension, withSubfolders);
     }
 
     return std::move(result);
 }
 
-MyArray<MyHandle> MetroFileSystem::FindFilesInFolder(const MyHandle folder, const CharString& extension, const bool withSubfolders) const {
-    MyArray<MyHandle> result;
+MyArray<MetroFSPath> MetroFileSystem::FindFilesInFolder(const MetroFSPath& folder, const CharString& extension, const bool withSubfolders) const {
+    MyArray<MetroFSPath> result;
 
-    if (!mIsRealFS) {
+    if (mIsRealFS) {
+        MyArray<fs::path> filesList = OSPathGetEntriesList(this->MakeProperFullPath(folder.filePath), withSubfolders, true, extension);
+        if (!filesList.empty()) {
+            result.reserve(filesList.size());
+            for (const fs::path& p : filesList) {
+                result.emplace_back(MetroFSPath(p));
+            }
+        }
+    } else {
         const bool isFolder = this->IsFolder(folder);
         if (isFolder) { // sanity check
-            for (MyHandle child = this->GetFirstChild(folder); child != kInvalidHandle; child = this->GetNextChild(child)) {
-                const bool isSubFolder = this->IsFolder(child);
+            for (MyHandle child = this->GetFirstChild(folder.fileHandle); child != kInvalidHandle; child = this->GetNextChild(child)) {
+                const bool isSubFolder = this->IsFolder(MetroFSPath(child));
                 if (isSubFolder) {
-                    const MyArray<MyHandle>& v = this->FindFilesInFolder(child, extension, withSubfolders);
+                    const MyArray<MetroFSPath>& v = this->FindFilesInFolder(MetroFSPath(child), extension, withSubfolders);
                     result.insert(result.end(), v.begin(), v.end());
                 } else {
-                    const CharString& childName = this->GetName(child);
+                    const CharString& childName = this->GetName(MetroFSPath(child));
                     if (StrEndsWith(childName, extension)) {
-                        result.push_back(child);
+                        result.push_back(MetroFSPath(child));
                     }
                 }
             }
@@ -458,11 +487,18 @@ MyHandle MetroFileSystem::FindChild(const MyHandle parentEntry, const HashString
 }
 
 
-MemStream MetroFileSystem::OpenFileStream(const MyHandle entry, const size_t subOffset, const size_t subLength) const {
+MemStream MetroFileSystem::OpenFileStream(const MetroFSPath& entry, const size_t subOffset, const size_t subLength) const {
     MemStream result;
 
-    if (entry < mEntries.size()) {
-        const MetroFSEntry& file = mEntries[entry];
+    if (mIsRealFS) {
+        fs::path fullPath = MakeProperFullPath(entry.filePath);
+        if (kInvalidValue == subOffset && kInvalidValue == subLength) {
+            result = OSReadFile(fullPath);
+        } else {
+            result = OSReadFileEX(fullPath, subOffset, subLength);
+        }
+    } else if (entry.fileHandle < mEntries.size()) {
+        const MetroFSEntry& file = mEntries[entry.fileHandle];
 
         const size_t archIdx = file.dupIdx == kInvalidValue ? file.archIdx : mDupEntries[file.dupIdx].archIdx;
         const size_t fileIdx = file.dupIdx == kInvalidValue ? file.fileIdx : mDupEntries[file.dupIdx].fileIdx;
@@ -484,11 +520,11 @@ MemStream MetroFileSystem::OpenFileFromPath(const CharString& fileName) const {
 
     if (mIsRealFS) {
         fs::path fullPath = mRealFSRoot / fileName;
-        result = ReadOSFile(fullPath);
+        result = OSReadFile(fullPath);
     } else {
-        MyHandle fileHandle = this->FindFile(fileName);
-        if (kInvalidHandle != fileHandle) {
-            result = this->OpenFileStream(fileHandle);
+        MetroFSPath file = this->FindFile(fileName);
+        if (file.IsValid()) {
+            result = this->OpenFileStream(file);
         }
     }
 
@@ -517,7 +553,7 @@ bool MetroFileSystem::AddVFX(const fs::path& vfxPath) {
             mCurrentArchIdx = mLoadedVFX.size();
 
             const MetroFile& rootDir = vfxReader->GetRootFolder();
-            this->MergeFolderRecursive(this->GetRootFolder(), rootDir, *vfxReader);
+            this->MergeFolderRecursive(this->GetRootFolder().fileHandle, rootDir, *vfxReader);
 
             mLoadedVFX.push_back(vfxReader);
             result = true;
@@ -549,7 +585,7 @@ bool MetroFileSystem::AddVFI(const fs::path& vfiPath) {
             mCurrentArchIdx = mLoadedVFI.size();
 
             const size_t rootDir = vfiReader->GetRootFolderIdx();
-            this->MergeFolderRecursive(this->GetRootFolder(), rootDir, *vfiReader);
+            this->MergeFolderRecursive(this->GetRootFolder().fileHandle, rootDir, *vfiReader);
 
             mLoadedVFI.push_back(vfiReader);
             result = true;
@@ -693,4 +729,10 @@ MyHandle MetroFileSystem::AddEntryCommon(const MyHandle parentEntry, const Metro
     }
 
     return entry.idx;
+}
+
+fs::path MetroFileSystem::MakeProperFullPath(const fs::path& filePath) const {
+    std::error_code ec;
+    fs::path relPath = fs::relative(filePath, mRealFSRoot, ec);
+    return mRealFSRoot / relPath;
 }

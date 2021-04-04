@@ -26,8 +26,8 @@ public:
     virtual const CharString&       GetDetName(const HashString& name) const = 0;
     virtual const CharString&       GetAuxName(const HashString& name, const size_t idx) const = 0;
     virtual StringArray             GetAllLevels(const HashString& name) const = 0;
-    virtual bool                    IsAlbedo(const MyHandle file) const = 0;
-    virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const = 0;
+    virtual bool                    IsAlbedo(const MetroFSPath& file) const = 0;
+    virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const = 0;
     virtual MetroSurfaceDescription GetSurfaceSetFromName(const HashString& textureName, const bool allMips) const = 0;
 
     virtual size_t                  GetNumTextures() const { return 0; }
@@ -159,11 +159,11 @@ StringArray MetroTexturesDatabase::GetAllLevels(const HashString& name) const {
     return this->Good() ? mImpl->GetAllLevels(name) : StringArray();
 }
 
-bool MetroTexturesDatabase::IsAlbedo(const MyHandle file) const {
+bool MetroTexturesDatabase::IsAlbedo(const MetroFSPath& file) const {
     return this->Good() ? mImpl->IsAlbedo(file) : false;
 }
 
-MetroSurfaceDescription MetroTexturesDatabase::GetSurfaceSetFromFile(const MyHandle file, const bool allMips) const {
+MetroSurfaceDescription MetroTexturesDatabase::GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const {
     if (this->Good()) {
         return mImpl->GetSurfaceSetFromFile(file, allMips);
     } else {

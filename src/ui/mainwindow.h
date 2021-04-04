@@ -44,7 +44,9 @@ enum class PanelType : size_t {
 };
 
 struct FileExtractionCtx {
-    MyHandle    file;
+    FileExtractionCtx() : file(MetroFSPath::Invalid) {}
+
+    MetroFSPath file;
     FileType    type;
 
     size_t      customOffset;

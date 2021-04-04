@@ -83,6 +83,7 @@ METRO_REGISTER_INHERITED_TYPE_ALIAS(color32u, u32, color)
 METRO_REGISTER_INHERITED_TYPE_ALIAS(pose_43T, matrix_43T, pose) // why in the fuck ???
 METRO_REGISTER_INHERITED_TYPE_ALIAS(pose_43, matrix, pose)
 METRO_REGISTER_INHERITED_TYPE_ALIAS(anglef, fp32, angle);
+METRO_REGISTER_INHERITED_TYPE_ALIAS(EntityLink, uobject_link, entity_link)
 
 METRO_REGISTER_TYPE_ARRAY_ALIAS(bool, bool)
 METRO_REGISTER_TYPE_ARRAY_ALIAS(uint8_t, u8)
@@ -381,6 +382,10 @@ inline void operator >>(MetroReflectionStream& s, fp32_q8& v) {
     }
 }
 
+inline void operator >>(MetroReflectionStream& s, EntityLink& v) {
+    s >> v.value;
+}
+
 // Binary serialization
 #include "MetroReflectionBinary.inl"
 // Json serialization
@@ -459,6 +464,16 @@ struct ArrayElementTypeGetter {
 
 #define METRO_SERIALIZE_MEMBER_FLAGS64(s, memberName)                                           \
     (s).SerializeEditorTag(STRINGIFY(memberName), 5);                                           \
+    (s).SerializeTypeInfo(STRINGIFY(memberName), MetroTypeGetAlias<CLEAN_TYPE(memberName)>());  \
+    (s) >> memberName;
+
+#define METRO_SERIALIZE_MEMBER_ATTP_STR(s, memberName)                                           \
+    (s).SerializeEditorTag(STRINGIFY(memberName), 6);                                           \
+    (s).SerializeTypeInfo(STRINGIFY(memberName), MetroTypeGetAlias<CLEAN_TYPE(memberName)>());  \
+    (s) >> memberName;
+
+#define METRO_SERIALIZE_MEMBER_FLAGS32(s, memberName)                                           \
+    (s).SerializeEditorTag(STRINGIFY(memberName), 7);                                           \
     (s).SerializeTypeInfo(STRINGIFY(memberName), MetroTypeGetAlias<CLEAN_TYPE(memberName)>());  \
     (s) >> memberName;
 

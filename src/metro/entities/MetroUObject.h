@@ -132,7 +132,80 @@ struct UObjectEffect : public UObject {
     StringArray     labels;
 };
 
+struct Proxy : public UObject {
+    INHERITED_CLASS(UObject);
 
+    void Serialize(MetroReflectionStream& s) override;
+
+    uint16_t slice_count;
+    MyArray<EntityLink> entities;
+};
+
+struct UObjectEffectM : public UObjectEffect {
+    INHERITED_CLASS(UObjectEffect);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    color4f particles_color;
+};
+
+struct HelperText : public UObject {
+    INHERITED_CLASS(UObject);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    CharString text;
+    CharString text_key;
+    float      size;
+    color4f    color;
+    CharString font;
+    Bool8     flags0;
+    float      width;
+    float      height;
+    uint8_t    h_alignment;
+    float      display_dist;
+};
+
+struct PointLink {
+    void Serialize(MetroReflectionStream& s);
+
+    EntityLink object;
+    float      weight;
+};
+
+struct AiPoint : public UObject {
+    INHERITED_CLASS(UObject);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    PointLink  links[4];
+    flags8     ai_map;
+    CharString cover_group;
+};
+
+struct PatrolState {
+    void Serialize(MetroReflectionStream& s);
+
+    CharString body_state;
+    CharString anim_state;
+    CharString movement_type;
+    CharString weapon_state;
+    CharString action;
+    EntityLink target;
+    uint32_t   flags;
+    float      anim_state_approach_speed;
+    float      approaching_accel;
+};
+
+struct PatrolPoint : public AiPoint {
+    INHERITED_CLASS(AiPoint);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    uint32_t    min_wait_time;
+    uint32_t    max_wait_time;
+    PatrolState state;
+};
 
 using UObjectPtr = StrongPtr<UObject>;
 using UObjectRPtr = RefPtr<UObject>;

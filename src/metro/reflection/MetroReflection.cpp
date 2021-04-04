@@ -101,7 +101,7 @@ void MetroReflectionStream::SerializeInts(int* iv, const size_t numInts) {
 
 // Metro data reading details
 bool MetroReflectionStream::SerializeEditorTag(const CharString& propName, const size_t chooseType) {
-    static CharString sChooseStrs[] = { "choose", "animation_str", "part_str", "sound", "flags8", "flags64" };
+    static CharString sChooseStrs[] = { "choose", "animation_str", "part_str", "sound", "flags8", "flags64", "attp_str", "flags32" };
 
     if (this->HasDebugInfo()) {
         if (this->IsIn()) {

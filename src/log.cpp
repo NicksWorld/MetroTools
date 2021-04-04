@@ -14,8 +14,8 @@
 #define LOG_OUTPUT_TO_FILE      1
 
 static const CharString sLevels[] = {
-    "[Info] ",
-    "[Warning] ",
+    "[Info ] ",
+    "[Warn ] ",
     "[Error] "
 };
 

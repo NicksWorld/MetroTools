@@ -151,8 +151,83 @@ void UEntity::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, footprint_power);
 }
 
+void LightParam::Serialize(MetroReflectionStream& s) {
+    METRO_SERIALIZE_MEMBER(s, type);
+    METRO_SERIALIZE_MEMBER(s, color);
+    METRO_SERIALIZE_MEMBER(s, brightness);
+    METRO_SERIALIZE_MEMBER(s, range_far);
+    METRO_SERIALIZE_MEMBER(s, lod_scale);
+    METRO_SERIALIZE_MEMBER(s, data1);
+    METRO_SERIALIZE_MEMBER(s, data2);
+    METRO_SERIALIZE_MEMBER(s, ibl_gen_radius);
+    METRO_SERIALIZE_MEMBER(s, range_near);
+    METRO_SERIALIZE_MEMBER(s, source_size);
+    METRO_SERIALIZE_MEMBER(s, cone);
+    METRO_SERIALIZE_MEMBER(s, quality);
+    METRO_SERIALIZE_MEMBER(s, position);
+    METRO_SERIALIZE_MEMBER(s, direction);
+    METRO_SERIALIZE_MEMBER(s, right);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, color_ca);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, texture);
+    METRO_SERIALIZE_MEMBER_FLAGS8(s, faces);
+    METRO_SERIALIZE_MEMBER(s, light_flags1);
+    METRO_SERIALIZE_MEMBER(s, light_flags2);
+}
+
+void FlaresData::Serialize(MetroReflectionStream& s) {
+    const size_t version = s.GetUserData();
+    if (version >= 46) {
+        METRO_SERIALIZE_MEMBER_CHOOSE(s, name);
+        METRO_SERIALIZE_MEMBER_CHOOSE(s, bone);
+        METRO_SERIALIZE_MEMBER(s, axis);
+        METRO_SERIALIZE_MEMBER(s, cmul);
+    }
+    else {
+        // read old properties
+    }
+}
+
 void EntityLamp::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
+
+    METRO_SERIALIZE_MEMBER(s, initial_state);
+    METRO_SERIALIZE_MEMBER(s, die_sound_type);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, die_sound);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, die_particle);
+    const size_t version = s.GetUserData();
+    if (version > 40) {
+        METRO_SERIALIZE_MEMBER_ATTP_STR(s, light_main_bone);
+        METRO_SERIALIZE_MEMBER_ATTP_STR(s, dark_bone);
+        METRO_SERIALIZE_MEMBER_ATTP_STR(s, broken_bone);
+        METRO_SERIALIZE_STRUCT_MEMBER(s, main_light);
+        METRO_SERIALIZE_MEMBER(s, color_to_aux);
+        METRO_SERIALIZE_MEMBER(s, sync_color_to_aux);
+    }
+    else {
+        // read old properties
+    }
+    if (version >= kVersionExodus) {
+        METRO_SERIALIZE_MEMBER(s, secondary_type);
+        METRO_SERIALIZE_MEMBER_ATTP_STR(s, secondary_bone);
+        METRO_SERIALIZE_MEMBER(s, secondary_power);
+        METRO_SERIALIZE_MEMBER(s, secondary_radius);
+        METRO_SERIALIZE_MEMBER(s, secondary_mul_by_ao);
+    }
+    else {
+        // read old properties
+    }
+    METRO_SERIALIZE_MEMBER(s, backlight);
+    METRO_SERIALIZE_MEMBER(s, backlight_ref);
+    METRO_SERIALIZE_MEMBER(s, backlight_dist);
+    METRO_SERIALIZE_MEMBER(s, backlight_dynamic);
+    METRO_SERIALIZE_MEMBER(s, backlight_ignore_parents);
+    METRO_SERIALIZE_MEMBER(s, backlight_brightness_compensation);
+    METRO_SERIALIZE_MEMBER(s, backlight_force_offset);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, backlight_ray);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, backlight_ray_particles);
+    METRO_SERIALIZE_MEMBER(s, backlight_trace_npc_only);
+    METRO_SERIALIZE_MEMBER(s, master);
+    METRO_SERIALIZE_STRUCT_MEMBER(s, flares_data);
 }
 
 void InventoryItemObject::Serialize(MetroReflectionStream& s) {

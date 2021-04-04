@@ -16,6 +16,18 @@ static UObjectPtr InstantiateUObject(const uint32_t classId) {
         case CRC32("O_ENTITY"):
             return MakeStrongPtr<UEntity>();
 
+        case CRC32("o_hlamp"):
+            return MakeStrongPtr<EntityLamp>();
+
+        case CRC32("PROXY"):
+            return MakeStrongPtr<Proxy>();            
+
+        case CRC32("EFFECTM"):
+            return MakeStrongPtr<UObjectEffectM>();
+
+        case CRC32("O_HELPERTEXT"):
+            return MakeStrongPtr<HelperText>();
+
         default:
             LogUnknownClassId(classId);
             return MakeStrongPtr<UnknownObject>();

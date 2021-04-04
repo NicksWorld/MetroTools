@@ -121,3 +121,38 @@ void UObjectEffect::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_STRUCT_MEMBER(s, interest);
     METRO_SERIALIZE_STR_ARRAY_MEMBER(s, labels);
 }
+
+void Proxy::Serialize(MetroReflectionStream& s) {
+    METRO_SERIALIZE_BASE_CLASS(s);
+    METRO_SERIALIZE_MEMBER(s, slice_count);
+    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(s, entities);
+}
+
+void UObjectEffectM::Serialize(MetroReflectionStream& s) {
+    METRO_SERIALIZE_BASE_CLASS(s);
+
+    const size_t version = s.GetUserData();
+    if (version >= 47) {
+        METRO_SERIALIZE_MEMBER(s, particles_color);
+    }
+    else {
+        color32u temp;
+        METRO_SERIALIZE_NAMED_MEMBER(s, temp, particles_color);
+        // convert color32u to particles_color
+    }
+}
+
+void HelperText::Serialize(MetroReflectionStream& s) {
+    METRO_SERIALIZE_BASE_CLASS(s);
+
+    METRO_SERIALIZE_MEMBER(s, text);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, text_key);
+    METRO_SERIALIZE_MEMBER(s, size);
+    METRO_SERIALIZE_MEMBER(s, color);
+    METRO_SERIALIZE_MEMBER_CHOOSE(s, font);
+    METRO_SERIALIZE_MEMBER(s, flags0);
+    METRO_SERIALIZE_MEMBER(s, width);
+    METRO_SERIALIZE_MEMBER(s, height);
+    METRO_SERIALIZE_MEMBER(s, h_alignment);
+    METRO_SERIALIZE_MEMBER(s, display_dist);
+}

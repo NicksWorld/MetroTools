@@ -62,6 +62,10 @@ using MyHandle = size_t;
 using flags8 = uint8_t;
 using flags64 = uint64_t;
 
+struct EntityLink {
+    uint16_t value;
+};
+
 static const uint32_t   kInvalidValue32 = ~0u;
 static const size_t     kInvalidValue = ~0;
 static const MyHandle   kInvalidHandle = ~0;

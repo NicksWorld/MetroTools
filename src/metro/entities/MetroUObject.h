@@ -132,6 +132,39 @@ struct UObjectEffect : public UObject {
     StringArray     labels;
 };
 
+struct Proxy : public UObject {
+    INHERITED_CLASS(UObject);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    uint16_t slice_count;
+    MyArray<EntityLink> entities;
+};
+
+struct UObjectEffectM : public UObjectEffect {
+    INHERITED_CLASS(UObjectEffect);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    color4f particles_color;
+};
+
+struct HelperText : public UObject {
+    INHERITED_CLASS(UObject);
+
+    void Serialize(MetroReflectionStream& s) override;
+
+    CharString text;
+    CharString text_key;
+    float      size;
+    color4f    color;
+    CharString font;
+    Bool8     flags0;
+    float      width;
+    float      height;
+    uint8_t    h_alignment;
+    float      display_dist;
+};
 
 
 using UObjectPtr = StrongPtr<UObject>;

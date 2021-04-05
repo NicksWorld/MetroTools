@@ -161,77 +161,75 @@ struct UEntity : public UObjectEffect {
     float       footprint_power;
 };
 
-struct LightParam
-{
+struct LightParam {
     void Serialize(MetroReflectionStream& s);
 
-    uint8_t type;
-    color4f color;
-    float brightness;
-    float range_far;
-    float lod_scale;
-    vec3 data1;
-    vec2 data2;
-    float ibl_gen_radius;
-    float range_near;
-    float source_size;
-    anglef cone;
-    float quality;
-    vec3 position;
-    vec3 direction;
-    vec3 right;
-    CharString color_ca;
-    CharString texture;
-    flags8 faces;
-    Bool8 light_flags1;
-    Bool8 light_flags2;
+    uint8_t     type;
+    color4f     color;
+    float       brightness;
+    float       range_far;
+    float       lod_scale;
+    vec3        data1;
+    vec2        data2;
+    float       ibl_gen_radius;
+    float       range_near;
+    float       source_size;
+    anglef      cone;
+    float       quality;
+    vec3        position;
+    vec3        direction;
+    vec3        right;
+    CharString  color_ca;
+    CharString  texture;
+    flags8      faces;
+    Bool8       light_flags1;
+    Bool8       light_flags2;
 };
 
-struct FlaresData
-{
+struct FlaresData {
     void Serialize(MetroReflectionStream& s);
 
-    CharString name;
-    CharString bone;
-    uint8_t axis;
-    color4f cmul;
+    CharString  name;
+    CharString  bone;
+    uint8_t     axis;
+    color4f     cmul;
 };
 
-struct EntityLamp : public UEntity {
+struct UEntityLamp : public UEntity {
     INHERITED_CLASS(UEntity);
 
     void Serialize(MetroReflectionStream& s) override;
 
-    bool initial_state;
-    uint8_t die_sound_type;
-    CharString die_sound;
-    CharString die_particle;
-    CharString light_main_bone;
-    CharString dark_bone;
-    CharString broken_bone;
-    LightParam main_light;
-    bool color_to_aux;
-    bool sync_color_to_aux;
-    uint8_t secondary_type;
-    CharString secondary_bone;
-    float secondary_power;
-    float secondary_radius;
-    bool secondary_mul_by_ao;
-    bool backlight;
-    EntityLink backlight_ref;
-    float backlight_dist;
-    bool backlight_dynamic;
-    bool backlight_ignore_parents;
-    bool backlight_brightness_compensation;
-    float backlight_force_offset;
-    CharString backlight_ray;
-    CharString backlight_ray_particles;
-    bool backlight_trace_npc_only;
-    EntityLink master;
-    FlaresData flares_data;
+    bool        initial_state;
+    uint8_t     die_sound_type;
+    CharString  die_sound;
+    CharString  die_particle;
+    CharString  light_main_bone;
+    CharString  dark_bone;
+    CharString  broken_bone;
+    LightParam  main_light;
+    bool        color_to_aux;
+    bool        sync_color_to_aux;
+    uint8_t     secondary_type;
+    CharString  secondary_bone;
+    float       secondary_power;
+    float       secondary_radius;
+    bool        secondary_mul_by_ao;
+    bool        backlight;
+    EntityLink  backlight_ref;
+    float       backlight_dist;
+    bool        backlight_dynamic;
+    bool        backlight_ignore_parents;
+    bool        backlight_brightness_compensation;
+    float       backlight_force_offset;
+    CharString  backlight_ray;
+    CharString  backlight_ray_particles;
+    bool        backlight_trace_npc_only;
+    EntityLink  master;
+    FlaresData  flares_data;
 };
 
-struct InventoryItemObject : public UEntity {
+struct UInventoryItemObject : public UEntity {
     INHERITED_CLASS(UEntity);
 
     void Serialize(MetroReflectionStream& s) override;
@@ -243,32 +241,32 @@ struct InventoryItemObject : public UEntity {
     bool        anim_simplification; // ??? which class should this member be in ???
 };
 
-struct UpgradeItem : public InventoryItemObject {
-    INHERITED_CLASS(InventoryItemObject);
+struct UUpgradeItem : public UInventoryItemObject {
+    INHERITED_CLASS(UInventoryItemObject);
 
     void Serialize(MetroReflectionStream& s) override;
 
     CharString  upgrade_id;
 };
 
-struct DeviceUpgrade : public UpgradeItem {
-    INHERITED_CLASS(UpgradeItem);
+struct UDeviceUpgrade : public UUpgradeItem {
+    INHERITED_CLASS(UUpgradeItem);
 };
 
-struct PlayerTimerBase : public DeviceUpgrade {
-    INHERITED_CLASS(DeviceUpgrade);
+struct UPlayerTimerBase : public UDeviceUpgrade {
+    INHERITED_CLASS(UDeviceUpgrade);
 };
 
-struct PlayerTimer : public PlayerTimerBase {
-    INHERITED_CLASS(PlayerTimerBase);
+struct UPlayerTimer : public UPlayerTimerBase {
+    INHERITED_CLASS(UPlayerTimerBase);
 };
 
-struct PlayerTimerHudItemObject : public PlayerTimer {
-    INHERITED_CLASS(PlayerTimer);
+struct UPlayerTimerHudItemObject : public UPlayerTimer {
+    INHERITED_CLASS(UPlayerTimer);
 };
 
-struct WeaponItem : public UpgradeItem {
-    INHERITED_CLASS(UpgradeItem);
+struct UWeaponItem : public UUpgradeItem {
+    INHERITED_CLASS(UUpgradeItem);
 
     void Serialize(MetroReflectionStream& s) override;
 

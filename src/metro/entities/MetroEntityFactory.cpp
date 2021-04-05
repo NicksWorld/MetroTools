@@ -6,30 +6,35 @@ void LogUnknownClassId(uint32_t classId);
 
 static_assert(CRC32("EFFECT") == 0x46985674);
 
-#define MATCH_CLASS(cls, type) case CRC32(cls): return MakeStrongPtr<type>()
+MetroEntityFactory::MetroEntityFactory() {
+    // register all classes !!!
+#define REGISTER_UCLASS(cls, type)  this->RegisterClass<type>(CRC32(cls))
 
-static UObjectPtr InstantiateUObject(const uint32_t classId) {
-    switch (classId) {
-        MATCH_CLASS("EFFECT", UObjectEffect);
-        MATCH_CLASS("STATICPROP", UObjectStatic);
-        MATCH_CLASS("O_ENTITY", UEntity);
-        MATCH_CLASS("o_hlamp", EntityLamp);
-        MATCH_CLASS("PROXY", Proxy);
-        MATCH_CLASS("EFFECTM", UObjectEffectM);
-        MATCH_CLASS("O_HELPERTEXT", HelperText);
-        MATCH_CLASS("O_AIPOINT", AiPoint);
-        MATCH_CLASS("PATROL_POINT", PatrolPoint);
+    REGISTER_UCLASS("EFFECT",       UObjectEffect);
+    REGISTER_UCLASS("STATICPROP",   UObjectStatic);
+    REGISTER_UCLASS("O_ENTITY",     UEntity);
+    REGISTER_UCLASS("o_hlamp",      UEntityLamp);
+    REGISTER_UCLASS("PROXY",        UProxy);
+    REGISTER_UCLASS("EFFECTM",      UObjectEffectM);
+    REGISTER_UCLASS("O_HELPERTEXT", UHelperText);
+    REGISTER_UCLASS("O_AIPOINT",    UAiPoint);
+    REGISTER_UCLASS("PATROL_POINT", UPatrolPoint);
 
-        default:
-            LogUnknownClassId(classId);
-            return MakeStrongPtr<UnknownObject>();
-    }
+#undef REGISTER_UCLASS
 }
 
 UObjectPtr MetroEntityFactory::CreateUObject(const UObjectInitData& initData) {
-    UObjectPtr object = InstantiateUObject(initData.cls);
-    object->initData = initData;
-    object->cls = DecodeClassId(initData.cls);
+    UObjectPtr object;
+
+    auto it = mRegisteredClasses.find(initData.cls);
+    if (it != mRegisteredClasses.end()) {
+        object = it->second();
+        object->initData = initData;
+        object->cls = DecodeClassId(initData.cls);
+    } else {
+        LogUnknownClassId(initData.cls);
+        object = MakeStrongPtr<UnknownObject>();
+    }
 
     return std::move(object);
 }
@@ -281,8 +286,9 @@ const char* DecodeClassId(uint32_t classId)
 
 void LogUnknownClassId(uint32_t classId)
 {
-    if (auto it = classMap.find(classId); it == classMap.end())
+    if (auto it = classMap.find(classId); it == classMap.end()) {
         LogPrintF(LogLevel::Error, "UObject, unknown classId [%08X]", classId);
-    else
+    } else {
         LogPrintF(LogLevel::Warning, "UObject, unhandled classId [%s] [%08X]", it->second, classId);
+    }
 }

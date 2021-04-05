@@ -38,7 +38,7 @@ struct MetroFSPath {
     MetroFSPath() = delete;
     MetroFSPath(const MetroFSPath& other) : fileHandle(other.fileHandle), filePath(other.filePath) {}
 
-    explicit MetroFSPath(SpecialInvalidEnum) : fileHandle(kInvalidHandle), filePath{} {}
+    explicit MetroFSPath(SpecialInvalidEnum) noexcept : fileHandle(kInvalidHandle), filePath{} {}
     explicit MetroFSPath(const MyHandle handle) : fileHandle(handle), filePath{} {}
     explicit MetroFSPath(const fs::path& path) : fileHandle(kInvalidHandle), filePath(path) {}
     explicit MetroFSPath(const MyHandle handle, const fs::path& path) : fileHandle(handle), filePath(path) {}

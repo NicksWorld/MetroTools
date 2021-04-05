@@ -67,7 +67,7 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
     UObjectInitData initData;
     s >> initData;
 
-    this->uobject = MetroEntityFactory::CreateUObject(initData);
+    this->uobject = MetroEntityFactory::Get().CreateUObject(initData);
     if (this->uobject) {
         s >> (*this->uobject);
 
@@ -83,8 +83,9 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
             this->uobject->initData.id, this->uobject->initData.parent_id, this->uobject->name.empty() ? "" : this->uobject->name.c_str(),
             this->uobject->visual.empty() ? "none" : this->uobject->visual.c_str(),
             pos.x, pos.y, pos.z);
-        if (s.GetRemains() != 0)
+        if (s.GetRemains() != 0) {
             LogPrintF(LogLevel::Warning, "UObject, remains [%zu] bytes", s.GetRemains());
+        }
     }
 }
 

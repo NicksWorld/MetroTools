@@ -122,7 +122,7 @@ void UObjectEffect::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_STR_ARRAY_MEMBER(s, labels);
 }
 
-void Proxy::Serialize(MetroReflectionStream& s) {
+void UProxy::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
     METRO_SERIALIZE_MEMBER(s, slice_count);
     METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(s, entities);
@@ -142,7 +142,7 @@ void UObjectEffectM::Serialize(MetroReflectionStream& s) {
     }
 }
 
-void HelperText::Serialize(MetroReflectionStream& s) {
+void UHelperText::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
 
     METRO_SERIALIZE_MEMBER(s, text);
@@ -162,7 +162,7 @@ void PointLink::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, weight);
 }
 
-void AiPoint::Serialize(MetroReflectionStream& s) {
+void UAiPoint::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
     for (int i = 0; i != 4; i++) {
         char buf[10];
@@ -185,7 +185,7 @@ void PatrolState::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, approaching_accel);
 }
 
-void PatrolPoint::Serialize(MetroReflectionStream& s) {
+void UPatrolPoint::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
     METRO_SERIALIZE_MEMBER(s, min_wait_time);
     METRO_SERIALIZE_MEMBER(s, max_wait_time);

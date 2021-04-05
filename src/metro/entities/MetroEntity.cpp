@@ -187,7 +187,7 @@ void FlaresData::Serialize(MetroReflectionStream& s) {
     }
 }
 
-void EntityLamp::Serialize(MetroReflectionStream& s) {
+void UEntityLamp::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
 
     METRO_SERIALIZE_MEMBER(s, initial_state);
@@ -230,7 +230,7 @@ void EntityLamp::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_STRUCT_MEMBER(s, flares_data);
 }
 
-void InventoryItemObject::Serialize(MetroReflectionStream& s) {
+void UInventoryItemObject::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, flags0);
     METRO_SERIALIZE_MEMBER(s, trade_weight);
     METRO_SERIALIZE_MEMBER(s, ui_force_slot_id);
@@ -240,14 +240,14 @@ void InventoryItemObject::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, anim_simplification);
 }
 
-void UpgradeItem::Serialize(MetroReflectionStream& s) {
+void UUpgradeItem::Serialize(MetroReflectionStream& s) {
     //
     METRO_SERIALIZE_BASE_CLASS(s);
     //
     METRO_SERIALIZE_MEMBER(s, upgrade_id);
 }
 
-void WeaponItem::Serialize(MetroReflectionStream& s) {
+void UWeaponItem::Serialize(MetroReflectionStream& s) {
     //
     METRO_SERIALIZE_BASE_CLASS(s);
     //

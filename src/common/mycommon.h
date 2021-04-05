@@ -8,6 +8,7 @@
 #include <memory>
 #include <numeric>
 #include <algorithm>
+#include <functional>
 #include <cassert>
 #include <cuchar>
 
@@ -364,7 +365,7 @@ public:
         , ownedPtr(other.ownedPtr)
         , name(other.name) {
     }
-    MemStream(MemStream&& other)
+    MemStream(MemStream&& other) noexcept
         : data(other.data)
         , length(other.length)
         , cursor(other.cursor)
@@ -383,7 +384,7 @@ public:
         return *this;
     }
 
-    inline MemStream& operator =(MemStream&& other) {
+    inline MemStream& operator =(MemStream&& other) noexcept {
         this->data = other.data;
         this->length = other.length;
         this->cursor = other.cursor;
@@ -523,6 +524,7 @@ public:
             return *this;
         } else {
             void* dataCopy = malloc(this->Length());
+            assert(dataCopy != nullptr);
             memcpy(dataCopy, this->data, this->Length());
             return MemStream(dataCopy, this->Length(), true);
         }

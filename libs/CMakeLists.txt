@@ -32,7 +32,7 @@ add_library(Lz4::Lz4 ALIAS lz4)
 target_include_directories(lz4 PUBLIC lz4)
 target_sources(lz4 PRIVATE
     lz4/lz4hc.c
-    lz4/lz4qt.c
+    lz4/lz4.c
     lz4/lz4.h
     lz4/lz4hc.h)
 
@@ -57,7 +57,7 @@ add_library(xxhash STATIC)
 add_library(Xxhash::Xxhash ALIAS xxhash)
 target_include_directories(xxhash PUBLIC xxhash)
 target_sources(xxhash PRIVATE
-    xxhash/xxhashqt.c
+    xxhash/xxhash.c
     xxhash/xxhash.h)
 
 add_library(fbx INTERFACE)

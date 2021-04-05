@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(MetroTools LANGUAGES CXX)
 
+add_subdirectory(shaders)
+
 add_library(engine STATIC)
 add_library(MetroTools::Engine ALIAS engine)
 set_target_properties(engine PROPERTIES CXX_STANDARD 17)
@@ -36,4 +38,5 @@ target_sources(engine PRIVATE
     scenenodes/SceneNode.h)
 target_link_libraries(engine PRIVATE
     MetroTools::Common
-    MetroTools::Metro)
+    MetroTools::Metro
+    MetroTools::Shaders)

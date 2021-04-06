@@ -1,8 +1,19 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16...3.16)
 project(MetroTools)
 
-add_library(shaders INTERFACE)
-add_library(MetroTools::Shaders ALIAS shaders)
+set(FXC_BIN ${CMAKE_SOURCE_DIR}/_utils/fxc)
+function(CompileHLSLShader source_path shader_type entry_point out)
+    get_filename_component(source_filename ${source_path} NAME_WE)
+    get_filename_component(source_path "${source_path}" ABSOLUTE)
+    set(header_path "${CMAKE_CURRENT_BINARY_DIR}/${source_filename}.hlsl.h")
+    set(${out} ${header_path} PARENT_SCOPE)
+    add_custom_command(OUTPUT ${header_path}
+        COMMENT "Compiling shader ${source_path}..."
+        COMMAND ${FXC_BIN} /E \"${entry_point}\" /T \"${shader_type}\" /O3 /Fh \"${header_path}\" /Vn s${source_filename}Data /Qstrip_reflect /Qstrip_debug \"${source_path}\"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS "${source_path}"
+    )
+endfunction()
 
 set(PIXEL_SHADERS
     PS_Debug.hlsl
@@ -10,16 +21,7 @@ set(PIXEL_SHADERS
     PS_DeferredResolve.hlsl
     PS_Selection.hlsl
     PS_Terrain.hlsl)
-set_source_files_properties(${PIXEL_SHADERS} PROPERTIES
-    VS_SHADER_FLAGS "/O3 /Fh \"${CMAKE_CURRENT_BINARY_DIR}/%(Filename).hlsl.h\" /Qstrip_reflect /Qstrip_debug"
-    VS_SHADER_TYPE Pixel
-    VS_SHADER_MODEL 5.0
-    VS_SHADER_ENTRYPOINT main)
-set_property(SOURCE PS_Debug.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sPS_DebugData)
-set_property(SOURCE PS_Default.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sPS_DefaultData)
-set_property(SOURCE PS_DeferredResolve.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sPS_DeferredResolveData)
-set_property(SOURCE PS_Selection.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sPS_SelectionData)
-set_property(SOURCE PS_Terrain.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sPS_TerrainData)
+set_property(SOURCE ${PIXEL_SHADERS} PROPERTY VS_TOOL_OVERRIDE "None")
 
 set(VERTEX_SHADERS
     VS_Debug.hlsl
@@ -28,19 +30,21 @@ set(VERTEX_SHADERS
     VS_Skinned.hlsl
     VS_Static.hlsl
     VS_Terrain.hlsl)
-set_source_files_properties(${VERTEX_SHADERS} PROPERTIES
-    VS_SHADER_FLAGS "/O3 /Fh \"${CMAKE_CURRENT_BINARY_DIR}/%(Filename).hlsl.h\" /Qstrip_reflect /Qstrip_debug"
-    VS_SHADER_TYPE Vertex
-    VS_SHADER_MODEL 5.0
-    VS_SHADER_ENTRYPOINT main)
-set_property(SOURCE VS_Debug.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sVS_DebugData)
-set_property(SOURCE VS_FullscreenTriangle.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sVS_FullscreenTriangleData)
-set_property(SOURCE VS_Level.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sVS_LevelData)
-set_property(SOURCE VS_Skinned.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sVS_SkinnedData)
-set_property(SOURCE VS_Static.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sVS_StaticData)
-set_property(SOURCE VS_Terrain.hlsl PROPERTY VS_SHADER_VARIABLE_NAME sVS_TerrainData)
+set_property(SOURCE ${VERTEX_SHADERS} PROPERTY VS_TOOL_OVERRIDE "None")
 
-target_sources(shaders PRIVATE
-    ${PIXEL_SHADERS}
-    ${VERTEX_SHADERS})
+foreach(ps ${PIXEL_SHADERS})
+  CompileHLSLShader(${ps} "ps_5_0" "main" out)
+  list(APPEND compiled_shaders ${out})
+endforeach()
+
+foreach(vs ${VERTEX_SHADERS})
+  CompileHLSLShader(${vs} "vs_5_0" "main" out)
+  list(APPEND compiled_shaders ${out})
+endforeach()
+
+add_custom_target(compile_shaders DEPENDS ${compiled_shaders} SOURCES ${PIXEL_SHADERS} ${VERTEX_SHADERS})
+
+add_library(shaders INTERFACE)
+add_library(MetroTools::Shaders ALIAS shaders)
 target_include_directories(shaders INTERFACE ${CMAKE_CURRENT_BINARY_DIR})
+add_dependencies(shaders compile_shaders)

@@ -94,7 +94,7 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
         if (mModel) {
             u4a::ResourcesManager::Get().Clear();
 
-            mModelNode = u4a::Spawner::SpawnModelNew(*mScene, mModel.get(), vec3(0.0f), true);
+            mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModelNew(*mScene, mModel.get(), vec3(0.0f), true));
         }
 
         //    this->ResetAnimation();
@@ -126,21 +126,9 @@ void RenderPanel::SetLevel(MetroLevel* level) {
 }
 
 void RenderPanel::SetLod(const size_t lodId) {
-#if 0
-    if (mModel && lodId >= 0 && lodId <= 2) {
-        MetroModel* baseModel = mModel;
-
-        mModel = (lodId == 0) ? baseModel : baseModel->GetLodModel(lodId - 1);
-
-        mCurrentMotion = nullptr;
-
-        mCamera->SwitchMode(u4a::Camera::Mode::Arcball);
-
-        //this->ResetAnimation();
-
-        mModel = baseModel;
+    if (mModelNode && mModel) {
+        mModelNode->SetLod(lodId);
     }
-#endif
 }
 
 void RenderPanel::SwitchMotion(const size_t idx) {
@@ -164,7 +152,7 @@ void RenderPanel::SwitchMotion(const size_t idx) {
 bool RenderPanel::IsPlayingAnim() const {
     bool result = false;
     if (mModelNode) {
-        u4a::Animator* animator = scast<u4a::ModelNode*>(mModelNode)->GetAnimator();
+        u4a::Animator* animator = mModelNode->GetAnimator();
         if (animator) {
             result = (animator->GetAnimState() == u4a::Animator::AnimState::Playing);
         }
@@ -174,7 +162,7 @@ bool RenderPanel::IsPlayingAnim() const {
 
 void RenderPanel::PlayAnim(const bool play) {
     if (mModel && mModel->IsSkeleton() && mModelNode) {
-        u4a::Animator* animator = scast<u4a::ModelNode*>(mModelNode)->GetAnimator();
+        u4a::Animator* animator = mModelNode->GetAnimator();
         if (animator) {
             if (play) {
                 animator->Play();
@@ -320,7 +308,7 @@ void RenderPanel::mouseMoveEvent(QMouseEvent* event) {
         mLastRMPos = mp;
 
         if (mModelNode) {
-            const float t = scast<u4a::ModelNode*>(mModelNode)->GetBSphere().radius * 0.5f;
+            const float t = mModelNode->GetBSphere().radius * 0.5f;
 
             vec3 tx = mCamera->GetSide() * deltaX * kModelMoveSpeed * t;
             vec3 ty = mCamera->GetUp() * -deltaY * kModelMoveSpeed * t;

@@ -22,11 +22,15 @@ public:
     const BSphere&  GetBSphere() const;
     const AABBox&   GetAABB() const;
 
+    void            SetLod(const size_t lodIdx);
+    size_t          GetLod() const;
+
 private:
-    Model*      mModel;
-    Animator*   mAnimator;
-    BSphere     mBSphere;
-    AABBox      mAABB;
+    Model*          mModel;
+    Animator*       mAnimator;
+    BSphere         mBSphere;
+    AABBox          mAABB;
+    size_t          mCurrentLod;
 };
 
 } // namespace u4a

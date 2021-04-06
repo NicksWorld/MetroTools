@@ -42,9 +42,9 @@ public:
     const AABBox&           GetBBox() const;
     const BSphere&          GetBSphere() const;
 
-    const size_t            GetNumSections() const;
-    const MeshSection&      GetSection(const size_t idx) const;
-    const Surface&          GetSurface(const size_t idx) const;
+    const size_t            GetNumSections(const size_t lodIdx = 0) const;
+    const MeshSection&      GetSection(const size_t idx, const size_t lodIdx = 0) const;
+    const Surface&          GetSurface(const size_t idx, const size_t lodIdx = 0) const;
 
     const mat4              GetBoneTransform(const CharString& boneName) const;
 
@@ -63,15 +63,19 @@ public:
     void                    SetSource(const CharString& src) { mSource = src; }
 
 protected:
+    struct RenderLod {
+        MyArray<MeshSection>    sections;
+        MyArray<Surface>        surfaces;
+    };
+
+protected:
     Model::Type             mType;
     AABBox                  mBBox;
     BSphere                 mBSphere;
-    MyArray<MeshSection>    mSections;
+    MyArray<RenderLod>      mRenderLods;
 
     ID3D11Buffer*           mVertexBuffer;
     ID3D11Buffer*           mIndexBuffer;
-
-    MyArray<Surface>        mSurfaces;
 
     MetroSkeleton*          mSkeleton;
 

@@ -1119,6 +1119,7 @@ void Renderer::DrawModelNode(ModelNode* node) {
     }
 
     Model* model = node->GetModel();
+    const size_t lodIdx = node->GetLod();
 
     mCBMatricesData.Model = node->GetTransform();
     mCBMatricesData.ModelView = mCBMatricesData.View * mCBMatricesData.Model;
@@ -1146,11 +1147,10 @@ void Renderer::DrawModelNode(ModelNode* node) {
     ID3D11Buffer* vb = model->GetVertexBuffer();
     ID3D11Buffer* ib = model->GetIndexBuffer();
 
-    UINT vbOffset = 0, ibOffset = 0;
-    const size_t numSections = model->GetNumSections();
+    const size_t numSections = model->GetNumSections(lodIdx);
     for (size_t i = 0; i < numSections; ++i) {
-        const MeshSection& section = model->GetSection(i);
-        const Surface& surface = model->GetSurface(i);
+        const MeshSection& section = model->GetSection(i, lodIdx);
+        const Surface& surface = model->GetSurface(i, lodIdx);
 
         if (isDynamic) {
             mCBSkinnedData.VScale.x = section.vscale;
@@ -1180,12 +1180,12 @@ void Renderer::DrawModelNode(ModelNode* node) {
 
         mContext->PSSetShaderResources(0, 3, srvs);
 
+        const UINT vbOffset = section.vbOffset;
+        const UINT ibOffset = section.ibOffset;
+
         mContext->IASetVertexBuffers(0, 1, &vb, &stride, &vbOffset);
         mContext->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, ibOffset);
         mContext->DrawIndexed(scast<UINT>(section.numIndices), 0, 0);
-
-        vbOffset += scast<UINT>(section.numVertices) * stride;
-        ibOffset += scast<UINT>(section.numIndices) * sizeof(uint16_t);
     }
 
 #endif

@@ -258,7 +258,7 @@ uint32_t MetroModelBase::GetVertexType() const {
     return mMesh ? mMesh->vertexType : 0;
 }
 
-void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result) const {
+void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t) const {
     if (this->MeshValid()) {
         MetroModelGeomData gd = {
             mBBox,
@@ -675,6 +675,10 @@ bool MetroModelHierarchy::Save(MemWriteStream& stream) {
     return true;
 }
 
+size_t MetroModelHierarchy::GetLodCount() const {
+    return mLods.size();
+}
+
 void MetroModelHierarchy::FreeGeometryMem() {
     for (auto& child : mChildren) {
         child->FreeGeometryMem();
@@ -685,9 +689,13 @@ void MetroModelHierarchy::FreeGeometryMem() {
     }
 }
 
-void MetroModelHierarchy::CollectGeomData(MyArray<MetroModelGeomData>& result) const {
-    for (auto& child : mChildren) {
-        child->CollectGeomData(result);
+void MetroModelHierarchy::CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx) const {
+    if (kInvalidValue == lodIdx) {
+        for (auto& child : mChildren) {
+            child->CollectGeomData(result);
+        }
+    } else if (lodIdx < mLods.size()) {
+        mLods[lodIdx]->CollectGeomData(result);
     }
 }
 
@@ -827,6 +835,10 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream) {
     }
 
     return true;
+}
+
+size_t MetroModelSkeleton::GetLodCount() const {
+    return 0;
 }
 
 RefPtr<MetroSkeleton> MetroModelSkeleton::GetSkeleton() const {

@@ -115,7 +115,7 @@ public:
 
     virtual void                    FreeGeometryMem()           { }
 
-    virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result) const;
+    virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const;
 
     virtual bool                    IsSkeleton() const { return false; }
 
@@ -202,9 +202,11 @@ public:
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
     virtual bool            Save(MemWriteStream& stream) override;
 
+    virtual size_t          GetLodCount() const override;
+
     virtual void            FreeGeometryMem() override;
 
-    virtual void            CollectGeomData(MyArray<MetroModelGeomData>& result) const override;
+    virtual void            CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
     size_t                  GetChildrenCount() const;
     RefPtr<MetroModelBase>  GetChild(const size_t idx) const;
@@ -227,6 +229,8 @@ public:
 
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
     virtual bool            Save(MemWriteStream& stream) override;
+
+    virtual size_t          GetLodCount() const override;
 
     virtual bool            IsSkeleton() const override { return true; }
 

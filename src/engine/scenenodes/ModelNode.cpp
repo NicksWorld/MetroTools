@@ -9,6 +9,8 @@ ModelNode::ModelNode()
     , mModel(nullptr)
     , mAnimator(nullptr)
     , mBSphere{vec3(0.0f), 0.0f}
+    , mAABB{}
+    , mCurrentLod(0)
 {
     mType = NodeType::Model;
 }
@@ -77,6 +79,14 @@ const BSphere& ModelNode::GetBSphere() const {
 
 const AABBox& ModelNode::GetAABB() const {
     return mAABB;
+}
+
+void ModelNode::SetLod(const size_t lodIdx) {
+    mCurrentLod = lodIdx;
+}
+
+size_t ModelNode::GetLod() const {
+    return mCurrentLod;
 }
 
 } // namespace u4a

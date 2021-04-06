@@ -33,16 +33,16 @@ const BSphere& Model::GetBSphere() const {
     return mBSphere;
 }
 
-const size_t Model::GetNumSections() const {
-    return mSections.size();
+const size_t Model::GetNumSections(const size_t lodIdx) const {
+    return mRenderLods[lodIdx].sections.size();
 }
 
-const MeshSection& Model::GetSection(const size_t idx) const {
-    return mSections[idx];
+const MeshSection& Model::GetSection(const size_t idx, const size_t lodIdx) const {
+    return mRenderLods[lodIdx].sections[idx];
 }
 
-const Surface& Model::GetSurface(const size_t idx) const {
-    return mSurfaces[idx];
+const Surface& Model::GetSurface(const size_t idx, const size_t lodIdx) const {
+    return mRenderLods[lodIdx].surfaces[idx];
 }
 
 const mat4 Model::GetBoneTransform(const CharString& boneName) const {
@@ -68,7 +68,8 @@ bool Model::HasTranslucency() const {
 
 bool Model::Create(const MetroModel* mdl) {
     const size_t numMeshes = mdl->GetNumMeshes();
-    mSections.reserve(numMeshes);
+    mRenderLods.resize(1);
+    RenderLod& lod0 = mRenderLods.front();
 
     const size_t vertexSize = mdl->IsAnimated() ? sizeof(VertexSkinned) : sizeof(VertexStatic);
 
@@ -107,12 +108,12 @@ bool Model::Create(const MetroModel* mdl) {
             rms.alphaCut = 0.5f;
         }
 
-        mSections.push_back(rms);
+        lod0.sections.push_back(rms);
 
         totalVertices += rms.numVertices;
         totalIndices += rms.numIndices;
 
-        mSurfaces.push_back(ResourcesManager::Get().GetSurface(mesh->materials.front()));
+        lod0.surfaces.push_back(ResourcesManager::Get().GetSurface(mesh->materials.front()));
 
         mBBox.Absorb(mesh->bbox);
     }
@@ -182,60 +183,77 @@ bool Model::Create(const MetroModel* mdl) {
 }
 
 bool Model::CreateNew(const MetroModelBase* mdl) {
-    MyArray<MetroModelGeomData> gds;
-    mdl->CollectGeomData(gds);
-
-    if (gds.empty()) {
-        return false;
-    }
-
-    const uint32_t vertexSize = sizeof(VertexStatic);
+    const size_t vertexSize = sizeof(VertexStatic);
 
     mBBox.Reset();
 
-    uint32_t totalVertices = 0;
-    uint32_t totalIndices = 0;
-    for (const MetroModelGeomData& gd : gds) {
-        MeshSection rms;
-        rms.numVertices = scast<uint32_t>(gd.mesh->verticesCount);
-        rms.numIndices = scast<uint32_t>(gd.mesh->facesCount * 3);
-        rms.vbOffset = scast<uint32_t>(totalVertices * vertexSize);
-        rms.ibOffset = scast<uint32_t>(totalIndices * sizeof(uint16_t));
+    const size_t numLodsTotal = mdl->GetLodCount() + 1;
+    mRenderLods.resize(numLodsTotal);
 
-        rms.numShadowVertices = 0;
-        rms.numShadowIndices = 0;
-        rms.shadowVBOffset = 0;
-        rms.shadowIBOffset = 0;
+    size_t totalVertices = 0;
+    size_t totalIndices = 0;
 
-        rms.vscale = gd.mesh->verticesScale;
-        rms.alphaCut = 0.0f;
-        //if (mesh->materials[1].find("use_aref=1") != CharString::npos) {
-        //    rms.alphaCut = 0.5f;
-        //}
+    uint32_t vtype = MetroVertexType::Static;
 
-        mSections.push_back(rms);
+    for (size_t i = 0; i < numLodsTotal; ++i) {
+        MyArray<MetroModelGeomData> gds;
+        mdl->CollectGeomData(gds, (i == 0) ? kInvalidValue : (i - 1));
 
-        totalVertices += rms.numVertices;
-        totalIndices += rms.numIndices;
+        if (!i && gds.empty()) {
+            return false;
+        }
 
-        mSurfaces.push_back(ResourcesManager::Get().GetSurface(gd.texture));
+        RenderLod& lod = mRenderLods[i];
+        lod.sections.reserve(gds.size());
+        lod.surfaces.reserve(gds.size());
 
-        mBBox.Absorb(gd.bbox);
+        for (const MetroModelGeomData& gd : gds) {
+            MeshSection rms;
+            rms.numVertices = scast<uint32_t>(gd.mesh->verticesCount);
+            rms.numIndices = scast<uint32_t>(gd.mesh->facesCount * 3);
+            rms.vbOffset = scast<uint32_t>(totalVertices * vertexSize);
+            rms.ibOffset = scast<uint32_t>(totalIndices * sizeof(uint16_t));
+
+            rms.numShadowVertices = 0;
+            rms.numShadowIndices = 0;
+            rms.shadowVBOffset = 0;
+            rms.shadowIBOffset = 0;
+
+            rms.vscale = gd.mesh->verticesScale;
+            rms.alphaCut = 0.0f;
+
+            lod.sections.push_back(rms);
+
+            totalVertices += rms.numVertices;
+            totalIndices += rms.numIndices;
+
+            lod.surfaces.push_back(ResourcesManager::Get().GetSurface(gd.texture));
+
+            if (i == 0) {
+                mBBox.Absorb(gd.bbox);
+            }
+        }
+
+        if (i == 0) {
+            vtype = gds.front().mesh->vertexType;
+        }
     }
-
-    mBSphere.center = mBBox.Center();
-    mBSphere.radius = Length(mBBox.Extent());
 
     BytesArray allVertices(vertexSize * totalVertices);
     MyArray<uint16_t> allIndices(totalIndices);
 
     size_t vbOffset = 0, ibOffset = 0;
-    for (const MetroModelGeomData& gd : gds) {
-        memcpy(allVertices.data() + (vbOffset * vertexSize), gd.vertices, gd.mesh->verticesCount * vertexSize);
-        memcpy(allIndices.data() + ibOffset, gd.faces, gd.mesh->facesCount * sizeof(MetroFace));
+    for (size_t i = 0; i < numLodsTotal; ++i) {
+        MyArray<MetroModelGeomData> gds;
+        mdl->CollectGeomData(gds, (i == 0) ? kInvalidValue : (i - 1));
 
-        vbOffset += gd.mesh->verticesCount;
-        ibOffset += gd.mesh->facesCount * 3;
+        for (const MetroModelGeomData& gd : gds) {
+            memcpy(allVertices.data() + vbOffset, gd.vertices, gd.mesh->verticesCount * vertexSize);
+            memcpy(allIndices.data() + ibOffset, gd.faces, gd.mesh->facesCount * sizeof(MetroFace));
+
+            vbOffset += gd.mesh->verticesCount * vertexSize;
+            ibOffset += scast<size_t>(gd.mesh->facesCount) * 3;
+        }
     }
 
     D3D11_BUFFER_DESC desc = {};
@@ -245,7 +263,7 @@ bool Model::CreateNew(const MetroModelBase* mdl) {
     ID3D11Device* device = Renderer::Get().GetDevice();
 
     //vb
-    desc.ByteWidth = scast<UINT>(vertexSize * totalVertices);
+    desc.ByteWidth = scast<UINT>(allVertices.size());
     desc.Usage = D3D11_USAGE_IMMUTABLE;
     desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     subData.pSysMem = allVertices.data();
@@ -263,7 +281,6 @@ bool Model::CreateNew(const MetroModelBase* mdl) {
         return false;
     }
 
-    const uint32_t vtype = gds.front().mesh->vertexType;
     if (MetroVertexType::Skin == vtype) {
         mType = Type::Skinned;
     } else {
@@ -277,8 +294,7 @@ void Model::Destroy() {
     MySafeRelease(mVertexBuffer);
     MySafeRelease(mIndexBuffer);
 
-    mSections.clear();
-    mSurfaces.clear();
+    mRenderLods.clear();
 
     MySafeDelete(mSkeleton);
 }

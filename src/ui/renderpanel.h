@@ -13,6 +13,10 @@ class MetroTexture;
 class MetroLightProbe;
 class MetroLevel;
 
+namespace u4a {
+    class ModelNode;
+}
+
 class RenderPanel : public QWidget {
     Q_OBJECT
 
@@ -72,7 +76,7 @@ private:
 
     // model viewer stuff
     RefPtr<MetroModelBase>  mModel;
-    u4a::SceneNode*         mModelNode;
+    u4a::ModelNode*         mModelNode;
     const MetroMotion*      mCurrentMotion;
     bool                    mAnimPlaying;
 

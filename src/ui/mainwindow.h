@@ -77,8 +77,7 @@ struct FileExtractionCtx {
     size_t      progress;
 };
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:

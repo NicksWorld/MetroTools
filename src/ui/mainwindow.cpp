@@ -674,14 +674,14 @@ void MainWindow::ShowModel(MyHandle file) {
 
         mModelInfoPanel->ClearLodsList();
         mModelInfoPanel->AddLodIdxToList(0);
-#if 0
-        if (mdl->GetLodModel(0) != nullptr) {
+
+        if (mdl->GetLodCount() > 0) {
             mModelInfoPanel->AddLodIdxToList(1);
-            if (mdl->GetLodModel(1) != nullptr) {
+            if (mdl->GetLodCount() > 1) {
                 mModelInfoPanel->AddLodIdxToList(2);
             }
         }
-#endif
+
         mModelInfoPanel->SelectLod(0);
 
         mRenderPanel->SetModel(mdl);

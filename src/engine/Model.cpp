@@ -224,6 +224,8 @@ bool Model::CreateNew(const MetroModelBase* mdl) {
             rms.vscale = gd.mesh->verticesScale;
             rms.alphaCut = 0.0f;
 
+            rms.bonesRemap = gd.mesh->bonesRemap;
+
             lod.sections.push_back(rms);
 
             totalVertices += rms.numVertices;

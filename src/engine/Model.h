@@ -24,6 +24,7 @@ struct MeshSection {
     uint32_t    shadowIBOffset;
     float       vscale;
     float       alphaCut;
+    BytesArray  bonesRemap;
 };
 
 class Model {

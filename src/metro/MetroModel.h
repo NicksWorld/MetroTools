@@ -41,6 +41,7 @@ struct MetroModelMesh {
     uint32_t    shadowFacesCount;
     uint32_t    vertexType;
     float       verticesScale;
+    BytesArray  bonesRemap;
 };
 
 class MetroModelBase;
@@ -186,7 +187,6 @@ public:
 
 protected:
     MetroModelSkeleton*     mParent;
-    BytesArray              mBonesRemap;
     MyArray<MetroOBB>       mBonesOBB;
     BytesArray              mVerticesData;
     BytesArray              mFacesData;

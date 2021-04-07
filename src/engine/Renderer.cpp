@@ -1157,9 +1157,11 @@ void Renderer::DrawModelNode(ModelNode* node) {
 
             const Animator* anim = node->GetAnimator();
             if (anim) {
-                //#TODO_SK: optimization - move vscale somewhere and memcpy matrices only once !!
+                //#TODO_SK: optimization - move vscale somewhere and copy matrices only once !!
                 const Mat4Array& animResult = anim->GetAnimResult();
-                memcpy(mCBSkinnedData.Bones, animResult.data(), animResult.size() * sizeof(mat4));
+                for (size_t b = 0, numBones = section.bonesRemap.size(); b < numBones; ++b) {
+                    mCBSkinnedData.Bones[b] = animResult[section.bonesRemap[b]];
+                }
             }
 
             mContext->Map(mCBSkinned, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);

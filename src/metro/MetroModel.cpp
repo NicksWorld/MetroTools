@@ -453,15 +453,15 @@ bool MetroModelSkin::Load(MemStream& stream, MetroModelLoadParams& params) {
     MemStream verticesStream = chunker.GetChunkStream(MC_SkinnedVerticesChunk);
     assert(verticesStream);
 
+    mMesh = MakeRefPtr<MetroModelMesh>();
+
     const size_t numBones = verticesStream.ReadU8();
 
-    mBonesRemap.resize(numBones);
-    verticesStream.ReadToBuffer(mBonesRemap.data(), numBones);
+    mMesh->bonesRemap.resize(numBones);
+    verticesStream.ReadToBuffer(mMesh->bonesRemap.data(), numBones);
 
     mBonesOBB.resize(numBones);
     verticesStream.ReadToBuffer(mBonesOBB.data(), numBones * sizeof(MetroOBB));
-
-    mMesh = MakeRefPtr<MetroModelMesh>();
 
     mMesh->verticesCount = verticesStream.ReadU32();
     if (params.formatVersion >= kModelVersionEarlyArktika1) {
@@ -508,8 +508,8 @@ bool MetroModelSkin::Save(MemWriteStream& stream) {
         {
             ChunkWriteHelper verticesChunk(stream, MC_SkinnedVerticesChunk);
 
-            stream.WriteU8(scast<uint8_t>(mBonesRemap.size() & 0xFF));
-            stream.Write(mBonesRemap.data(), mBonesRemap.size());
+            stream.WriteU8(scast<uint8_t>(mMesh->bonesRemap.size() & 0xFF));
+            stream.Write(mMesh->bonesRemap.data(), mMesh->bonesRemap.size());
             stream.Write(mBonesOBB.data(), mBonesOBB.size() * sizeof(MetroOBB));
 
             stream.WriteU32(mMesh->verticesCount);

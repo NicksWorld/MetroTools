@@ -92,7 +92,7 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
     dst.tangent = FromMetroV3(t);
 
-    uint4 indices = FromMetroV4(src.bones);
+    uint4 indices = FromMetroV4(src.bones) / 3; // why the fuck?
     float4 weights = FromMetroV4(src.weights);
     matrix skinMat = Skinned_Bones[indices.x] * weights.x +
                      Skinned_Bones[indices.y] * weights.y +

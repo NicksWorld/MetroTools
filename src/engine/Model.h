@@ -58,7 +58,7 @@ public:
     ID3D11Buffer*           GetVertexBuffer() const;
     ID3D11Buffer*           GetIndexBuffer() const;
 
-    const MetroSkeleton*    GetSkeleton() const;
+    const RefPtr<MetroSkeleton>& GetSkeleton() const;
 
     void                    SetSource(const CharString& src) { mSource = src; }
 
@@ -77,7 +77,7 @@ protected:
     ID3D11Buffer*           mVertexBuffer;
     ID3D11Buffer*           mIndexBuffer;
 
-    MetroSkeleton*          mSkeleton;
+    RefPtr<MetroSkeleton>   mSkeleton;
 
     CharString              mSource;
 };

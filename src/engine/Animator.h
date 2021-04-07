@@ -24,8 +24,8 @@ public:
     Animator();
     ~Animator();
 
-    void                    SetSkeleton(const MetroSkeleton* skeleton);
-    void                    SetMotion(const MetroMotion* motion);
+    void                    SetSkeleton(const RefPtr<MetroSkeleton>& skeleton);
+    void                    SetMotion(const RefPtr<MetroMotion>& motion);
 
     void                    Update(const float dt);
     void                    Stop();
@@ -39,8 +39,8 @@ private:
     void                    FlattenBones();
 
 private:
-    const MetroSkeleton*    mSkeleton;
-    const MetroMotion*      mMotion;
+    RefPtr<MetroSkeleton>   mSkeleton;
+    RefPtr<MetroMotion>     mMotion;
     AnimState               mState;
     float                   mTimer;
     float                   mAnimTime;

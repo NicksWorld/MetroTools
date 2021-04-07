@@ -26,7 +26,7 @@ public:
     static const size_t kFrameRate = 30;
 
 public:
-    MetroMotion(const CharString& name = "");
+    MetroMotion(const CharString& name = kEmptyString);
     ~MetroMotion();
 
     bool                    LoadHeader(MemStream& stream);

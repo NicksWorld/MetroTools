@@ -1,6 +1,8 @@
 #include "MetroSkeleton.h"
 #include "MetroBinArchive.h"
 #include "MetroContext.h"
+#include "MetroMotion.h"
+
 #include "reflection/MetroReflection.h"
 
 static const size_t kSkeletonVersionRedux       = 8;    // Latest Steam Redux are this version
@@ -39,8 +41,8 @@ void MetroBone::Serialize(MetroReflectionStream& reader) {
         METRO_SERIALIZE_MEMBER(reader, bp);
         METRO_SERIALIZE_MEMBER(reader, bpf);
     } else {
-        //#NOTE_SK: using a hack to read old (Redux) bones
-        ReduxBoneBodyPartHelper helper;
+        //#NOTE_SK: using a hack to serialize old (Redux) bones
+        ReduxBoneBodyPartHelper helper{ this->bp };
         reader >> helper;
 
         this->bp = scast<uint8_t>(helper.bp & 0xFF);
@@ -113,8 +115,11 @@ void MotionsCollection::Serialize(MetroReflectionStream& reader) {
 
 
 
-MetroSkeleton::MetroSkeleton() {
-
+MetroSkeleton::MetroSkeleton()
+    : ver(0)
+    , crc(0)
+    , has_as(false)
+{
 }
 MetroSkeleton::~MetroSkeleton() {
 
@@ -172,6 +177,8 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
     }
 
     result = !this->bones.empty();
+
+    this->LoadMotions();
 
     return result;
 }
@@ -368,6 +375,49 @@ const CharString& MetroSkeleton::GetMotionsStr() const {
     return mMotionsStr;
 }
 
+size_t MetroSkeleton::GetNumMotions() const {
+    return mMotions.size();
+}
+
+CharString MetroSkeleton::GetMotionName(const size_t idx) const {
+    const MetroFSPath& file = mMotions[idx].file;
+    const CharString& fileName = MetroContext::Get().GetFilesystem().GetName(file);
+
+    CharString name = fileName.substr(0, fileName.length() - 3);
+    return name;
+}
+
+const CharString& MetroSkeleton::GetMotionPath(const size_t idx) const {
+    return mMotions[idx].path;
+}
+
+float MetroSkeleton::GetMotionDuration(const size_t idx) const {
+    return scast<float>(mMotions[idx].numFrames) / scast<float>(MetroMotion::kFrameRate);
+}
+
+RefPtr<MetroMotion> MetroSkeleton::GetMotion(const size_t idx) {
+    RefPtr<MetroMotion> motion = mMotions[idx].motion;
+
+    if (!motion) {
+        const CharString& name = this->GetMotionName(idx);
+        const MetroFSPath& file = mMotions[idx].file;
+
+        motion = MakeRefPtr<MetroMotion>(name);
+        MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
+        assert(stream.Good());
+
+        if (MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033) {
+            motion->LoadFromData_2033(stream);
+        } else {
+            motion->LoadFromData(stream);
+        }
+
+        mMotions[idx].motion = motion;
+    }
+
+    return std::move(motion);
+}
+
 
 void MetroSkeleton::DeserializeSelf(MetroReflectionStream& reader) {
     MetroReflectionStream* skeletonReader = reader.OpenSection("skeleton");
@@ -458,6 +508,8 @@ void MetroSkeleton::DeserializeSelf(MetroReflectionStream& reader) {
     }
 
     this->CacheMatrices();
+
+    this->LoadMotions();
 }
 
 void MetroSkeleton::MergeParentSkeleton() {
@@ -496,5 +548,47 @@ void MetroSkeleton::CacheMatrices() {
 
     for (size_t i = 0; i < numAttachPoints; ++i) {
         mInvBindPose[i] = MatInverse(this->GetBoneFullTransform(i));
+    }
+}
+
+void MetroSkeleton::LoadMotions() {
+    if (mMotionsStr.empty()) {
+        return;
+    }
+
+    const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
+
+    const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
+
+    MyArray<MetroFSPath> motionFiles;
+
+    MyArray<StringView> motionFolders = StrSplitViews(mMotionsStr, ',');
+    StringArray motionPaths;
+    const CharString& motionsExt = MetroContext::Get().GetMotionExtension();
+    for (const StringView& s : motionFolders) {
+        CharString fullFolderPath = CharString(MetroFileSystem::Paths::MotionsFolder).append(s).append("\\");
+
+        const auto& files = mfs.FindFilesInFolder(fullFolderPath, motionsExt, false);
+        for (const auto& file : files) {
+            motionPaths.push_back(fullFolderPath + mfs.GetName(file));
+        }
+
+        motionFiles.insert(motionFiles.end(), files.begin(), files.end());
+    }
+
+    const size_t numBones = this->GetNumBones();
+
+    mMotions.reserve(motionFiles.size());
+    size_t i = 0;
+    for (const MetroFSPath& fp : motionFiles) {
+        MemStream stream = mfs.OpenFileStream(fp);
+        if (stream) {
+            MetroMotion motion(kEmptyString);
+            const bool loaded = is2033 ? motion.LoadHeader_2033(stream) : motion.LoadHeader(stream);
+            if (loaded && motion.GetNumBones() == numBones) {
+                mMotions.push_back({ fp, motion.GetNumFrames(), motionPaths[i], nullptr });
+            }
+        }
+        ++i;
     }
 }

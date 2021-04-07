@@ -841,7 +841,7 @@ size_t MetroModelSkeleton::GetLodCount() const {
     return 0;
 }
 
-RefPtr<MetroSkeleton> MetroModelSkeleton::GetSkeleton() const {
+const RefPtr<MetroSkeleton>& MetroModelSkeleton::GetSkeleton() const {
     return mSkeleton;
 }
 

@@ -132,21 +132,22 @@ void RenderPanel::SetLod(const size_t lodId) {
 }
 
 void RenderPanel::SwitchMotion(const size_t idx) {
-#if 0
     if (mModel && mModel->IsSkeleton()) {
-        if (mModelNode) {
+        RefPtr<MetroModelSkeleton> skelMdl = SCastRefPtr<MetroModelSkeleton>(mModel);
+        RefPtr<MetroSkeleton> skeleton = skelMdl->GetSkeleton();
+
+        if (skeleton && mModelNode) {
             u4a::Animator* animator = scast<u4a::ModelNode*>(mModelNode)->GetAnimator();
             if (animator) {
                 const u4a::Animator::AnimState oldState = animator->GetAnimState();
                 animator->Stop();
-                animator->SetMotion(mModel->GetMotion(idx));
+                animator->SetMotion(skeleton->GetMotion(idx));
                 if (oldState == u4a::Animator::AnimState::Playing) {
                     animator->Play();
                 }
             }
         }
     }
-#endif
 }
 
 bool RenderPanel::IsPlayingAnim() const {

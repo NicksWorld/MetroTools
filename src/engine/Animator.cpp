@@ -6,8 +6,8 @@
 namespace u4a {
 
 Animator::Animator()
-    : mSkeleton(nullptr)
-    , mMotion(nullptr)
+    : mSkeleton{}
+    , mMotion{}
     , mState(AnimState::Stopped)
     , mTimer(0.0f)
     , mAnimTime(0.0f)
@@ -17,7 +17,7 @@ Animator::~Animator() {
 }
 
 
-void Animator::SetSkeleton(const MetroSkeleton* skeleton) {
+void Animator::SetSkeleton(const RefPtr<MetroSkeleton>& skeleton) {
     mSkeleton = skeleton;
 
     if (mSkeleton) {
@@ -28,7 +28,7 @@ void Animator::SetSkeleton(const MetroSkeleton* skeleton) {
     }
 }
 
-void Animator::SetMotion(const MetroMotion* motion) {
+void Animator::SetMotion(const RefPtr<MetroMotion>& motion) {
     mMotion = motion;
 
     if (mMotion) {

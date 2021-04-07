@@ -688,16 +688,18 @@ void MainWindow::ShowModel(MyHandle file) {
 
         mModelInfoPanel->ClearMotionsList();
         if (mdl->IsSkeleton()) {
-#if 0
-            const size_t numMotions = mdl->GetNumMotions();
-            for (size_t i = 0; i < numMotions; ++i) {
-                const CharString& motionName = mdl->GetMotionName(i);
-                mModelInfoPanel->AddMotionToList(QString::fromStdString(motionName));
-            }
-#else
-            const size_t numMotions = 0;
-#endif
             RefPtr<MetroModelSkeleton> skelMdl = SCastRefPtr<MetroModelSkeleton>(mdl);
+            RefPtr<MetroSkeleton> skeleton = skelMdl->GetSkeleton();
+
+            size_t numMotions = 0;
+
+            if (skeleton) {
+                numMotions = skeleton->GetNumMotions();
+                for (size_t i = 0; i < numMotions; ++i) {
+                    const CharString& motionName = skeleton->GetMotionName(i);
+                    mModelInfoPanel->AddMotionToList(QString::fromStdString(motionName));
+                }
+            }
 
             mModelInfoPanel->SetModelTypeText(tr("Animated"));
             mModelInfoPanel->SetNumJointsText(QString::number(skelMdl->GetSkeleton()->GetNumBones()));

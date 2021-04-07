@@ -234,7 +234,7 @@ public:
 
     virtual bool            IsSkeleton() const override { return true; }
 
-    RefPtr<MetroSkeleton>   GetSkeleton() const;
+    const RefPtr<MetroSkeleton>& GetSkeleton() const;
 
 protected:
     bool                    LoadLodMeshes(MetroModelHierarchy* target, CharString& meshesNames, MetroModelLoadParams& params, const size_t lodIdx);

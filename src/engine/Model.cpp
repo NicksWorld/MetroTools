@@ -12,9 +12,11 @@ namespace u4a {
 
 Model::Model()
     : mType(Type::Static)
+    , mBBox{}
+    , mBSphere{}
     , mVertexBuffer(nullptr)
     , mIndexBuffer(nullptr)
-    , mSkeleton(nullptr)
+    , mSkeleton{}
 {
 }
 Model::~Model() {
@@ -75,7 +77,7 @@ bool Model::Create(const MetroModel* mdl) {
 
     const MetroSkeleton* skel = mdl->GetSkeleton();
     if (skel) {
-        mSkeleton = new MetroSkeleton();
+        mSkeleton = MakeRefPtr<MetroSkeleton>();
         mSkeleton->Clone(skel);
     }
 
@@ -287,6 +289,10 @@ bool Model::CreateNew(const MetroModelBase* mdl) {
         mType = Type::Static;
     }
 
+    if (mdl->IsSkeleton()) {
+        mSkeleton = scast<const MetroModelSkeleton*>(mdl)->GetSkeleton();
+    }
+
     return true;
 }
 
@@ -296,7 +302,7 @@ void Model::Destroy() {
 
     mRenderLods.clear();
 
-    MySafeDelete(mSkeleton);
+    mSkeleton = nullptr;
 }
 
 ID3D11Buffer* Model::GetVertexBuffer() const {
@@ -307,7 +313,7 @@ ID3D11Buffer* Model::GetIndexBuffer() const {
     return mIndexBuffer;
 }
 
-const MetroSkeleton* Model::GetSkeleton() const {
+const RefPtr<MetroSkeleton>& Model::GetSkeleton() const {
     return mSkeleton;
 }
 

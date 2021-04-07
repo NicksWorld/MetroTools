@@ -2,6 +2,7 @@
 #include "MetroTypes.h"
 
 class MetroReflectionStream;
+class MetroMotion;
 
 struct ParentMapped {   // 48 bytes
     CharString  parent_bone;
@@ -157,11 +158,17 @@ public:
     size_t                      FindBone(const CharString& name) const;
 
     const CharString&           GetMotionsStr() const;
+    size_t                      GetNumMotions() const;
+    CharString                  GetMotionName(const size_t idx) const;
+    const CharString&           GetMotionPath(const size_t idx) const;
+    float                       GetMotionDuration(const size_t idx) const;
+    RefPtr<MetroMotion>         GetMotion(const size_t idx);
 
 private:
     void                        DeserializeSelf(MetroReflectionStream& reader);
     void                        MergeParentSkeleton();
     void                        CacheMatrices();
+    void                        LoadMotions();
 
 private:
     uint32_t                    ver;
@@ -186,4 +193,14 @@ private:
 
     CharString                  mMotionsStr;
     MyArray<mat4>               mInvBindPose;
+
+private:
+    struct MotionInfo {
+        MetroFSPath         file;
+        size_t              numFrames;
+        CharString          path;
+        RefPtr<MetroMotion> motion;
+    };
+
+    MyArray<MotionInfo>         mMotions;
 };

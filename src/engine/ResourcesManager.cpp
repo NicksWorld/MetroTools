@@ -343,6 +343,7 @@ Texture* ResourcesManager::LoadHMapTexture(const HashString& name, const size_t 
 Model* ResourcesManager::LoadModel(const HashString& name, const bool needAnimations) {
     Model* result = nullptr;
 
+#if 0
     MetroModel srcModel;
     if (srcModel.LoadFromName(name.str, needAnimations)) {
         result = new Model();
@@ -350,6 +351,16 @@ Model* ResourcesManager::LoadModel(const HashString& name, const bool needAnimat
             MySafeDelete(result);
         }
     }
+#else
+    const uint32_t loadFlags = MetroModelLoadParams::LoadGeometry | MetroModelLoadParams::LoadSkeleton | MetroModelLoadParams::LoadTPresets;
+    RefPtr<MetroModelBase> srcModel = MetroModelFactory::CreateModelFromFullName(name.str, loadFlags);
+    if (srcModel) {
+        result = new Model();
+        if (!result->CreateNew(srcModel.get())) {
+            MySafeDelete(result);
+        }
+    }
+#endif
 
     if (result) {
         mModels.insert({ name, result });

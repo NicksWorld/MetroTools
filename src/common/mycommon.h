@@ -818,7 +818,7 @@ public:
         stream.SetCursor(savedCursor);
     }
 
-    MemStream GetChunkStream(const size_t chunkId) {
+    MemStream GetChunkStream(const size_t chunkId) const {
         auto it = std::find_if(mChunks.begin(), mChunks.end(), [chunkId](const ChunkInfo& ci)->bool {
             return ci.id == chunkId;
         });

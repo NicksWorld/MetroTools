@@ -9,6 +9,7 @@ struct MetroModelLoadParams {
         LoadGeometry    = 1,
         LoadCollision   = 2,
         LoadSkeleton    = 4,
+        LoadTPresets    = 8,
 
         LoadEverything  = ~0u
     };
@@ -18,6 +19,21 @@ struct MetroModelLoadParams {
     uint32_t    formatVersion;
     uint32_t    loadFlags;
     MetroFSPath srcFile;
+};
+
+
+struct MetroModelTPreset {
+    struct Item {
+        CharString  mtl_name;
+        CharString  t_dst;
+        CharString  s_dst;
+    };
+
+    CharString      name;
+    CharString      hit_preset;
+    CharString      voice;
+    uint32_t        flags;  // lowest bit is use_as_modifier
+    MyArray<Item>   items;
 };
 
 
@@ -77,6 +93,11 @@ enum class MetroModelType : size_t {
 
 // Base class for all Metro models
 class MetroModelBase {
+    friend class MetroModelStd;
+    friend class MetroModelSkin;
+    friend class MetroModelHierarchy;
+    friend class MetroModelSkeleton;
+
 public:
     MetroModelBase();
     virtual ~MetroModelBase();
@@ -119,6 +140,9 @@ public:
     virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const;
 
     virtual bool                    IsSkeleton() const { return false; }
+
+protected:
+    virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset);
 
 protected:
     uint16_t                        mVersion;
@@ -208,16 +232,23 @@ public:
 
     virtual void            CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
+    void                    ApplyTPreset(const CharString& tpresetName);
+
     size_t                  GetChildrenCount() const;
     RefPtr<MetroModelBase>  GetChild(const size_t idx) const;
 
     void                    AddChild(const RefPtr<MetroModelBase>& child);
 
 protected:
+    void                    LoadTPresets(const StreamChunker& chunker);
+    virtual void            ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
+
+protected:
     using ModelPtr = RefPtr<MetroModelBase>;
 
     MyArray<ModelPtr>       mChildren;
     MyArray<ModelPtr>       mLods;
+    MyArray<MetroModelTPreset>  mTPresets;
 };
 
 // Complete animated model, can consist of multiple Skin models (inline or external *.mesh files)
@@ -257,8 +288,9 @@ class MetroModelFactory {
 
 public:
     static RefPtr<MetroModelBase>   CreateModelFromType(const MetroModelType type);
-    static RefPtr<MetroModelBase>   CreateModelFromStream(MemStream& stream, const uint32_t loadFlags, const MetroFSPath& srcFile = MetroFSPath(MetroFSPath::Invalid));
+    static RefPtr<MetroModelBase>   CreateModelFromStream(MemStream& stream, const MetroModelLoadParams& params);
     static RefPtr<MetroModelBase>   CreateModelFromFile(const MetroFSPath& file, const uint32_t loadFlags);
+    static RefPtr<MetroModelBase>   CreateModelFromFullName(const CharString& fullName, const uint32_t loadFlags);
 };
 
 

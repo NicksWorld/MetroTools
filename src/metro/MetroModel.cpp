@@ -274,6 +274,27 @@ void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result, const 
     }
 }
 
+void MetroModelBase::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
+    if (this->MeshValid()) {
+        const CharString& mname = mMaterialStrings[3];
+        if (!mname.empty()) {
+            const auto iit = std::find_if(tpreset.items.begin(), tpreset.items.end(), [&mname](const MetroModelTPreset::Item& item)->bool {
+                return item.mtl_name == mname;
+            });
+
+            if (iit != tpreset.items.end()) {
+                const MetroModelTPreset::Item& item = *iit;
+                if (!item.t_dst.empty()) {
+                    mMaterialStrings[0] = item.t_dst;
+                }
+                if (!item.s_dst.empty()) {
+                    mMaterialStrings[1] = item.s_dst;
+                }
+            }
+        }
+    }
+}
+
 
 
 // Simple static model, could be just a *.mesh file
@@ -587,6 +608,10 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
     StreamChunker chunker(stream);
 
     if (MetroModelBase::Load(stream, params)) {
+        if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadTPresets) || !params.tpresetName.empty()) {
+            this->LoadTPresets(chunker);
+        }
+
         MemStream childrenRefsStream = chunker.GetChunkStream(MC_ChildrenRefsChunk);
         if (childrenRefsStream) {
             //#TODO_SK: implement fully!
@@ -610,7 +635,7 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
                     const size_t childChunkId = childrenChunks.GetChunkIDByIdx(i);
                     if (childChunkId == i) {
                         MemStream childStream = childrenChunks.GetChunkStreamByIdx(i);
-                        RefPtr<MetroModelBase> child = MetroModelFactory::CreateModelFromStream(childStream, params.loadFlags);
+                        RefPtr<MetroModelBase> child = MetroModelFactory::CreateModelFromStream(childStream, params);
                         if (child) {
                             bool skipChild = false;
                             if (!TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadCollision) && child->IsCollisionModel()) {
@@ -629,10 +654,10 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
             }
 
             MemStream lod1Stream = chunker.GetChunkStream(MC_Lod_1_Chunk);
-            RefPtr<MetroModelBase> lod1Model = lod1Stream ? MetroModelFactory::CreateModelFromStream(lod1Stream, params.loadFlags) : nullptr;
+            RefPtr<MetroModelBase> lod1Model = lod1Stream ? MetroModelFactory::CreateModelFromStream(lod1Stream, params) : nullptr;
 
             MemStream lod2Stream = chunker.GetChunkStream(MC_Lod_2_Chunk);
-            RefPtr<MetroModelBase> lod2Model = lod2Stream ? MetroModelFactory::CreateModelFromStream(lod2Stream, params.loadFlags) : nullptr;
+            RefPtr<MetroModelBase> lod2Model = lod2Stream ? MetroModelFactory::CreateModelFromStream(lod2Stream, params) : nullptr;
 
             if (lod1Model) {
                 mLods.push_back(lod1Model);
@@ -640,6 +665,10 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
             if (lod2Model) {
                 mLods.push_back(lod2Model);
             }
+        }
+
+        if (!params.tpresetName.empty()) {
+            this->ApplyTPreset(params.tpresetName);
         }
     }
 
@@ -699,6 +728,16 @@ void MetroModelHierarchy::CollectGeomData(MyArray<MetroModelGeomData>& result, c
     }
 }
 
+void MetroModelHierarchy::ApplyTPreset(const CharString& tpresetName) {
+    const auto it = std::find_if(mTPresets.begin(), mTPresets.end(), [&tpresetName](const MetroModelTPreset& p)->bool {
+        return p.name == tpresetName;
+    });
+
+    if (it != mTPresets.end()) {
+        this->ApplyTPresetInternal(*it);
+    }
+}
+
 size_t MetroModelHierarchy::GetChildrenCount() const {
     return mChildren.size();
 }
@@ -719,6 +758,44 @@ void MetroModelHierarchy::AddChild(const RefPtr<MetroModelBase>& child) {
     }
 }
 
+void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {
+    MemStream tpresetsStream = chunker.GetChunkStream(MC_TexturesPresets);
+    if (tpresetsStream) {
+        const size_t numPresets = tpresetsStream.ReadU16();
+        mTPresets.resize(numPresets);
+        for (auto& preset : mTPresets) {
+            preset.name = tpresetsStream.ReadStringZ();
+            if (mVersion >= 12) {
+                preset.hit_preset = tpresetsStream.ReadStringZ();
+            }
+            if (mVersion >= 21) {
+                preset.voice = tpresetsStream.ReadStringZ();
+            }
+            if (mVersion >= 23) {
+                preset.flags = tpresetsStream.ReadU32();
+            }
+
+            const size_t numItems = tpresetsStream.ReadU16();
+            preset.items.resize(numItems);
+            for (auto& item : preset.items) {
+                item.mtl_name = tpresetsStream.ReadStringZ();
+                item.t_dst = tpresetsStream.ReadStringZ();
+                item.s_dst = tpresetsStream.ReadStringZ();
+            }
+        }
+    }
+}
+
+void MetroModelHierarchy::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
+    for (auto& child : mChildren) {
+        child->ApplyTPresetInternal(tpreset);
+    }
+
+    for (auto& lod : mChildren) {
+        lod->ApplyTPresetInternal(tpreset);
+    }
+}
+
 
 // Complete animated model, can consist of multiple Skin models (inline or external *.mesh files)
 MetroModelSkeleton::MetroModelSkeleton()
@@ -735,6 +812,10 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
     StreamChunker chunker(stream);
 
     const bool hasHeader = MetroModelBase::Load(stream, params);
+
+    if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadTPresets) || !params.tpresetName.empty()) {
+        this->LoadTPresets(chunker);
+    }
 
     MemStream meshesLinksStream = chunker.GetChunkStream(MC_MeshesLinks);
     if (meshesLinksStream) {
@@ -776,6 +857,10 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
                 }
             }
         }
+    }
+
+    if (!params.tpresetName.empty()) {
+        this->ApplyTPreset(params.tpresetName);
     }
 
     if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadSkeleton)) {
@@ -865,7 +950,9 @@ bool MetroModelSkeleton::LoadLodMeshes(MetroModelHierarchy* target, CharString& 
             if (file.IsValid()) {
                 MemStream stream = mfs.OpenFileStream(file);
                 stream.SetName(mfs.GetName(file));
-                if (!this->LoadLodMesh(target, stream, params, lodIdx)) {
+                MetroModelLoadParams loadParams = params;
+                loadParams.srcFile = file;
+                if (!this->LoadLodMesh(target, stream, loadParams, lodIdx)) {
                     result = false;
                     break;
                 }
@@ -908,7 +995,7 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
     bool result = false;
 
     if (stream) {
-        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, params.loadFlags);
+        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, params);
         if (mesh) {
             //#NOTE_SK: are we sure it's always hierarchy/skeleton ?
             RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mesh);
@@ -974,7 +1061,7 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromType(const MetroModelTy
     return result;
 }
 
-RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& stream, const uint32_t loadFlags, const MetroFSPath& srcFile) {
+RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& stream, const MetroModelLoadParams& params) {
     RefPtr<MetroModelBase> result;
 
     StreamChunker chunker(stream);
@@ -986,15 +1073,10 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
 
         result = MetroModelFactory::CreateModelFromType(scast<MetroModelType>(hdr.type));
         if (result) {
-            MetroModelLoadParams params = {
-                kEmptyString,
-                kEmptyString,
-                hdr.version,
-                loadFlags,
-                srcFile
-            };
+            MetroModelLoadParams loadParams = params;
+            loadParams.formatVersion = hdr.version;
 
-            const bool success = result->Load(stream, params);
+            const bool success = result->Load(stream, loadParams);
             if (!success) {
                 result = nullptr;
             } else {
@@ -1009,10 +1091,59 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
 RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromFile(const MetroFSPath& file, const uint32_t loadFlags) {
     MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
     if (stream) {
-        return MetroModelFactory::CreateModelFromStream(stream, loadFlags, file);
+        MetroModelLoadParams params = {
+            kEmptyString,
+            kEmptyString,
+            0,
+            loadFlags,
+            file
+        };
+        return MetroModelFactory::CreateModelFromStream(stream, params);
     } else {
         return nullptr;
     }
+}
+
+RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromFullName(const CharString& fullName, const uint32_t loadFlags) {
+    // break full name into:
+    //  model name
+    //  tpreset name
+    //  modifier name (???)
+
+    CharString modelName, tpresetName, modifierName;
+
+    size_t atPos = fullName.find('@');
+    if (atPos != CharString::npos) {
+        modelName = fullName.substr(0, atPos);
+        tpresetName = fullName.substr(atPos + 1);
+
+        atPos = tpresetName.find('@');
+        if (atPos != CharString::npos) {
+            modifierName = tpresetName.substr(atPos + 1);
+            tpresetName = tpresetName.substr(0, atPos);
+        }
+    } else {
+        modelName = fullName;
+    }
+
+    CharString fullPath = MetroFileSystem::Paths::MeshesFolder + modelName + ".model";
+    MetroFSPath file = MetroContext::Get().GetFilesystem().FindFile(fullPath);
+    if (file.IsValid()) {
+        MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
+        if (stream) {
+            MetroModelLoadParams params = {
+                modelName,
+                tpresetName,
+                0,
+                loadFlags,
+                file
+            };
+
+            return MetroModelFactory::CreateModelFromStream(stream, params);
+        }
+    }
+
+    return nullptr;
 }
 
 

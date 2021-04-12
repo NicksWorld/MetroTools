@@ -94,7 +94,7 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
         if (mModel) {
             u4a::ResourcesManager::Get().Clear();
 
-            mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModelNew(*mScene, mModel.get(), vec3(0.0f), true));
+            mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), vec3(0.0f), true));
         }
 
         //    this->ResetAnimation();

@@ -1332,7 +1332,7 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
                 ExporterOBJ expObj;
                 expObj.SetExcludeCollision(ctx.mdlExcludeCollision);
                 expObj.SetTexturesExtension(texExt);
-                expObj.ExportModelNew(*mdl, resultPath);
+                expObj.ExportModel(*mdl, resultPath);
                 if (ctx.mdlSaveLods && (mdl->GetModelType() == MetroModelType::Hierarchy || mdl->GetModelType() == MetroModelType::Hierarchy2)) {
                     //RefPtr<MetroModelHierarchy> hierarchyMdl = SCastRefPtr<MetroModelHierarchy>(mdl);
                     //MetroModel* lod1 = mdl.GetLodModel(0);
@@ -1361,7 +1361,7 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
                 }
 
                 expFbx.SetTexturesExtension(texExt);
-                expFbx.ExportModelNew(*mdl, resultPath);
+                expFbx.ExportModel(*mdl, resultPath);
 
                 if (ctx.mdlSaveLods) {
                     //MetroModel* lod1 = mdl.GetLodModel(0);
@@ -1393,7 +1393,7 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
                             RefPtr<MetroMotion> motion = skeleton->GetMotion(motionIdx);
                             fs::path animPath = modelBasePath.native() + fs::path("@" + motion->GetName()).native() + L".fbx";
                             expFbx.SetExportMotionIdx(motionIdx);
-                            expFbx.ExportModelNew(*mdl, animPath);
+                            expFbx.ExportModel(*mdl, animPath);
                         }
                     }
                 }
@@ -1456,7 +1456,7 @@ bool MainWindow::ExtractMotion(const FileExtractionCtx& ctx, const fs::path& out
         expFbx.SetExportAnimation(true);
         expFbx.SetExportMotionIdx(scast<size_t>(motionIdx));
 
-        result = expFbx.ExportModelNew(*model, resultPath);
+        result = expFbx.ExportModel(*model, resultPath);
     }
 
     return result;

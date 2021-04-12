@@ -32,7 +32,7 @@ public:
     Texture*    GetHMapTexture(const HashString& name, const size_t w, const size_t h);
     Model*      GetModel(const HashString& name, const bool needAnimations);
 
-    Model*      ConstructModelNew(MetroModelBase* model);
+    Model*      ConstructModel(MetroModelBase* model);
     LevelGeo*   ConstructLevelGeo(MetroLevel* level);
 
 private:

@@ -128,15 +128,15 @@ FbxSurfacePhong* FBXE_CreateMaterial(FbxManager* mgr, const CharString& textureN
     return material;
 }
 
-void FBXE_CreateMeshModelNew(FbxManager* mgr,
-                             FbxScene* scene,
-                             const MetroModelBase& model,
-                             const CharString& name,
-                             MyFbxMeshModel& fbxModel,
-                             MyFbxMaterialsDict& materialsDict,
-                             const fs::path& texturesFolder,
-                             const CharString& texExtension,
-                             const bool excludeCollision) {
+static void FBXE_CreateMeshModel(FbxManager* mgr,
+                                 FbxScene* scene,
+                                 const MetroModelBase& model,
+                                 const CharString& name,
+                                 MyFbxMeshModel& fbxModel,
+                                 MyFbxMaterialsDict& materialsDict,
+                                 const fs::path& texturesFolder,
+                                 const CharString& texExtension,
+                                 const bool excludeCollision) {
 
     MyArray<MetroModelGeomData> gds;
     model.CollectGeomData(gds);
@@ -497,7 +497,7 @@ void ExporterFBX::SetExportMotionIdx(const size_t idx) {
     mExportMotionIdx = idx;
 }
 
-bool ExporterFBX::ExportModelNew(const MetroModelBase& model, const fs::path& filePath) {
+bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& filePath) {
     FbxManager* mgr = FbxManager::Create();
     if (!mgr) {
         return false;
@@ -521,7 +521,7 @@ bool ExporterFBX::ExportModelNew(const MetroModelBase& model, const fs::path& fi
     MyFbxMeshModel fbxMeshModel;
     MyFbxMaterialsDict fbxMaterials;
     if (mExportMesh) {
-        FBXE_CreateMeshModelNew(mgr, scene, model, modelName, fbxMeshModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
+        FBXE_CreateMeshModel(mgr, scene, model, modelName, fbxMeshModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
         scene->GetRootNode()->AddChild(fbxMeshModel.root);
     }
 
@@ -753,7 +753,7 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
                 RefPtr<MetroModelBase> mdl = MetroModelFactory::CreateModelFromFullName(visual, loadFlags);
                 if (mdl) {
                     MyFbxMeshModel newFbxModel;
-                    FBXE_CreateMeshModelNew(mgr, scene, *mdl, entityName, newFbxModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
+                    FBXE_CreateMeshModel(mgr, scene, *mdl, entityName, newFbxModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
                     fbxModelsCache[hashName] = newFbxModel;
                     modelNode = newFbxModel.root;
                 }

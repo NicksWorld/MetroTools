@@ -147,9 +147,9 @@ Model* ResourcesManager::GetModel(const HashString& name, const bool needAnimati
     }
 }
 
-Model* ResourcesManager::ConstructModelNew(MetroModelBase* model) {
+Model* ResourcesManager::ConstructModel(MetroModelBase* model) {
     Model* result = new Model();
-    if (!result->CreateNew(model)) {
+    if (!result->Create(model)) {
         MySafeDelete(result);
     }
 
@@ -343,7 +343,7 @@ Model* ResourcesManager::LoadModel(const HashString& name, const bool needAnimat
     RefPtr<MetroModelBase> srcModel = MetroModelFactory::CreateModelFromFullName(name.str, loadFlags);
     if (srcModel) {
         result = new Model();
-        if (!result->CreateNew(srcModel.get())) {
+        if (!result->Create(srcModel.get())) {
             MySafeDelete(result);
         }
     }

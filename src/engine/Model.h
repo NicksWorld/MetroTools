@@ -52,7 +52,7 @@ public:
     bool                    HasTransparency() const;
     bool                    HasTranslucency() const;
 
-    bool                    CreateNew(const MetroModelBase* mdl);
+    bool                    Create(const MetroModelBase* mdl);
     void                    Destroy();
 
     ID3D11Buffer*           GetVertexBuffer() const;

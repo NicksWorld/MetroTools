@@ -34,10 +34,10 @@ SceneNode* Spawner::SpawnModel(Scene& scene, const CharString& modelName, const 
     return result;
 }
 
-SceneNode* Spawner::SpawnModelNew(Scene& scene, MetroModelBase* srcModel, const vec3& pos, const bool needAnimator, SceneNode* parent) {
+SceneNode* Spawner::SpawnModel(Scene& scene, MetroModelBase* srcModel, const vec3& pos, const bool needAnimator, SceneNode* parent) {
     SceneNode* result = nullptr;
 
-    Model* model = ResourcesManager::Get().ConstructModelNew(srcModel);
+    Model* model = ResourcesManager::Get().ConstructModel(srcModel);
     if (model) {
         ModelNode* node = new ModelNode();
         node->SetModel(model, needAnimator);

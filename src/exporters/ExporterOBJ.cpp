@@ -58,7 +58,7 @@ static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
     return std::move(result);
 }
 
-bool ExporterOBJ::ExportModelNew(const MetroModelBase& model, const fs::path& filePath) const {
+bool ExporterOBJ::ExportModel(const MetroModelBase& model, const fs::path& filePath) const {
     bool result = false;
 
     std::ofstream file(filePath, std::ofstream::binary);

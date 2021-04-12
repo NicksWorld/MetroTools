@@ -68,7 +68,7 @@ bool Model::HasTranslucency() const {
     return false;
 }
 
-bool Model::CreateNew(const MetroModelBase* mdl) {
+bool Model::Create(const MetroModelBase* mdl) {
     const size_t vertexSize = sizeof(VertexStatic);
 
     mBBox.Reset();

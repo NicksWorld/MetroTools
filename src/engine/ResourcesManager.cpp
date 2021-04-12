@@ -147,19 +147,6 @@ Model* ResourcesManager::GetModel(const HashString& name, const bool needAnimati
     }
 }
 
-Model* ResourcesManager::ConstructModel(MetroModel* model) {
-    Model* result = new Model();
-    if (!result->Create(model)) {
-        MySafeDelete(result);
-    }
-
-    if (result) {
-        mDanglingModels.push_back(result);
-    }
-
-    return result;
-}
-
 Model* ResourcesManager::ConstructModelNew(MetroModelBase* model) {
     Model* result = new Model();
     if (!result->CreateNew(model)) {

@@ -1324,98 +1324,99 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
     const MEXSettings& settings = MEXSettings::Get();
 
     if (!resultPath.empty()) {
-        MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(ctx.file);
-        if (stream) {
-            MetroModel mdl;
-            if (mdl.LoadFromData(stream, ctx.file)) {
-                CharString texExt = this->DecideTextureExtension(ctx);
+        RefPtr<MetroModelBase> mdl = MetroModelFactory::CreateModelFromFile(ctx.file, MetroModelLoadParams::LoadEverything);
+        if (mdl) {
+            CharString texExt = this->DecideTextureExtension(ctx);
 
-                if (ctx.mdlSaveAsObj) {
-                    ExporterOBJ expObj;
-                    expObj.SetExcludeCollision(ctx.mdlExcludeCollision);
-                    expObj.SetTexturesExtension(texExt);
-                    expObj.ExportModel(mdl, resultPath);
-                    if (ctx.mdlSaveLods) {
-                        MetroModel* lod1 = mdl.GetLodModel(0);
-                        MetroModel* lod2 = mdl.GetLodModel(1);
+            if (ctx.mdlSaveAsObj) {
+                ExporterOBJ expObj;
+                expObj.SetExcludeCollision(ctx.mdlExcludeCollision);
+                expObj.SetTexturesExtension(texExt);
+                expObj.ExportModelNew(*mdl, resultPath);
+                if (ctx.mdlSaveLods && (mdl->GetModelType() == MetroModelType::Hierarchy || mdl->GetModelType() == MetroModelType::Hierarchy2)) {
+                    //RefPtr<MetroModelHierarchy> hierarchyMdl = SCastRefPtr<MetroModelHierarchy>(mdl);
+                    //MetroModel* lod1 = mdl.GetLodModel(0);
+                    //MetroModel* lod2 = mdl.GetLodModel(1);
 
-                        if (lod1) {
-                            fs::path lodPath = resultPath;
-                            lodPath.replace_extension("_lod1.obj");
-                            expObj.ExportModel(*lod1, lodPath);
-                        }
-                        if (lod2) {
-                            fs::path lodPath = resultPath;
-                            lodPath.replace_extension("_lod2.obj");
-                            expObj.ExportModel(*lod2, lodPath);
-                        }
-                    }
-                } else {
-                    ExporterFBX expFbx;
-                    expFbx.SetExportMesh(true);
-                    expFbx.SetExportSkeleton(true);
-                    if (ctx.mdlExcludeCollision) {
-                        expFbx.SetExcludeCollision(true);
-                    }
-                    if (settings.extraction.modelSaveWithAnims && !settings.extraction.modelAnimsSeparate) {
-                        expFbx.SetExportAnimation(true);
-                    }
+                    //if (lod1) {
+                    //    fs::path lodPath = resultPath;
+                    //    lodPath.replace_extension("_lod1.obj");
+                    //    expObj.ExportModel(*lod1, lodPath);
+                    //}
+                    //if (lod2) {
+                    //    fs::path lodPath = resultPath;
+                    //    lodPath.replace_extension("_lod2.obj");
+                    //    expObj.ExportModel(*lod2, lodPath);
+                    //}
+                }
+            } else {
+                ExporterFBX expFbx;
+                expFbx.SetExportMesh(true);
+                expFbx.SetExportSkeleton(true);
+                if (ctx.mdlExcludeCollision) {
+                    expFbx.SetExcludeCollision(true);
+                }
+                if (settings.extraction.modelSaveWithAnims && !settings.extraction.modelAnimsSeparate) {
+                    expFbx.SetExportAnimation(true);
+                }
 
-                    expFbx.SetTexturesExtension(texExt);
-                    expFbx.ExportModel(mdl, resultPath);
+                expFbx.SetTexturesExtension(texExt);
+                expFbx.ExportModelNew(*mdl, resultPath);
 
-                    if (ctx.mdlSaveLods) {
-                        MetroModel* lod1 = mdl.GetLodModel(0);
-                        MetroModel* lod2 = mdl.GetLodModel(1);
+                if (ctx.mdlSaveLods) {
+                    //MetroModel* lod1 = mdl.GetLodModel(0);
+                    //MetroModel* lod2 = mdl.GetLodModel(1);
 
-                        expFbx.SetExportAnimation(false);
+                    //expFbx.SetExportAnimation(false);
 
-                        if (lod1) {
-                            fs::path lodPath = resultPath;
-                            lodPath.replace_extension("_lod1.fbx");
-                            expFbx.ExportModel(*lod1, lodPath);
-                        }
-                        if (lod2) {
-                            fs::path lodPath = resultPath;
-                            lodPath.replace_extension("_lod2.fbx");
-                            expFbx.ExportModel(*lod2, lodPath);
-                        }
-                    }
+                    //if (lod1) {
+                    //    fs::path lodPath = resultPath;
+                    //    lodPath.replace_extension("_lod1.fbx");
+                    //    expFbx.ExportModel(*lod1, lodPath);
+                    //}
+                    //if (lod2) {
+                    //    fs::path lodPath = resultPath;
+                    //    lodPath.replace_extension("_lod2.fbx");
+                    //    expFbx.ExportModel(*lod2, lodPath);
+                    //}
+                }
 
-                    if (settings.extraction.modelSaveWithAnims && settings.extraction.modelAnimsSeparate) {
+                if (settings.extraction.modelSaveWithAnims && settings.extraction.modelAnimsSeparate && mdl->IsSkeleton()) {
+                    RefPtr<MetroModelSkeleton> skelMdl = SCastRefPtr<MetroModelSkeleton>(mdl);
+                    RefPtr<MetroSkeleton> skeleton = skelMdl->GetSkeleton();
+                    if (skeleton) {
                         expFbx.SetExportMesh(false);
                         expFbx.SetExportAnimation(true);
 
                         fs::path modelBasePath = resultPath.parent_path() / resultPath.stem();
-                        for (size_t motionIdx = 0; motionIdx != mdl.GetNumMotions(); ++motionIdx) {
-                            const MetroMotion* motion = mdl.GetMotion(motionIdx);
+                        for (size_t motionIdx = 0; motionIdx != skeleton->GetNumMotions(); ++motionIdx) {
+                            RefPtr<MetroMotion> motion = skeleton->GetMotion(motionIdx);
                             fs::path animPath = modelBasePath.native() + fs::path("@" + motion->GetName()).native() + L".fbx";
                             expFbx.SetExportMotionIdx(motionIdx);
-                            expFbx.ExportModel(mdl, animPath);
+                            expFbx.ExportModelNew(*mdl, animPath);
                         }
                     }
                 }
-
-                if (!ctx.batch && ctx.mdlSaveWithTextures) {
-                    fs::path folderPath = resultPath.parent_path();
-                    for (size_t i = 0; i < mdl.GetNumMeshes(); ++i) {
-                        const MetroMesh* mesh = mdl.GetMesh(i);
-                        if (!mesh->materials.empty()) {
-                            const CharString& textureName = mesh->materials.front();
-
-                            if (settings.extraction.modelSaveSurfaceSet) {
-                                MetroSurfaceDescription surface = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(textureName, false);
-                                this->ExtractSurfaceSet(ctx, surface, folderPath);
-                            } else {
-                                const CharString& sourceName = MetroContext::Get().GetTexturesDB().GetSourceName(textureName);
-                                this->TextureSaveHelper(folderPath, ctx, sourceName);
-                            }
-                        }
-                    }
-                }
-
-                result = true;
             }
+
+            if (!ctx.batch && ctx.mdlSaveWithTextures) {
+                fs::path folderPath = resultPath.parent_path();
+                MyArray<MetroModelGeomData> gds;
+                mdl->CollectGeomData(gds);
+                for (auto& gd : gds) {
+                    CharString textureName(gd.texture);
+
+                    if (settings.extraction.modelSaveSurfaceSet) {
+                        MetroSurfaceDescription surface = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(textureName, false);
+                        this->ExtractSurfaceSet(ctx, surface, folderPath);
+                    } else {
+                        const CharString& sourceName = MetroContext::Get().GetTexturesDB().GetSourceName(textureName);
+                        this->TextureSaveHelper(folderPath, ctx, sourceName);
+                    }
+                }
+            }
+
+            result = true;
         }
     }
 
@@ -1425,44 +1426,38 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
 bool MainWindow::ExtractMotion(const FileExtractionCtx& ctx, const fs::path& outPath) {
     bool result = false;
 
-    //MetroModel* model = mRenderPanel->GetModel();
-    //const int motionIdx = mModelInfoPanel->SelectedMotionIdx;
+    RefPtr<MetroModelBase> model = mRenderPanel->GetModel();
+    const int motionIdx = mModelInfoPanel->GetSelectedMotionIdx();
 
-    //if (!model || motionIdx < 0) {
-    //    return false;
-    //}
+    if (!model || !model->IsSkeleton() || motionIdx < 0) {
+        return false;
+    }
 
-    //fs::path resultPath = outPath;
-    //if (resultPath.empty()) {
-    //    String^ name = ToNetString(model->GetMotionName(scast<size_t>(motionIdx)));
+    fs::path resultPath = outPath;
+    if (resultPath.empty()) {
+        RefPtr<MetroModelSkeleton> skelModel = SCastRefPtr<MetroModelSkeleton>(model);
+        RefPtr<MetroSkeleton> skeleton = skelModel->GetSkeleton();
 
-    //    SaveFileDialog sfd;
-    //    sfd.Title = L"Save FBX animation...";
-    //    sfd.Filter = L"FBX animation (*.fbx)|*.fbx";
-    //    sfd.FileName = name + L".fbx";
-    //    sfd.RestoreDirectory = true;
-    //    sfd.OverwritePrompt = true;
+        CharString motionName = skeleton->GetMotionName(scast<size_t>(motionIdx));
 
-    //    if (sfd.ShowDialog(this) == System::Windows::Forms::DialogResult::OK) {
-    //        resultPath = StringToPath(sfd.FileName);
-    //    } else {
-    //        return true;
-    //    }
-    //}
+        QString fileName = QString::fromStdString(motionName).append(".fbx");
+        QString saveName = QFileDialog::getSaveFileName(this, tr("Save FBX animation..."), fileName, tr("FBX animation (*.fbx)"));
+        if (saveName.length() > 3) {
+            resultPath = saveName.toStdWString();
+        } else {
+            return true;
+        }
+    }
 
-    //if (!resultPath.empty()) {
-    //    System::Windows::Forms::Cursor::Current = System::Windows::Forms::Cursors::WaitCursor;
+    if (!resultPath.empty()) {
+        ExporterFBX expFbx;
+        expFbx.SetExportMesh(false);
+        expFbx.SetExportSkeleton(true);
+        expFbx.SetExportAnimation(true);
+        expFbx.SetExportMotionIdx(scast<size_t>(motionIdx));
 
-    //    ExporterFBX expFbx;
-    //    expFbx.SetExportMesh(false);
-    //    expFbx.SetExportSkeleton(true);
-    //    expFbx.SetExportAnimation(true);
-    //    expFbx.SetExportMotionIdx(scast<size_t>(motionIdx));
-
-    //    result = expFbx.ExportModel(*model, resultPath);
-
-    //    System::Windows::Forms::Cursor::Current = System::Windows::Forms::Cursors::Arrow;
-    //}
+        result = expFbx.ExportModelNew(*model, resultPath);
+    }
 
     return result;
 }
@@ -1622,7 +1617,7 @@ void MainWindow::OnModelInfoMotionsSelectedIndexChanged(int selection) {
 }
 
 void MainWindow::OnModelInfoLodsSelectedIndexChanged(int selection) {
-    if (selection >= 0 && selection <= scast<int>(MetroModel::kMetroModelMaxLods)) {
+    if (selection >= 0) {
         mRenderPanel->SetLod(scast<size_t>(selection));
     }
 }

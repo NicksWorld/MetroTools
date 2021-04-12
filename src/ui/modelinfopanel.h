@@ -26,6 +26,8 @@ public:
     void    AddLodIdxToList(const int lodIdx);
     void    SelectLod(const int lodIdx);
 
+    int     GetSelectedMotionIdx() const;
+
 signals:
     void    playStopClicked();
     void    modelInfoClicked();

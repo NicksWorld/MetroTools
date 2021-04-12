@@ -52,7 +52,6 @@ public:
     bool                    HasTransparency() const;
     bool                    HasTranslucency() const;
 
-    bool                    Create(const MetroModel* mdl);
     bool                    CreateNew(const MetroModelBase* mdl);
     void                    Destroy();
 

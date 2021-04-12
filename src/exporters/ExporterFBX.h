@@ -22,7 +22,6 @@ public:
     void                SetExportAnimation(const bool b);
     void                SetExportMotionIdx(const size_t idx);
 
-    bool                ExportModel(const MetroModel& model, const fs::path& filePath);
     bool                ExportModelNew(const MetroModelBase& model, const fs::path& filePath);
     bool                ExportLevel(const MetroLevel& level, const fs::path& filePath);
 

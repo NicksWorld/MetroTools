@@ -55,6 +55,10 @@ void ModelInfoPanel::SelectLod(const int lodIdx) {
     ui->lstLods->setCurrentIndex(lodIdx);
 }
 
+int ModelInfoPanel::GetSelectedMotionIdx() const {
+    return ui->lstMdlPropMotions->currentRow();
+}
+
 
 void ModelInfoPanel::on_btnMdlPropPlayStopAnim_clicked(bool checked) {
     Q_UNUSED(checked);

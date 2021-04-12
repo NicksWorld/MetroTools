@@ -128,95 +128,6 @@ FbxSurfacePhong* FBXE_CreateMaterial(FbxManager* mgr, const CharString& textureN
     return material;
 }
 
-void FBXE_CreateMeshModel(FbxManager* mgr,
-                          FbxScene* scene,
-                          const MetroModel& model,
-                          const CharString& name,
-                          MyFbxMeshModel& fbxModel,
-                          MyFbxMaterialsDict& materialsDict,
-                          const fs::path& texturesFolder,
-                          const CharString& texExtension,
-                          const bool excludeCollision) {
-
-    const size_t numMeshes = model.GetNumMeshes();
-
-    fbxModel.root = FbxNode::Create(scene, name.c_str());
-
-    for (size_t i = 0; i < numMeshes; ++i) {
-        const MetroMesh* mesh = model.GetMesh(i);
-
-        // empty mesh ???
-        if (!mesh->numVertices || mesh->faces.empty()) {
-            continue;
-        }
-
-        // skip collision geometry if asked so
-        if (excludeCollision && mesh->isCollision) {
-            continue;
-        }
-
-        MyArray<MetroVertex> vertices = model.MakeCommonVertices(i);
-
-        CharString meshName = CharString("mesh_") + std::to_string(i);
-
-        FbxMesh* fbxMesh = FbxMesh::Create(scene, meshName.c_str());
-
-        // assign vertices
-        fbxMesh->InitControlPoints(scast<int>(vertices.size()));
-        FbxVector4* ptrCtrlPoints = fbxMesh->GetControlPoints();
-
-        FbxGeometryElementNormal* normalElement = fbxMesh->CreateElementNormal();
-        normalElement->SetMappingMode(FbxGeometryElement::eByControlPoint);
-        normalElement->SetReferenceMode(FbxGeometryElement::eDirect);
-
-        FbxGeometryElementUV* uvElement = fbxMesh->CreateElementUV("uv0");
-        uvElement->SetMappingMode(FbxGeometryElement::eByControlPoint);
-        uvElement->SetReferenceMode(FbxGeometryElement::eDirect);
-
-        for (const MetroVertex& v : vertices) {
-            *ptrCtrlPoints = MetroVecToFbxVec(v.pos);
-            normalElement->GetDirectArray().Add(MetroVecToFbxVec(v.normal));
-            uvElement->GetDirectArray().Add(FbxVector2(v.uv0.x, 1.0f - v.uv0.y));
-
-            ++ptrCtrlPoints;
-        }
-
-        FbxGeometryElementMaterial* materialElement = fbxMesh->CreateElementMaterial();
-        materialElement->SetMappingMode(FbxGeometryElement::eAllSame);
-        materialElement->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
-        materialElement->GetIndexArray().Add(0);
-
-        // build polygons
-        for (const MetroFace& face : mesh->faces) {
-            fbxMesh->BeginPolygon();
-            fbxMesh->AddPolygon(scast<int>(face.c));
-            fbxMesh->AddPolygon(scast<int>(face.b));
-            fbxMesh->AddPolygon(scast<int>(face.a));
-            fbxMesh->EndPolygon();
-        }
-
-        FbxNode* meshNode = FbxNode::Create(scene, meshName.c_str());
-        meshNode->SetNodeAttribute(fbxMesh);
-
-        FbxSurfacePhong* material = nullptr;
-        HashString textureName = mesh->materials.front();
-        auto it = materialsDict.find(textureName);
-        if (it != materialsDict.end()) {
-            material = it->second;
-        } else {
-            material = FBXE_CreateMaterial(mgr, textureName.str, texturesFolder, texExtension);
-            materialsDict[textureName] = material;
-        }
-
-        meshNode->SetShadingMode(FbxNode::eTextureShading);
-        meshNode->AddMaterial(material);
-
-        fbxModel.root->AddChild(meshNode);
-        fbxModel.meshes.push_back(fbxMesh);
-        fbxModel.nodes.push_back(meshNode);
-    }
-}
-
 void FBXE_CreateMeshModelNew(FbxManager* mgr,
                              FbxScene* scene,
                              const MetroModelBase& model,
@@ -255,7 +166,7 @@ void FBXE_CreateMeshModelNew(FbxManager* mgr,
         for (const MetroVertex& v : vertices) {
             *ptrCtrlPoints = MetroVecToFbxVec(v.pos);
             normalElement->GetDirectArray().Add(MetroVecToFbxVec(v.normal));
-            uvElement->GetDirectArray().Add(FbxVector2(v.uv0.x, 1.0f - v.uv0.y));
+            uvElement->GetDirectArray().Add(FbxVector2(v.uv0.x, 1.0 - v.uv0.y));
 
             ++ptrCtrlPoints;
         }
@@ -586,118 +497,6 @@ void ExporterFBX::SetExportMotionIdx(const size_t idx) {
     mExportMotionIdx = idx;
 }
 
-bool ExporterFBX::ExportModel(const MetroModel& model, const fs::path& filePath) {
-    FbxManager* mgr = FbxManager::Create();
-    if (!mgr) {
-        return false;
-    }
-
-    mTexturesFolder = filePath.parent_path();
-    CharString modelName = filePath.stem().string();
-
-    FbxIOSettings* ios = FbxIOSettings::Create(mgr, IOSROOT);
-    mgr->SetIOSettings(ios);
-
-    FbxScene* scene = FbxScene::Create(mgr, "Metro model");
-    FbxDocumentInfo* info = scene->GetSceneInfo();
-    if (info) {
-        info->Original_ApplicationVendor = FbxString("iOrange");
-        info->Original_ApplicationName = FbxString(mExporterName.data());
-        info->mTitle = FbxString("Metro model");
-        info->mComment = FbxString(CharString("Exported using ").append(mExporterName).append(" created by iOrange").data());
-    }
-
-    MyFbxMeshModel fbxMeshModel;
-    MyFbxMaterialsDict fbxMaterials;
-    if (mExportMesh) {
-        FBXE_CreateMeshModel(mgr, scene, model, modelName, fbxMeshModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
-        scene->GetRootNode()->AddChild(fbxMeshModel.root);
-    }
-
-    MyArray<FbxNode*> boneNodes;
-    if (model.GetSkeleton() && (mExportSkeleton || mExportAnimation)) {
-        FbxNode* rootBoneNode = FBXE_CreateFBXSkeleton(scene, model.GetSkeleton(), boneNodes);
-        scene->GetRootNode()->AddChild(rootBoneNode);
-
-        FbxPose* bindPose = FbxPose::Create(scene, "BindPose");
-        bindPose->SetIsBindPose(true);
-
-        for (FbxNode* node : boneNodes) {
-            bindPose->Add(node, node->EvaluateGlobalTransform());
-        }
-
-        for (size_t i = 0; i < model.GetNumMeshes(); ++i) {
-            const MetroMesh* mesh = model.GetMesh(i);
-
-            // empty mesh ???
-            if (!mesh->numVertices || mesh->faces.empty()) {
-                continue;
-            }
-
-            // skip collision geometry if asked so
-            if (mExcludeCollision && mesh->isCollision) {
-                continue;
-            }
-
-            MyArray<ClusterInfo> clusters;
-            MyArray<MetroVertex> vertices = model.MakeCommonVertices(i);
-            FBXE_CollectClusters(vertices, model.GetSkeleton(), clusters);
-
-            FbxSkin* skin = FbxSkin::Create(scene, "");
-            for (size_t i = 0; i < clusters.size(); ++i) {
-                const ClusterInfo& cluster = clusters[i];
-                if (!cluster.vertexIdxs.empty()) {
-                    FbxCluster* fbxCluster = FbxCluster::Create(scene, "");
-                    FbxNode* linkNode = boneNodes[i];
-                    fbxCluster->SetLink(linkNode);
-                    fbxCluster->SetLinkMode(FbxCluster::eTotalOne);
-                    for (size_t j = 0; j < cluster.vertexIdxs.size(); ++j) {
-                        fbxCluster->AddControlPointIndex(cluster.vertexIdxs[j], cluster.weigths[j]);
-                    }
-                    //fbxCluster->SetTransformMatrix(meshXMatrix);
-                    fbxCluster->SetTransformLinkMatrix(linkNode->EvaluateGlobalTransform());
-                    skin->AddCluster(fbxCluster);
-                }
-            }
-
-            if (mExportMesh) {
-                FbxMesh* fbxMesh = fbxMeshModel.meshes[i];
-                FbxNode* meshNode = fbxMeshModel.nodes[i];
-                FbxAMatrix meshXMatrix = meshNode->EvaluateGlobalTransform();
-                fbxMesh->AddDeformer(skin);
-                bindPose->Add(meshNode, meshXMatrix);
-            }
-        }
-
-        scene->AddPose(bindPose);
-    }
-
-    if (mExportAnimation) {
-        if (mExportMotionIdx != kInvalidValue) {
-            const MetroMotion* motion = const_cast<MetroModel&>(model).GetMotion(mExportMotionIdx);
-            FBXE_AddAnimTrackToScene(scene, motion, motion->GetName(), boneNodes);
-        } else {
-            for (size_t i = 0; i < model.GetNumMotions(); ++i) {
-                const MetroMotion* motion = const_cast<MetroModel&>(model).GetMotion(i);
-                FBXE_AddAnimTrackToScene(scene, motion, motion->GetName(), boneNodes);
-            }
-        }
-    }
-
-    const bool result = FBXE_SaveFBXScene(mgr, scene, ios, filePath, mExportMesh, mExportSkeleton || mExportAnimation);
-
-    mgr->Destroy();
-
-    if (result) {
-        mUsedTextures.resize(0);
-        for (auto& it : fbxMaterials) {
-            mUsedTextures.push_back(it.first.str);
-        }
-    }
-
-    return result;
-}
-
 bool ExporterFBX::ExportModelNew(const MetroModelBase& model, const fs::path& filePath) {
     FbxManager* mgr = FbxManager::Create();
     if (!mgr) {
@@ -726,75 +525,78 @@ bool ExporterFBX::ExportModelNew(const MetroModelBase& model, const fs::path& fi
         scene->GetRootNode()->AddChild(fbxMeshModel.root);
     }
 
-    //MyArray<FbxNode*> boneNodes;
-    //if (model.GetSkeleton() && (mExportSkeleton || mExportAnimation)) {
-    //    FbxNode* rootBoneNode = FBXE_CreateFBXSkeleton(scene, model.GetSkeleton(), boneNodes);
-    //    scene->GetRootNode()->AddChild(rootBoneNode);
+    MyArray<FbxNode*> boneNodes;
+    if (model.IsSkeleton() && (mExportSkeleton || mExportAnimation)) {
+        const MetroModelSkeleton& skelModel = scast<const MetroModelSkeleton&>(model);
+        RefPtr<MetroSkeleton> skeleton = skelModel.GetSkeleton();
+        if (skeleton) {
+            FbxNode* rootBoneNode = FBXE_CreateFBXSkeleton(scene, skeleton.get(), boneNodes);
+            scene->GetRootNode()->AddChild(rootBoneNode);
 
-    //    FbxPose* bindPose = FbxPose::Create(scene, "BindPose");
-    //    bindPose->SetIsBindPose(true);
+            FbxPose* bindPose = FbxPose::Create(scene, "BindPose");
+            bindPose->SetIsBindPose(true);
 
-    //    for (FbxNode* node : boneNodes) {
-    //        bindPose->Add(node, node->EvaluateGlobalTransform());
-    //    }
+            for (FbxNode* node : boneNodes) {
+                bindPose->Add(node, node->EvaluateGlobalTransform());
+            }
 
-    //    for (size_t i = 0; i < model.GetNumMeshes(); ++i) {
-    //        const MetroMesh* mesh = model.GetMesh(i);
+            MyArray<MetroModelGeomData> gds;
+            skelModel.CollectGeomData(gds);
 
-    //        // empty mesh ???
-    //        if (!mesh->numVertices || mesh->faces.empty()) {
-    //            continue;
-    //        }
+            size_t meshIdx = 0;
+            for (auto& gd : gds) {
+                MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
 
-    //        // skip collision geometry if asked so
-    //        if (mExcludeCollision && mesh->isCollision) {
-    //            continue;
-    //        }
+                MyArray<ClusterInfo> clusters;
+                FBXE_CollectClusters(vertices, skeleton.get(), clusters);
 
-    //        MyArray<ClusterInfo> clusters;
-    //        MyArray<MetroVertex> vertices = model.MakeCommonVertices(i);
-    //        FBXE_CollectClusters(vertices, model.GetSkeleton(), clusters);
+                FbxSkin* skin = FbxSkin::Create(scene, "");
+                for (size_t i = 0; i < clusters.size(); ++i) {
+                    const ClusterInfo& cluster = clusters[i];
+                    if (!cluster.vertexIdxs.empty()) {
+                        FbxCluster* fbxCluster = FbxCluster::Create(scene, "");
+                        FbxNode* linkNode = boneNodes[i];
+                        fbxCluster->SetLink(linkNode);
+                        fbxCluster->SetLinkMode(FbxCluster::eTotalOne);
+                        for (size_t j = 0; j < cluster.vertexIdxs.size(); ++j) {
+                            fbxCluster->AddControlPointIndex(cluster.vertexIdxs[j], cluster.weigths[j]);
+                        }
+                        //fbxCluster->SetTransformMatrix(meshXMatrix);
+                        fbxCluster->SetTransformLinkMatrix(linkNode->EvaluateGlobalTransform());
+                        skin->AddCluster(fbxCluster);
+                    }
+                }
 
-    //        FbxSkin* skin = FbxSkin::Create(scene, "");
-    //        for (size_t i = 0; i < clusters.size(); ++i) {
-    //            const ClusterInfo& cluster = clusters[i];
-    //            if (!cluster.vertexIdxs.empty()) {
-    //                FbxCluster* fbxCluster = FbxCluster::Create(scene, "");
-    //                FbxNode* linkNode = boneNodes[i];
-    //                fbxCluster->SetLink(linkNode);
-    //                fbxCluster->SetLinkMode(FbxCluster::eTotalOne);
-    //                for (size_t j = 0; j < cluster.vertexIdxs.size(); ++j) {
-    //                    fbxCluster->AddControlPointIndex(cluster.vertexIdxs[j], cluster.weigths[j]);
-    //                }
-    //                //fbxCluster->SetTransformMatrix(meshXMatrix);
-    //                fbxCluster->SetTransformLinkMatrix(linkNode->EvaluateGlobalTransform());
-    //                skin->AddCluster(fbxCluster);
-    //            }
-    //        }
+                if (mExportMesh) {
+                    FbxMesh* fbxMesh = fbxMeshModel.meshes[meshIdx];
+                    FbxNode* meshNode = fbxMeshModel.nodes[meshIdx];
+                    FbxAMatrix meshXMatrix = meshNode->EvaluateGlobalTransform();
+                    fbxMesh->AddDeformer(skin);
+                    bindPose->Add(meshNode, meshXMatrix);
+                }
 
-    //        if (mExportMesh) {
-    //            FbxMesh* fbxMesh = fbxMeshModel.meshes[i];
-    //            FbxNode* meshNode = fbxMeshModel.nodes[i];
-    //            FbxAMatrix meshXMatrix = meshNode->EvaluateGlobalTransform();
-    //            fbxMesh->AddDeformer(skin);
-    //            bindPose->Add(meshNode, meshXMatrix);
-    //        }
-    //    }
+                ++meshIdx;
+            }
 
-    //    scene->AddPose(bindPose);
-    //}
+            scene->AddPose(bindPose);
+        }
+    }
 
-    //if (mExportAnimation) {
-    //    if (mExportMotionIdx != kInvalidValue) {
-    //        const MetroMotion* motion = const_cast<MetroModel&>(model).GetMotion(mExportMotionIdx);
-    //        FBXE_AddAnimTrackToScene(scene, motion, motion->GetName(), boneNodes);
-    //    } else {
-    //        for (size_t i = 0; i < model.GetNumMotions(); ++i) {
-    //            const MetroMotion* motion = const_cast<MetroModel&>(model).GetMotion(i);
-    //            FBXE_AddAnimTrackToScene(scene, motion, motion->GetName(), boneNodes);
-    //        }
-    //    }
-    //}
+    if (mExportAnimation) {
+        const MetroModelSkeleton& skelModel = scast<const MetroModelSkeleton&>(model);
+        RefPtr<MetroSkeleton> skeleton = skelModel.GetSkeleton();
+        if (skeleton) {
+            if (mExportMotionIdx != kInvalidValue) {
+                RefPtr<MetroMotion> motion = skeleton->GetMotion(mExportMotionIdx);
+                FBXE_AddAnimTrackToScene(scene, motion.get(), motion->GetName(), boneNodes);
+            } else {
+                for (size_t i = 0; i < skeleton->GetNumMotions(); ++i) {
+                    RefPtr<MetroMotion> motion = skeleton->GetMotion(i);
+                    FBXE_AddAnimTrackToScene(scene, motion.get(), motion->GetName(), boneNodes);
+                }
+            }
+        }
+    }
 
     const bool result = FBXE_SaveFBXScene(mgr, scene, ios, filePath, mExportMesh, mExportSkeleton || mExportAnimation);
 
@@ -939,24 +741,19 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
     for (size_t i = 0; i < numEntities; ++i) {
         const CharString& visual = level.GetEntityVisual(i);
         if (!visual.empty()) {
-            CharString fullModelName = visual;
-            const size_t atPos = fullModelName.find('@');
-            if (atPos != CharString::npos) {
-                fullModelName = fullModelName.substr(0, atPos);
-            }
-
             const CharString& entityName = level.GetEntityName(i);
 
             FbxNode* modelNode = nullptr;
-            HashString hashName = fullModelName;
+            HashString hashName = visual;
             auto it = fbxModelsCache.find(hashName);
             if (it != fbxModelsCache.end()) {
                 modelNode = FBXE_InstantiateModel(scene, entityName, it->second);
             } else {
-                MetroModel mdl;
-                if (mdl.LoadFromName(fullModelName, false)) {
+                const uint32_t loadFlags = MetroModelLoadParams::LoadGeometry | MetroModelLoadParams::LoadTPresets;
+                RefPtr<MetroModelBase> mdl = MetroModelFactory::CreateModelFromFullName(visual, loadFlags);
+                if (mdl) {
                     MyFbxMeshModel newFbxModel;
-                    FBXE_CreateMeshModel(mgr, scene, mdl, entityName, newFbxModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
+                    FBXE_CreateMeshModelNew(mgr, scene, *mdl, entityName, newFbxModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
                     fbxModelsCache[hashName] = newFbxModel;
                     modelNode = newFbxModel.root;
                 }

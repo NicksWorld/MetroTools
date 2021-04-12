@@ -102,6 +102,10 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
     }
 }
 
+const RefPtr<MetroModelBase>& RenderPanel::GetModel() const {
+    return mModel;
+}
+
 void RenderPanel::SetLevel(MetroLevel* level) {
     //mCubemap = nullptr;
     //MySafeDelete(mLightProbe);

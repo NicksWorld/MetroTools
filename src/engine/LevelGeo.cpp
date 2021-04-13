@@ -4,6 +4,7 @@
 #include "engine/ResourcesManager.h"
 
 #include "metro/MetroLevel.h"
+#include "metro/MetroModel.h"
 #include "metro/MetroContext.h"
 
 #define D3D11_NO_HELPERS
@@ -13,7 +14,9 @@
 namespace u4a {
 
 LevelGeo::LevelGeo()
-    : mTerrainDiffuse(nullptr)
+    : mTerrainMin{}
+    , mTerrainDim{}
+    , mTerrainDiffuse(nullptr)
     , mTerrainNormalmap(nullptr)
     , mTerrainMask(nullptr)
     , mTerrainDet0(nullptr)
@@ -156,25 +159,12 @@ bool LevelGeo::Create(const MetroLevel* level) {
 
         sector.bbox.Reset();
 
-        const size_t numSections = ls.sections.size();
-        sector.sections.resize(numSections);
-        for (size_t j = 0; j < numSections; ++j) {
-            const SectorSection& ss = ls.sections[j];
-            LevelGeoSection& section = sector.sections[j];
+        const size_t numSuperStaticMeshes = ls.superStaticMeshes.size();
+        sector.sections.reserve(numSuperStaticMeshes);
 
-            section.numVertices = ss.desc.numVertices;
-            section.numIndices = ss.desc.numIndices;
-            section.numShadowVertices = ss.desc.numShadowVertices;
-            section.numShadowIndices = ss.desc.numShadowIndices;
-            section.vbOffset = ss.desc.vbOffset * sizeof(VertexLevel);
-            section.ibOffset = ss.desc.ibOffset * sizeof(uint16_t);
-            section.shadowVBOffset = section.vbOffset + (section.numVertices * sizeof(VertexLevel));
-            section.shadowIBOffset = section.ibOffset + (section.numIndices * sizeof(uint16_t));
-            section.surfaceIdx = mSurfaces.size();
-
-            mSurfaces.push_back(ResourcesManager::Get().GetSurface(ss.textureName));
-
-            sector.bbox.Absorb(ss.bbox);
+        for (const uint32_t i : ls.superStaticInstances) {
+            const RefPtr<MetroModelBase>& ssm = ls.superStaticMeshes[i];
+            this->AddSectorSuperStaticMesh(sector, ssm, ls);
         }
     }
 
@@ -225,6 +215,40 @@ void LevelGeo::Destroy() {
 }
 
 
+
+void LevelGeo::AddSectorSuperStaticMesh(LevelGeoSector& sector, const RefPtr<MetroModelBase>& ssm, const LevelSector& ls) {
+    if (ssm->IsHierarchy()) {
+        RefPtr<MetroModelHierarchy> hierarchyL = SCastRefPtr<MetroModelHierarchy>(ssm);
+        const size_t numChildrenL = hierarchyL->GetChildrenRefsCount();
+        for (size_t k = 0; k < numChildrenL; ++k) {
+            const size_t meshRefL = hierarchyL->GetChildRef(k);
+            this->AddSectorSuperStaticMesh(sector, ls.superStaticMeshes[meshRefL], ls);
+        }
+    } else {
+        sector.sections.push_back({});
+        LevelGeoSection& section = sector.sections.back();
+
+        assert(!ssm->IsHierarchy() && !ssm->IsSkeleton());
+        MyArray<MetroModelGeomData> gds;
+        ssm->CollectGeomData(gds);
+        assert(gds.size() == 1);
+
+        const MetroModelGeomData& gd = gds.front();
+
+        section.numVertices = gd.mesh->verticesCount;
+        section.numIndices = gd.mesh->facesCount * 3;
+        section.numShadowVertices = gd.mesh->shadowVerticesCount;
+        section.numShadowIndices = gd.mesh->shadowFacesCount * 3;
+        section.vbOffset = gd.mesh->verticesOffset * sizeof(VertexLevel);
+        section.ibOffset = gd.mesh->indicesOffset * sizeof(uint16_t);
+        section.shadowVBOffset = 0;
+        section.shadowIBOffset = 0;
+        section.surfaceIdx = mSurfaces.size();
+
+        mSurfaces.push_back(ResourcesManager::Get().GetSurface(gd.texture));
+        sector.bbox.Absorb(gd.bbox);
+    }
+}
 
 bool LevelGeo::CreateTerrain() {
     static const size_t kTerrainChunkWidth = 128;

@@ -11,7 +11,9 @@ struct MetroModelLoadParams {
         LoadSkeleton    = 4,
         LoadTPresets    = 8,
 
-        LoadEverything  = ~0u
+        LoadForceSkin   = 0x10000,
+
+        LoadEverything  = 0xF
     };
 
     CharString  modelName;
@@ -140,6 +142,7 @@ public:
     virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const;
 
     virtual bool                    IsSkeleton() const { return false; }
+    virtual bool                    IsHierarchy() const { return false; }
 
 protected:
     virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset);
@@ -223,31 +226,37 @@ public:
     MetroModelHierarchy();
     virtual ~MetroModelHierarchy();
 
-    virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool            Save(MemWriteStream& stream) override;
+    virtual bool                Load(MemStream& stream, MetroModelLoadParams& params) override;
+    virtual bool                Save(MemWriteStream& stream) override;
 
-    virtual size_t          GetLodCount() const override;
+    virtual size_t              GetLodCount() const override;
 
-    virtual void            FreeGeometryMem() override;
+    virtual void                FreeGeometryMem() override;
 
-    virtual void            CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
+    virtual void                CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
-    void                    ApplyTPreset(const CharString& tpresetName);
+    virtual bool                IsHierarchy() const { return true; }
 
-    size_t                  GetChildrenCount() const;
-    RefPtr<MetroModelBase>  GetChild(const size_t idx) const;
+    void                        ApplyTPreset(const CharString& tpresetName);
 
-    void                    AddChild(const RefPtr<MetroModelBase>& child);
+    size_t                      GetChildrenCount() const;
+    RefPtr<MetroModelBase>      GetChild(const size_t idx) const;
+
+    size_t                      GetChildrenRefsCount() const;
+    uint32_t                    GetChildRef(const size_t idx) const;
+
+    void                        AddChild(const RefPtr<MetroModelBase>& child);
 
 protected:
-    void                    LoadTPresets(const StreamChunker& chunker);
-    virtual void            ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
+    void                        LoadTPresets(const StreamChunker& chunker);
+    virtual void                ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
 
 protected:
     using ModelPtr = RefPtr<MetroModelBase>;
 
-    MyArray<ModelPtr>       mChildren;
-    MyArray<ModelPtr>       mLods;
+    MyArray<ModelPtr>           mChildren;
+    MyArray<uint32_t>           mChildrenRefs;
+    MyArray<ModelPtr>           mLods;
     MyArray<MetroModelTPreset>  mTPresets;
 };
 

@@ -3,6 +3,7 @@
 #include "entities/MetroEntityFactory.h"
 
 class MetroTexture;
+class MetroModelBase;
 class MetroReflectionStream;
 
 PACKED_STRUCT_BEGIN
@@ -16,22 +17,14 @@ struct SectorSectionDesc {  // size = 28
     uint32_t    numShadowIndices;
 } PACKED_STRUCT_END;
 
-struct SectorSection {
-    AABBox              bbox;
-    BSphere             bsphere;
-    float               texelDensity;
-    SectorSectionDesc   desc;
-    CharString          textureName;
-    CharString          shaderName;
-    CharString          materialName;
-};
-
 struct LevelSector {
-    CharString              name;
-    MyArray<SectorSection>  sections;
-    MyArray<VertexLevel>    vertices;
-    MyArray<uint16_t>       indices;
-    MetroTexture*           lmap;
+    CharString                      name;
+    MyArray<RefPtr<MetroModelBase>> superStaticMeshes;
+    MyArray<uint32_t>               superStaticInstances;
+    MyArray<VertexLevel>            vertices;
+    MyArray<uint16_t>               indices;
+    MetroTexture*                   lmap;
+    float                           lmapScale;
 };
 
 struct MetroTerrain {
@@ -107,7 +100,6 @@ private:
 
     StringArray                 ReadSectorsList(const CharString& path);
     void                        ReadSector(const CharString& sectorName, const CharString& folder);
-    void                        ReadSectorSection(MemStream& stream, SectorSection& section, const size_t version);
 
     void                        LoadTerrain(const CharString& levelFolder);
 

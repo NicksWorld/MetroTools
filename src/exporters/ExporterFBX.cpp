@@ -639,7 +639,7 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
     MyFbxMaterialsDict fbxMaterials;
 
     const size_t numSectors = level.GetNumSectors();
-
+#if 0
     // pre-create materials
     for (size_t i = 0; i < numSectors; ++i) {
         const LevelSector& sector = level.GetSector(i);
@@ -733,7 +733,7 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
             }
         }
     }
-
+#endif
     // export entities
     MyDict<HashString, MyFbxMeshModel> fbxModelsCache;
 

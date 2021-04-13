@@ -72,6 +72,8 @@ MetroModelBase::MetroModelBase()
     , mEngineMtl(0xFFFF)
     , mChecksum(0)
     , mSSABias(0.0f)
+    , mBBox{}
+    , mBSphere{}
     , mMaterialFlags0(2)
     , mMaterialFlags1(4)
     , mIsCollisionModel(false)
@@ -322,9 +324,15 @@ bool MetroModelStd::Load(MemStream& stream, MetroModelLoadParams& params) {
 
         mMesh->verticesOffset = meshRefStream.ReadU32();
         mMesh->verticesCount = meshRefStream.ReadU32();
+        if (params.formatVersion >= kModelVersionEarlyArktika1) {
+            mMesh->shadowVerticesCount = meshRefStream.ReadU32();
+        }
 
         mMesh->indicesOffset = meshRefStream.ReadU32();
         mMesh->facesCount = meshRefStream.ReadU32() / 3;
+        if (params.formatVersion >= kModelVersionEarlyArktika1) {
+            mMesh->shadowFacesCount = meshRefStream.ReadU32() / 3;
+        }
 
         mMesh->vertexType = vtxType;
     } else {
@@ -614,14 +622,11 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
 
         MemStream childrenRefsStream = chunker.GetChunkStream(MC_ChildrenRefsChunk);
         if (childrenRefsStream) {
-            //#TODO_SK: implement fully!
             const size_t meshesCount = childrenRefsStream.ReadU32();
-            mChildren.reserve(meshesCount);
-            for (size_t i = 0; i < meshesCount; ++i) {
-                const size_t meshIdx = childrenRefsStream.ReadU32();
-                // ?????
-                //mChildren.push_back(somewhere[meshIdx]);
-            }
+            mChildrenRefs.resize(meshesCount);
+            childrenRefsStream.ReadToBuffer(mChildrenRefs.data(), meshesCount * sizeof(uint32_t));
+
+            result = true;
         } else {
             MemStream childrenStream = chunker.GetChunkStream(MC_ChildrenChunk);
             if (childrenStream) {
@@ -744,6 +749,14 @@ size_t MetroModelHierarchy::GetChildrenCount() const {
 
 RefPtr<MetroModelBase> MetroModelHierarchy::GetChild(const size_t idx) const {
     return mChildren[idx];
+}
+
+size_t MetroModelHierarchy::GetChildrenRefsCount() const {
+    return mChildrenRefs.size();
+}
+
+uint32_t MetroModelHierarchy::GetChildRef(const size_t idx) const {
+    return mChildrenRefs[idx];
 }
 
 void MetroModelHierarchy::AddChild(const RefPtr<MetroModelBase>& child) {
@@ -995,7 +1008,11 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
     bool result = false;
 
     if (stream) {
-        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, params);
+        MetroModelLoadParams loadParams = params;
+        //#NOTE_SK: for some weird reason some of the child meshes have empty header (all nulls, still 64 bytes)
+        //          so we detect it as static mesh and fail miserably, so now we enforce skin mesh type
+        loadParams.loadFlags |= MetroModelLoadParams::LoadForceSkin;
+        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, loadParams);
         if (mesh) {
             //#NOTE_SK: are we sure it's always hierarchy/skeleton ?
             RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mesh);
@@ -1070,6 +1087,10 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
     if (headerStream) {
         MdlHeader hdr;
         headerStream.ReadStruct(hdr);
+
+        if (!hdr.type && TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkin)) {
+            hdr.type = scast<uint8_t>(MetroModelType::Skin);
+        }
 
         result = MetroModelFactory::CreateModelFromType(scast<MetroModelType>(hdr.type));
         if (result) {

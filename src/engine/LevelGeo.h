@@ -5,6 +5,9 @@
 #include "engine/Surface.h"
 
 class MetroLevel;
+class MetroModelBase;
+
+struct LevelSector;
 
 struct ID3D11Device;
 struct ID3D11Buffer;
@@ -68,6 +71,7 @@ public:
     void                    Destroy();
 
 private:
+    void                    AddSectorSuperStaticMesh(LevelGeoSector& sector, const RefPtr<MetroModelBase>& ssm, const LevelSector& ls);
     bool                    CreateTerrain();
 
 private:

@@ -1,0 +1,227 @@
+﻿<Window x:Class="MetroMEControls.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MetroMEControls"
+        Title="Metro model editor" Height="654" Width="956" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded">
+    <!--xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"-->
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/MetroMEControls;component/IconsResDict.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <DockPanel>
+        <DockPanel.Resources>
+            <!--DataTemplate for combo box gallery items-->
+            <DataTemplate x:Key="MyDataTemplate">
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="{Binding Path=Icon}" Width="16" Height="16" />
+                    <TextBlock Text="{Binding Path=Name}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </DataTemplate>
+        </DockPanel.Resources>
+
+        <Ribbon DockPanel.Dock="Top" Margin="0,-22,0,0" x:Name="ribbonMain">
+            <Ribbon.ApplicationMenu>
+                <RibbonApplicationMenu Visibility="Collapsed">
+                    <RibbonApplicationMenuItem Header="Options"
+                                               ImageSource="{StaticResource Icon_Options_Gray}" />
+                    <RibbonSeparator />
+                    <RibbonApplicationMenuItem Header="Exit"
+                                               ImageSource="{StaticResource Icon_Exit_Gray}"
+                                               x:Name="ribbonAppMenu_Exit"
+                                               Click="RibbonAppMenu_Exit_Click" />
+                </RibbonApplicationMenu>
+            </Ribbon.ApplicationMenu>
+            <RibbonTab Header="Model"
+                       Height="88"
+                       VerticalAlignment="Top">
+                <RibbonGroup Header="File">
+                    <RibbonMenuButton LargeImageSource="{StaticResource Icon_ImportFile}" Label="Import...">
+                        <RibbonMenuItem Header="Import from Metro model..."
+                                        x:Name="menuRibbonModelFileImportMetroModel"
+                                        ImageSource="{StaticResource Icon_LetterM}"
+                                        Click="MenuRibbonModelFileImportMetroModel_Click" />
+                        <RibbonMenuItem Header="Import from OBJ model..."
+                                        x:Name="menuRibbonModelFileImportOBJModel"
+                                        Click="MenuRibbonModelFileImportOBJModel_Click" />
+                        <RibbonMenuItem Header="Import from FBX model..." />
+                    </RibbonMenuButton>
+                    <RibbonMenuButton LargeImageSource="{StaticResource Icon_ExportFile}" Label="Export...">
+                        <RibbonMenuItem Header="Export to Metro model..."
+                                        x:Name="menuRibbonModelFileExportMetroModel"
+                                        ImageSource="{StaticResource Icon_LetterM}"
+                                        Click="MenuRibbonModelFileExportMetroModel_Click" />
+                        <RibbonMenuItem Header="Export to OBJ model..."
+                                        x:Name="menuRibbonModelFileExportOBJModel"
+                                        Click="MenuRibbonModelFileExportOBJModel_Click" />
+                        <RibbonMenuItem Header="Export to FBX model..."
+                                        x:Name="menuRibbonModelFileExportFBXModel"
+                                        Click="MenuRibbonModelFileExportFBXModel_Click" />
+                    </RibbonMenuButton>
+                </RibbonGroup>
+            </RibbonTab>
+            <RibbonTab Header="Skeleton"
+                       Height="88"
+                       VerticalAlignment="Top"
+                       x:Name="ribbonTabSkeleton"
+                       IsEnabled="False" />
+            <RibbonTab Header="Animation"
+                       Height="88"
+                       VerticalAlignment="Top"
+                       x:Name="ribbonTabAnimation"
+                       IsEnabled="False" />
+            <RibbonTab Header="3D View"
+                       Height="88"
+                       VerticalAlignment="Top"
+                       IsSelected="True">
+                <RibbonGroup Header="Bounds">
+                    <CheckBox Content="Show bounds"
+                              Margin="2,2,2,5"
+                              x:Name="ribbonDebugShowBoundsCheckbox"
+                              Click="RibbonDebugShowBoundsCheckbox_Click" />
+                    <RibbonComboBox IsEditable="False"
+                                    Label="Type"
+                                    IsEnabled="{Binding ElementName=ribbonDebugShowBoundsCheckbox, Path=IsChecked}"
+                                    x:Name="ribbonDebugBoundsTypeCombobox">
+                        <RibbonGallery SelectedValuePath="Content"
+                                       MaxColumnCount="1"
+                                       ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                       IsSynchronizedWithCurrentItem="True"
+                                       x:Name="ribbonDebugBoundsTypeComboboxGallery"
+                                       SelectionChanged="RibbonDebugBoundsTypeComboboxGallery_SelectionChanged">
+                            <RibbonGalleryCategory ItemsSource="{Binding}"
+                                                   ItemTemplate="{StaticResource MyDataTemplate}" />
+                        </RibbonGallery>
+                    </RibbonComboBox>
+                    <CheckBox Content="Submodels bounds"
+                              Margin="2,5,2,0"
+                              IsChecked="False"
+                              IsEnabled="{Binding ElementName=ribbonDebugShowBoundsCheckbox, Path=IsChecked}"
+                              x:Name="ribbonDebugShowSubmodelsBoundsCheckbox"
+                              Click="RibbonDebugShowSubmodelsBoundsCheckbox_Click" />
+                </RibbonGroup>
+                <RibbonGroup Header="Skeleton">
+                    <RibbonGroup.Resources>
+                        <!-- Vertical Separator-->
+                        <Style TargetType="{x:Type RibbonSeparator}"
+                               x:Key="KeyRibbonSeparatorVertical">
+                            <Setter Property="LayoutTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="90"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </RibbonGroup.Resources>
+
+                    <CheckBox Content="Show bones"
+                              Margin="0,2,0,0"
+                              x:Name="ribbonDebugShowBones"
+                              Click="RibbonDebugShowBones_Click" />
+                    <CheckBox Content="Show bones links"
+                              Margin="0,8,0,0"
+                              IsEnabled="{Binding ElementName=ribbonDebugShowBones, Path=IsChecked}"
+                              x:Name="ribbonDebugShowBonesLinks"
+                              Click="RibbonDebugShowBonesLinks_Click" />
+                    <CheckBox Content="Show bones names"
+                              Margin="0,8,0,0"
+                              IsEnabled="{Binding ElementName=ribbonDebugShowBones, Path=IsChecked}"
+                              x:Name="ribbonDebugShowBonesNames"
+                              Click="RibbonDebugShowBonesNames_Click" />
+                </RibbonGroup>
+                <RibbonGroup Header="Model">
+                    <TextBlock Text="LOD to show:" />
+                    <!--<xctk:IntegerUpDown Width="80" Value="0" Increment="1" Maximum="3" Minimum="0" AllowSpin="True" />-->
+                </RibbonGroup>
+            </RibbonTab>
+            <Ribbon.HelpPaneContent>
+                <DockPanel>
+                    <RibbonButton x:Name="btnRibbonHelp"
+                                  Width="20"
+                                  Height="20"
+                                  ToolTip="About..."
+                                  DockPanel.Dock="Right"
+                                  Margin="0,2,2,0"
+                                  SmallImageSource="{StaticResource Icon_StatusHelp_Blue}"
+                                  Click="BtnRibbonHelp_Click" />
+                    <RibbonButton x:Name="btnCollapseRibbon"
+                                  ToolTip="Minimize ribbon"
+                                  Width="20"
+                                  Height="20"
+                                  DockPanel.Dock="Right"
+                                  Margin="0,2,2,0"
+                                  SmallImageSource="{StaticResource Icon_CollapseUp_Gray}"
+                                  Click="BtnCollapseRibbon_Click" />
+                    <RibbonButton x:Name="btnExpandRibbon"
+                                  ToolTip="Restore ribbon"
+                                  Visibility="Hidden"
+                                  Width="20"
+                                  Height="20"
+                                  DockPanel.Dock="Right"
+                                  Margin="0,2,2,0"
+                                  SmallImageSource="{StaticResource Icon_ExpandDown_Gray}"
+                                  Click="BtnExpandRibbon_Click" />
+                </DockPanel>
+            </Ribbon.HelpPaneContent>
+        </Ribbon>
+        <Grid DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="3" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <local:RenderPanel Grid.Column="0"
+                               x:Name="renderPanel" />
+            <GridSplitter Grid.Column="1"
+                          Width="3"
+                          HorizontalAlignment="Stretch"
+                          Background="#FFAAAAAA" />
+            <DockPanel Grid.Column="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="3" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TreeView Grid.Row="0"
+                              BorderBrush="{x:Null}"
+                              x:Name="modelTreeView"
+                              SelectedItemChanged="ModelTreeView_SelectedItemChanged" />
+                    <GridSplitter Grid.Row="1"
+                                  Height="3"
+                                  HorizontalAlignment="Stretch"
+                                  Background="#FFAAAAAA" />
+                    <ListView Grid.Row="2"
+                              BorderBrush="{x:Null}"
+                              SelectionMode="Single"
+                              x:Name="lstModelProps">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Focusable" Value="False" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Name"
+                                                Width="70"
+                                                DisplayMemberBinding="{Binding Path=Name}" />
+                                <GridViewColumn Header="Value"
+                                                Width="150">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Path=Value}" TextWrapping="NoWrap" Margin="0" TextChanged="ModelPropTextBox_TextChanged" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</Window>

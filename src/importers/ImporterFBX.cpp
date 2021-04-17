@@ -67,7 +67,7 @@ ImporterFBX::~ImporterFBX() {
 
 
 void ImporterFBX::SetSkeleton(const fs::path& path) {
-    MemStream stream = ReadOSFile(path);
+    MemStream stream = OSReadFile(path);
     if (stream) {
         mSkeleton.reset(new MetroSkeleton());
         if (!mSkeleton->LoadFromData(stream)) {

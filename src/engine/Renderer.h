@@ -111,6 +111,7 @@ private:
     ID3D11VertexShader*         mVertexShaderStatic;
     ID3D11VertexShader*         mVertexShaderSkinned;
     ID3D11VertexShader*         mVertexShaderLevelGeo;
+    ID3D11VertexShader*         mVertexShaderSoft;
     ID3D11VertexShader*         mVertexShaderTerrain;
     ID3D11VertexShader*         mVertexShaderFullscreen;
     ID3D11VertexShader*         mVertexShaderDebug;
@@ -125,6 +126,7 @@ private:
     ID3D11InputLayout*          mInputLayoutStatic;
     ID3D11InputLayout*          mInputLayoutSkinned;
     ID3D11InputLayout*          mInputLayoutLevelGeo;
+    ID3D11InputLayout*          mInputLayoutSoft;
     ID3D11InputLayout*          mInputLayoutTerrain;
     ID3D11InputLayout*          mInputLayoutDebug;
 

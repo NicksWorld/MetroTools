@@ -353,7 +353,7 @@ public:
         , length(_size)
         , cursor(0)
     {
-        //#NOTE_SK: dirty hack to own pointer
+        //#NOTE_SK: dirty hack to own a pointer
         if (_ownMem) {
             ownedPtr = OwnedPtrType(const_cast<uint8_t*>(data), free);
         }

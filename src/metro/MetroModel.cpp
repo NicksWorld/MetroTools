@@ -61,7 +61,15 @@ struct MdlHeader {          // size = 64
     float       texelDensity;
 } PACKED_STRUCT_END;
 
-
+PACKED_STRUCT_BEGIN
+struct VertexSoftLegacy {
+    vec3     pos;
+    uint32_t aux0;
+    uint32_t aux1;
+    vec3     normal;
+    int16_t  uv[2];
+} PACKED_STRUCT_END;
+static_assert(sizeof(VertexSoftLegacy) == 36);
 
 
 // Base class for all Metro models
@@ -1034,6 +1042,167 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
 }
 
 
+MetroModelSoft::MetroModelSoft() {
+
+}
+MetroModelSoft::~MetroModelSoft() {
+
+}
+
+bool MetroModelSoft::Load(MemStream& stream, MetroModelLoadParams& params) {
+    bool result = false;
+
+    if (Base::Load(stream, params)) {
+        MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
+        MetroFSPath folder = mfs.GetParentFolder(params.srcFile);
+
+        CharString fileName = mfs.GetName(params.srcFile);
+        const CharString& clothExt = MetroContext::Get().GetClothModelExtension();
+
+        CharString::size_type dotPos = fileName.find('.');
+        if (dotPos != CharString::npos) {
+            fileName = fileName.substr(0, dotPos);
+        }
+
+        MetroFSPath file = mfs.FindFile(fileName + clothExt, folder);
+        if (file.IsValid()) {
+            MemStream stream = mfs.OpenFileStream(file);
+
+            mClothModel = MakeRefPtr<MetroClothModel>();
+            if (mClothModel->Load(stream)) {
+                mMesh = MakeRefPtr<MetroModelMesh>();
+
+                mMesh->verticesCount = mClothModel->GetVerticesCount();
+                mMesh->facesCount = mClothModel->GetIndicesCount() / 3;
+
+                mMesh->vertexType = MetroVertexType::Soft;
+                mMesh->verticesScale = 1.0f;
+
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}
+
+bool MetroModelSoft::Save(MemWriteStream& stream) {
+    return false;
+}
+
+size_t MetroModelSoft::GetVerticesMemSize() const {
+    return mClothModel->GetVerticesCount() * sizeof(VertexSoft);
+}
+
+const void* MetroModelSoft::GetVerticesMemData() const {
+    return mClothModel->GetVertices();
+}
+
+size_t MetroModelSoft::GetFacesMemSize() const {
+    return mClothModel->GetIndicesCount() * sizeof(uint16_t);
+}
+
+const void* MetroModelSoft::GetFacesMemData() const {
+    return mClothModel->GetIndices();
+}
+
+void MetroModelSoft::FreeGeometryMem() {
+}
+
+
+MetroClothModel::MetroClothModel()
+    : mFormat(0)
+    , mChecksum(0)
+    , mTearingFactor(0.0f)
+    , mBendStiffness(0.0f)
+    , mStretchStiffness(0.0f)
+    , mDensity(0.0f)
+    , mTearable(false)
+    , mApplyPressure(false)
+    , mApplyWelding(false)
+    , mPressure(0.0f)
+    , mWeldingDistance(0.0f) {
+}
+MetroClothModel::~MetroClothModel() {
+}
+
+bool MetroClothModel::Load(MemStream& stream) {
+    const uint32_t magic = stream.ReadU32();
+    if (0x001BDF01 != magic) {
+        return false;
+    }
+
+    stream.SkipBytes(1);
+
+    mFormat = stream.ReadU32();
+    mChecksum = stream.ReadU32();
+
+    if (mFormat > 0) {
+        mTearable = stream.ReadBool();
+        mTearingFactor = stream.ReadF32();
+        mBendStiffness = stream.ReadF32();
+        mStretchStiffness = stream.ReadF32();
+
+        if (mFormat >= 2) {
+            mDensity = stream.ReadF32();
+
+            if (mFormat >= 3) {
+                mApplyPressure = stream.ReadBool();
+                mPressure = stream.ReadF32();
+                mApplyWelding = stream.ReadBool();
+                mWeldingDistance = stream.ReadF32();
+            }
+        }
+    }
+
+    const size_t numIndices = stream.ReadU32();
+    const size_t numVertices = stream.ReadU32();
+    const size_t vertexSize = stream.ReadU32();
+
+    assert(vertexSize == sizeof(VertexSoft) || vertexSize == sizeof(VertexSoftLegacy));
+
+    mIndices.resize(numIndices);
+    stream.ReadToBuffer(mIndices.data(), numIndices * sizeof(uint16_t));
+
+    mVertices.resize(numVertices);
+    if (mFormat > 4) {
+        assert(vertexSize == sizeof(VertexSoft));
+        stream.ReadToBuffer(mVertices.data(), numVertices * sizeof(VertexSoft));
+    } else {
+        assert(vertexSize == sizeof(VertexSoftLegacy));
+        // slowly reading legacy vertices and converting them
+        VertexSoftLegacy legacy;
+        for (VertexSoft& v : mVertices) {
+            stream.ReadStruct(legacy);
+
+            v.pos = legacy.pos;
+            v.aux0 = legacy.aux0;
+            v.normal = legacy.normal;
+            v.uv[0] = legacy.uv[0];
+            v.uv[1] = legacy.uv[1];
+        }
+    }
+
+    return true;
+}
+
+size_t MetroClothModel::GetVerticesCount() const {
+    return mVertices.size();
+}
+
+const VertexSoft* MetroClothModel::GetVertices() const {
+    return mVertices.data();
+}
+
+size_t MetroClothModel::GetIndicesCount() const {
+    return mIndices.size();
+}
+
+const uint16_t* MetroClothModel::GetIndices() const {
+    return mIndices.data();
+}
+
+
 
 
 RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromType(const MetroModelType type) {
@@ -1060,8 +1229,7 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromType(const MetroModelTy
         } break;
 
         case MetroModelType::Soft: {
-            //#TODO_SK: Implement!
-            assert(false && "Implement me!!!");
+            result = MakeRefPtr<MetroModelSoft>();
         } break;
 
         case MetroModelType::ParticlesEffect: {

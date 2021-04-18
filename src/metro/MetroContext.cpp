@@ -121,6 +121,20 @@ const CharString& MetroContext::GetMotionExtension() const {
     }
 }
 
+const CharString& MetroContext::GetClothModelExtension() const {
+    static const CharString kLegacyClothExt = ".sftmdl_pc";
+    static const CharString kReduxClothExt = ".sftmdl331";
+    static const CharString kClothExt = ".sftmdl332";
+
+    if (mGameVersion == MetroGameVersion::OG2033 || mGameVersion == MetroGameVersion::OGLastLight) {
+        return kLegacyClothExt;
+    } else if (mGameVersion == MetroGameVersion::Redux) {
+        return kReduxClothExt;
+    } else {
+        return kClothExt;
+    }
+}
+
 
 
 void MetroContext::GuessGameVersionFromFS() {

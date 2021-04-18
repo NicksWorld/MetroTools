@@ -202,6 +202,7 @@ struct VertexStatic {
     uint32_t aux1;
     vec2     uv;
 } PACKED_STRUCT_END;
+static_assert(sizeof(VertexStatic) == 32);
 
 PACKED_STRUCT_BEGIN
 struct VertexSkinned {
@@ -213,6 +214,7 @@ struct VertexSkinned {
     uint8_t  weights[4];
     int16_t  uv[2];
 } PACKED_STRUCT_END;
+static_assert(sizeof(VertexSkinned) == 32);
 
 PACKED_STRUCT_BEGIN
 struct VertexLevel {
@@ -223,6 +225,32 @@ struct VertexLevel {
     int16_t  uv0[2];
     int16_t  uv1[2];
 } PACKED_STRUCT_END;
+static_assert(sizeof(VertexLevel) == 32);
+
+PACKED_STRUCT_BEGIN
+struct VertexSoft {
+    vec3     pos;
+    uint32_t aux0;
+    vec3     normal;
+    int16_t  uv[2];
+} PACKED_STRUCT_END;
+static_assert(sizeof(VertexSoft) == 32);
+
+// Shadow vertices are all 16 bytes each
+PACKED_STRUCT_BEGIN
+struct VertexStaticShadow {
+    vec3     pos;
+    uint32_t padding;
+} PACKED_STRUCT_END;
+static_assert(sizeof(VertexStaticShadow) == 16);
+
+PACKED_STRUCT_BEGIN
+struct VertexSkinnedShadow {
+    int16_t  pos[4];
+    uint8_t  bones[4];
+    uint8_t  weights[4];
+} PACKED_STRUCT_END;
+static_assert(sizeof(VertexSkinnedShadow) == 16);
 
 // 16 bytes, my own vertex for terrain
 PACKED_STRUCT_BEGIN
@@ -230,6 +258,7 @@ struct VertexTerrain {
     vec3     pos;
     uint16_t uv0[2];    // [0.0 to 1.0] in [0 to 65535] range
 } PACKED_STRUCT_END;
+static_assert(sizeof(VertexTerrain) == 16);
 
 
 static vec4 DecodeNormal(const uint32_t n) {

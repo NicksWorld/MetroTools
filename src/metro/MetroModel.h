@@ -67,6 +67,8 @@ class MetroModelStd;
 class MetroModelSkin;
 class MetroModelHierarchy;
 class MetroModelSkeleton;
+class MetroModelSoft;
+class MetroClothModel;
 
 struct MetroModelGeomData {
     AABBox                  bbox;
@@ -99,6 +101,7 @@ class MetroModelBase {
     friend class MetroModelSkin;
     friend class MetroModelHierarchy;
     friend class MetroModelSkeleton;
+    friend class MetroModelSoft;
 
 public:
     MetroModelBase();
@@ -287,6 +290,58 @@ protected:
 
     RefPtr<MetroSkeleton>   mSkeleton;
     MyArray<LodMeshesArr>   mLodMeshes;
+};
+
+class MetroModelSoft : public MetroModelBase {
+    INHERITED_CLASS(MetroModelBase);
+public:
+    MetroModelSoft();
+    virtual ~MetroModelSoft();
+
+    virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
+    virtual bool            Save(MemWriteStream& stream) override;
+
+    virtual size_t          GetVerticesMemSize() const override;
+    virtual const void*     GetVerticesMemData() const override;
+    virtual size_t          GetFacesMemSize() const override;
+    virtual const void*     GetFacesMemData() const override;
+
+    virtual void            FreeGeometryMem() override;
+
+protected:
+    RefPtr<MetroClothModel> mClothModel;
+};
+
+
+class MetroClothModel {
+public:
+    MetroClothModel();
+    ~MetroClothModel();
+
+    bool                Load(MemStream& stream);
+
+    size_t              GetVerticesCount() const;
+    const VertexSoft*   GetVertices() const;
+
+    size_t              GetIndicesCount() const;
+    const uint16_t*     GetIndices() const;
+
+private:
+    uint32_t            mFormat;
+    uint32_t            mChecksum;
+    // params
+    float               mTearingFactor;
+    float               mBendStiffness;
+    float               mStretchStiffness;
+    float               mDensity;
+    bool                mTearable;
+    bool                mApplyPressure;
+    bool                mApplyWelding;
+    float               mPressure;
+    float               mWeldingDistance;
+    // geometry
+    MyArray<VertexSoft> mVertices;
+    MyArray<uint16_t>   mIndices;
 };
 
 

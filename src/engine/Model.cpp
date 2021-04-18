@@ -171,6 +171,8 @@ bool Model::Create(const MetroModelBase* mdl) {
 
     if (MetroVertexType::Skin == vtype) {
         mType = Type::Skinned;
+    } else if (MetroVertexType::Soft == vtype) {
+        mType = Type::Soft;
     } else {
         mType = Type::Static;
     }

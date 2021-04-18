@@ -8,6 +8,7 @@ namespace __internal {
 #include "VS_Static.hlsl.h"
 #include "VS_Skinned.hlsl.h"
 #include "VS_Level.hlsl.h"
+#include "VS_Soft.hlsl.h"
 #include "VS_Terrain.hlsl.h"
 #include "VS_Debug.hlsl.h"
 // ps
@@ -27,6 +28,8 @@ static const void*  sVS_SkinnedDataPtr              = __internal::sVS_SkinnedDat
 static const size_t sVS_SkinnedDataLen              = std::size(__internal::sVS_SkinnedData);
 static const void*  sVS_LevelDataPtr                = __internal::sVS_LevelData;
 static const size_t sVS_LevelDataLen                = std::size(__internal::sVS_LevelData);
+static const void*  sVS_SoftDataPtr                 = __internal::sVS_SoftData;
+static const size_t sVS_SoftDataLen                 = std::size(__internal::sVS_SoftData);
 static const void*  sVS_TerrainDataPtr              = __internal::sVS_TerrainData;
 static const size_t sVS_TerrainDataLen              = std::size(__internal::sVS_TerrainData);
 static const void*  sVS_DebugDataPtr                = __internal::sVS_DebugData;

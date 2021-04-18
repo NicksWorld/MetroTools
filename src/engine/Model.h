@@ -31,7 +31,8 @@ class Model {
 public:
     enum class Type : size_t {
         Static  = 0,
-        Skinned = 1
+        Skinned = 1,
+        Soft    = 2
     };
 
 public:

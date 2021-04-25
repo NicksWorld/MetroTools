@@ -12,9 +12,6 @@ set_target_properties(MetroEX_QT PROPERTIES CXX_STANDARD 17)
 target_sources(MetroEX_QT PRIVATE
     res/resources.qrc
     main.cpp
-    hashing.cpp
-    fileio.cpp
-    encoding.cpp
     ui/imageinfopanel.cpp
     ui/imageinfopanel.h
     ui/imageinfopanel.ui
@@ -38,5 +35,4 @@ target_link_libraries(MetroEX_QT PRIVATE
     MetroTools::Engine
 
     Qt6::Gui
-    Qt6::Widgets
-    Xxhash::Xxhash)
+    Qt6::Widgets)

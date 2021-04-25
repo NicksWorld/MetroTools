@@ -705,7 +705,7 @@ void MainWindow::ShowModel(MyHandle file) {
             mModelInfoPanel->SetNumJointsText(QString::number(skelMdl->GetSkeleton()->GetNumBones()));
             mModelInfoPanel->SetNumAnimationsText(QString::number(numMotions));
         } else {
-            mModelInfoPanel->SetModelTypeText(tr("Static"));
+            mModelInfoPanel->SetModelTypeText(mdl->IsSoft() ? tr("Soft") : tr("Static"));
             mModelInfoPanel->SetNumJointsText("0");
             mModelInfoPanel->SetNumAnimationsText("0");
         }

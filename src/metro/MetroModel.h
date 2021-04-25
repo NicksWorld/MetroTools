@@ -146,6 +146,7 @@ public:
 
     virtual bool                    IsSkeleton() const { return false; }
     virtual bool                    IsHierarchy() const { return false; }
+    virtual bool                    IsSoft() const { return false; }
 
 protected:
     virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset);
@@ -168,7 +169,7 @@ protected:
 };
 
 // Simple static model, could be just a *.mesh file
-class MetroModelStd : public MetroModelBase {
+class MetroModelStd final : public MetroModelBase {
     INHERITED_CLASS(MetroModelBase);
 public:
     MetroModelStd();
@@ -196,7 +197,7 @@ protected:
 };
 
 // Simple skinned model, could be just a *.mesh file
-class MetroModelSkin : public MetroModelBase {
+class MetroModelSkin final : public MetroModelBase {
     INHERITED_CLASS(MetroModelBase);
 public:
     MetroModelSkin();
@@ -264,7 +265,7 @@ protected:
 };
 
 // Complete animated model, can consist of multiple Skin models (inline or external *.mesh files)
-class MetroModelSkeleton : public MetroModelHierarchy {
+class MetroModelSkeleton final : public MetroModelHierarchy {
     INHERITED_CLASS(MetroModelHierarchy);
 public:
     MetroModelSkeleton();
@@ -292,7 +293,7 @@ protected:
     MyArray<LodMeshesArr>   mLodMeshes;
 };
 
-class MetroModelSoft : public MetroModelBase {
+class MetroModelSoft final : public MetroModelBase {
     INHERITED_CLASS(MetroModelBase);
 public:
     MetroModelSoft();
@@ -307,6 +308,8 @@ public:
     virtual const void*     GetFacesMemData() const override;
 
     virtual void            FreeGeometryMem() override;
+
+    virtual bool            IsSoft() const override { return true; }
 
 protected:
     RefPtr<MetroClothModel> mClothModel;

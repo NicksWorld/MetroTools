@@ -8,5 +8,7 @@ add_subdirectory(src/common)
 add_subdirectory(src/metro)
 add_subdirectory(src/exporters)
 add_subdirectory(src/engine)
+add_subdirectory(src/simpleribbon)
 
 add_subdirectory(apps/MetroEX)
+add_subdirectory(apps/MetroME)

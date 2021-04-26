@@ -9,6 +9,8 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+class RenderPanel;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -18,9 +20,21 @@ public:
     ~MainWindow();
 
 public slots:
-    void onRibbonSizeChanged(int newHeight);
+    void    OnImportMetroModel();
+    void    OnImportOBJModel();
+    void    OnExportMetroModel();
+    void    OnExportOBJModel();
+    void    OnExportFBXModel();
+    //
+    void    OnShowBounds(bool checked);
+    void    OnBoundsTypeChanged(int index);
+    void    OnSubmodelBounds(bool checked);
+    void    OnSkeletonShowBones(bool checked);
+    void    OnSkeletonShowBonesLinks(bool checked);
+    void    OnSkeletonShowBonesNames(bool checked);
 
 private:
-    Ui::MainWindow *ui;
+    Ui::MainWindow* ui;
+    RenderPanel*    mRenderPanel;
 };
 #endif // MAINWINDOW_H

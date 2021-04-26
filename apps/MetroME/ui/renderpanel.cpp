@@ -8,8 +8,6 @@
 #include "metro/MetroSkeleton.h"
 #include "metro/MetroMotion.h"
 #include "metro/MetroTexture.h"
-#include "metro/MetroLightProbe.h"
-#include "metro/MetroLevel.h"
 #include "metro/MetroContext.h"
 
 #include "engine/Renderer.h"
@@ -31,13 +29,18 @@ RenderPanel::RenderPanel(QWidget* parent)
     , mCurrentMotion(nullptr)
     , mAnimPlaying(false)
     //
-    , mLevel(nullptr)
-    , mLevelNode(nullptr)
     , mLMBDown(false)
     , mRMBDown(false)
     , mZoom(1.0f)
     , mShowWireframe(false)
     , mShowCollision(false)
+    // debug
+    , mDrawBounds(false)
+    , mDrawSubBounds(false)
+    , mBoundsType(DebugBoundsType::Box)
+    , mShowBones(false)
+    , mShowBonesLinks(false)
+    , mShowBonesNames(false)
 {
     QPalette pal = palette();
     pal.setColor(QPalette::Window, Qt::black);
@@ -81,12 +84,8 @@ bool RenderPanel::Initialize() {
 }
 
 void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
-    //mCubemap = nullptr;
-    //MySafeDelete(mLightProbe);
-
     if (mModel != model) {
         mModel = model;
-        //mCurrentMotion = nullptr;
 
         mCamera->SwitchMode(u4a::Camera::Mode::Arcball);
 
@@ -97,36 +96,12 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
             mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), vec3(0.0f), true));
         }
 
-        //    this->ResetAnimation();
         this->ResetCamera();
     }
 }
 
 const RefPtr<MetroModelBase>& RenderPanel::GetModel() const {
     return mModel;
-}
-
-void RenderPanel::SetLevel(MetroLevel* level) {
-    //mCubemap = nullptr;
-    //MySafeDelete(mLightProbe);
-    mModel = nullptr;
-
-    if (mLevel != level) {
-        MySafeDelete(mLevel);
-
-        mLevel = level;
-
-        mCamera->SwitchMode(u4a::Camera::Mode::FirstPerson);
-
-        mScene->Clear();
-        if (mLevel) {
-            u4a::ResourcesManager::Get().Clear();
-
-            mLevelNode = u4a::Spawner::SpawnLevelGeo(*mScene, mLevel, vec3(0.0f));
-        }
-
-        this->ResetCamera();
-    }
 }
 
 void RenderPanel::SetLod(const size_t lodId) {
@@ -196,17 +171,31 @@ void RenderPanel::ResetCamera() {
         if (mModelNode) {
             mModelNode->SetPosition(vec3(0.0f));
         }
-    } else if (mLevel) {
-        const float nearZ = 0.1f;
-        const float farZ = 1000.0f;
-
-        //vec3 ttt(700.417236, 20.889645, -559.636414);
-        //mCamera->LookAt(ttt - vec3(3.0f), ttt);
-        mCamera->LookAt(vec3(5.0f), vec3(0.0f));
-
-        this->UpdateCamera();
-        mCamera->SetViewPlanes(nearZ, farZ);
     }
+}
+
+void RenderPanel::SetDebugShowBounds(const bool show) {
+    mDrawBounds = show;
+}
+
+void RenderPanel::SetDebugShowSubmodelsBounds(const bool show) {
+    mDrawSubBounds = show;
+}
+
+void RenderPanel::SetDebugBoundsType(const RenderPanel::DebugBoundsType dbt) {
+    mBoundsType = dbt;
+}
+
+void RenderPanel::SetDebugSkeletonShowBones(const bool show) {
+    mShowBones = show;
+}
+
+void RenderPanel::SetDebugSkeletonShowBonesLinks(const bool show) {
+    mShowBonesLinks = show;
+}
+
+void RenderPanel::SetDebugSkeletonShowBonesNames(const bool show) {
+    mShowBonesNames = show;
 }
 
 
@@ -228,6 +217,116 @@ void RenderPanel::Render() {
         u4a::Renderer& renderer = u4a::Renderer::Get();
         renderer.StartFrame(*mSwapchain);
         renderer.DrawScene(*mScene);
+
+        bool showBonesNames = false;
+        if (mModel) {
+            StringArray bonesNames;
+            MyArray<vec2> bonesNamesPos;
+
+            const vec3& modelPos = mModelNode->GetPosition();
+
+            renderer.BeginDebugDraw();
+
+            if (mDrawBounds) {
+                MyArray<MetroModelGeomData> gds;
+                mModel->CollectGeomData(gds);
+
+                const color4f color(1.0f, 0.85f, 0.0f, 1.0f);
+
+                if (mDrawSubBounds) {
+                    for (const auto& gd : gds) {
+                        if (mBoundsType == DebugBoundsType::Box) {
+                            AABBox bbox = gd.bbox;
+                            bbox.minimum += modelPos;
+                            bbox.maximum += modelPos;
+                            renderer.DebugDrawBBox(bbox, color);
+                        } else {
+                            BSphere bsphere = gd.bsphere;
+                            bsphere.center += modelPos;
+                            renderer.DebugDrawBSphere(bsphere, color);
+                        }
+                    }
+                } else {
+                    if (mBoundsType == DebugBoundsType::Box) {
+                        AABBox bbox = mModel->GetBBox();
+                        bbox.minimum += modelPos;
+                        bbox.maximum += modelPos;
+                        renderer.DebugDrawBBox(bbox, color);
+                    } else {
+                        BSphere bsphere = mModel->GetBSphere();
+                        bsphere.center += modelPos;
+                        renderer.DebugDrawBSphere(bsphere, color);
+                    }
+                }
+            }
+
+            if (mShowBones) {
+                RefPtr<MetroSkeleton> skeleton;
+                if (mModel->GetModelType() == MetroModelType::Skeleton || mModel->GetModelType() == MetroModelType::Skeleton2) {
+                    skeleton = SCastRefPtr<MetroModelSkeleton>(mModel)->GetSkeleton();
+                }
+
+                if (skeleton) {
+                    showBonesNames = mShowBonesNames;
+                    mat4 view = mCamera->GetTransform();
+                    mat4 proj = mCamera->GetProjection();
+                    mat4 viewProj = proj * view;
+
+                    const color4f colorPoints(1.0f, 0.85f, 0.0f, 1.0f);
+                    const color4f colorTets(1.0f, 0.12f, 0.95f, 1.0f);
+
+                    const float r = 0.02f;
+
+                    const size_t numBones = skeleton->GetNumBones();
+                    for (size_t i = 0; i < numBones; ++i) {
+                        const size_t pid = skeleton->GetBoneParentIdx(i);
+                        const mat4& m = skeleton->GetBoneFullTransform(i);
+                        const vec3 a = vec3(m[3]) + modelPos;
+
+                        if (showBonesNames) {
+                            vec4 ap = viewProj * vec4(a, 1.0f);
+                            vec2 ap2 = vec2(ap.x / ap.w, ap.y / ap.w) * vec2(0.5f, -0.5f) + 0.5f;
+
+                            ap2.x *= scast<float>(this->width());
+                            ap2.y *= scast<float>(this->height());
+
+                            bonesNames.push_back(skeleton->GetBoneName(i));
+                            bonesNamesPos.push_back(ap2);
+                        }
+
+
+                        renderer.DebugDrawBSphere({ a, r }, colorPoints);
+
+                        if (mShowBonesLinks && pid != kInvalidValue) {
+                            const mat4& mp = skeleton->GetBoneFullTransform(pid);
+                            const vec3 b = vec3(mp[3]) + modelPos;
+
+                            renderer.DebugDrawTetrahedron(b, a, r, colorTets);
+                        }
+                    }
+                }
+            }
+
+            renderer.EndDebugDraw();
+
+#if 0
+            if (showBonesNames) {
+                ID2D1SolidColorBrush* brush = nullptr;
+                const D2D1_COLOR_F color = { 0.231f, 0.0f, 1.0f, 1.0f };
+                mD2DRT->CreateSolidColorBrush(color, &brush);
+
+                mD2DRT->BeginDraw();
+                for (size_t i = 0; i < bonesNames.size(); ++i) {
+                    const vec2& pos = bonesNamesPos[i];
+                    this->DrawText(pos.x, pos.y, bonesNames[i], brush);
+                }
+                mD2DRT->EndDraw();
+
+                MySafeRelease(brush);
+            }
+#endif
+        }
+
         mSwapchain->Present();
     }
 }
@@ -394,38 +493,6 @@ void RenderPanel::OnFrame() {
 
     const float dtSeconds = scast<float>((currentTimeMS - sLastTimeMS) * 0.001);
     sLastTimeMS = currentTimeMS;
-
-    if (mLevelNode && mLMBDown) {
-        const bool isWDown = (::GetAsyncKeyState(0x57) & 0x8000) != 0;
-        const bool isSDown = (::GetAsyncKeyState(0x53) & 0x8000) != 0;
-        const bool isADown = (::GetAsyncKeyState(0x41) & 0x8000) != 0;
-        const bool isDDown = (::GetAsyncKeyState(0x44) & 0x8000) != 0;
-
-        const bool isLShiftDown = (::GetAsyncKeyState(VK_LSHIFT) & 0x8000) != 0;
-        const bool isRShiftDown = (::GetAsyncKeyState(VK_RSHIFT) & 0x8000) != 0;
-        const bool isShiftDown = isLShiftDown || isRShiftDown;
-
-        const vec3& axisZ = mCamera->GetDirection();
-        const vec3& axisX = mCamera->GetSide();
-        vec3 pos = mCamera->GetPosition();
-
-        const float speed = isShiftDown ? 50.0f : 10.0f;
-
-        if (isWDown) {
-            pos += axisZ * speed * dtSeconds;
-        }
-        if (isSDown) {
-            pos -= axisZ * speed * dtSeconds;
-        }
-        if (isDDown) {
-            pos += axisX * speed * dtSeconds;
-        }
-        if (isADown) {
-            pos -= axisX * speed * dtSeconds;
-        }
-
-        mCamera->SetPosition(pos);
-    }
 
     if (this->isVisible() && mScene) {
         mScene->Update(dtSeconds);

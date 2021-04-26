@@ -13,7 +13,8 @@
 namespace u4a {
 
 ResourcesManager::ResourcesManager()
-    : mFallbackBase(nullptr)
+    : mLoadHighRes(false)
+    , mFallbackBase(nullptr)
     , mFallbackNormal(nullptr)
     , mFallbackBump(nullptr)
 {
@@ -97,6 +98,11 @@ void ResourcesManager::Clear() {
     }
     mDanglingLevelGeos.clear();
 }
+
+void ResourcesManager::SetLoadHighRes(const bool load) {
+    mLoadHighRes = load;
+}
+
 
 Surface ResourcesManager::GetSurface(const HashString& name) {
     auto it = mSurfaces.find(name);
@@ -246,9 +252,9 @@ Surface ResourcesManager::LoadSurface(const HashString& name) {
 
     MetroSurfaceDescription desc = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(name, true);
 
-    result.base = Util_LoadTexture(desc.albedoPaths, Texture::Flag_SRGB, true);
-    result.normal = Util_LoadTexture(desc.normalmapPaths, 0, true);
-    result.bump = Util_LoadTexture(desc.bumpPaths, 0, true);
+    result.base = Util_LoadTexture(desc.albedoPaths, Texture::Flag_SRGB, !mLoadHighRes);
+    result.normal = Util_LoadTexture(desc.normalmapPaths, 0, !mLoadHighRes);
+    result.bump = Util_LoadTexture(desc.bumpPaths, 0, !mLoadHighRes);
 
     if (!result.base) {
         result.base = mFallbackBase;

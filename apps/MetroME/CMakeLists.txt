@@ -15,12 +15,17 @@ target_sources(MetroME PRIVATE
     ui/mainwindow.cpp
     ui/mainwindow.h
     ui/mainwindow.ui
+    ui/mainribbon.cpp
+    ui/mainribbon.h
+    ui/renderpanel.h
+    ui/renderpanel.cpp
     cpp.hint
 )
 target_link_libraries(MetroME PRIVATE
     MetroTools::Common
     MetroTools::Metro
     MetroTools::Exporters
+    MetroTools::Importers
     MetroTools::Engine
     MetroTools::SimpleRibbon
 

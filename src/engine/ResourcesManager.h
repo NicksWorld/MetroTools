@@ -26,6 +26,8 @@ public:
 
     void        Clear();
 
+    void        SetLoadHighRes(const bool load);
+
     Surface     GetSurface(const HashString& name);
     Texture*    GetSimpleTexture(const HashString& name, const bool linear);
     Texture*    GetLMapTexture(const HashString& name);
@@ -43,6 +45,8 @@ private:
     Model*      LoadModel(const HashString& name, const bool needAnimations);
 
 private:
+    bool                            mLoadHighRes;
+
     Texture*                        mFallbackBase;
     Texture*                        mFallbackNormal;
     Texture*                        mFallbackBump;

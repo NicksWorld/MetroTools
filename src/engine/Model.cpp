@@ -127,6 +127,9 @@ bool Model::Create(const MetroModelBase* mdl) {
         }
     }
 
+    mBSphere.center = mBBox.Center();
+    mBSphere.radius = Max3(mBBox.Extent());
+
     BytesArray allVertices(vertexSize * totalVertices);
     MyArray<uint16_t> allIndices(totalIndices);
 

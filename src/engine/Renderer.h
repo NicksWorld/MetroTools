@@ -30,7 +30,8 @@ class Renderer {
 
 public:
     enum InitFlags : size_t {
-        IF_None = 0
+        IF_None         = 0,
+        IF_D2D_Support  = 1
     };
 
     IMPL_SINGLETON(Renderer)

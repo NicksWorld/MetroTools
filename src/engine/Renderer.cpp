@@ -104,13 +104,16 @@ Renderer::~Renderer() {
 
 }
 
-bool Renderer::CreateDevice(const size_t /*flags*/) {
+bool Renderer::CreateDevice(const size_t flags) {
     const D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
     UINT deviceFlags = 0;
 #ifdef _DEBUG
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-    //deviceFlags |= D3D11_CREATE_DEVICE_BGRA_SUPPORT;    // for d2d
+
+    if (TestBit<size_t>(flags, InitFlags::IF_D2D_Support)) {
+        deviceFlags |= D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    }
 
     HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE,
                                    nullptr, deviceFlags, &featureLevel, 1,

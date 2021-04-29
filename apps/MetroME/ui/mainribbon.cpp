@@ -203,7 +203,7 @@ void MainRibbon::Build3DViewTab() {
 
         mCheckShowBonesNames = new QCheckBox();
         mCheckShowBonesNames->setText(tr("Show bones names"));
-        connect(mCheckShowBonesLinks, &QCheckBox::stateChanged, this, &MainRibbon::On3DViewShowBonesNamesChecked);
+        connect(mCheckShowBonesNames, &QCheckBox::stateChanged, this, &MainRibbon::On3DViewShowBonesNamesChecked);
 
         vbar->AddWidget(chkShowBones);
         vbar->AddWidget(mCheckShowBonesLinks);

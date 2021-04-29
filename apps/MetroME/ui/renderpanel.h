@@ -6,6 +6,9 @@
 #include "engine/Scene.h"
 #include "engine/Camera.h"
 
+#include "d2d1.h"
+#include "dwrite.h"
+
 class MetroModelBase;
 class MetroSkeleton;
 class MetroMotion;
@@ -47,8 +50,11 @@ public:
     void                            SetDebugSkeletonShowBonesNames(const bool show);
 
 private:
+    void                            CreateD2DResources();
+    void                            ReleaseD2DResources();
     void                            UpdateCamera();
     void                            Render();
+    void                            DrawText2D(const float x, const float y, const CharString& text, ID2D1Brush* brush);
 
 // Qt Events
 private:
@@ -95,4 +101,10 @@ private:
     bool                            mShowBones;
     bool                            mShowBonesLinks;
     bool                            mShowBonesNames;
+
+    // text drawing
+    ID2D1Factory*                   mD2DFactory;
+    ID2D1RenderTarget*              mD2DRT;
+    IDWriteFactory*                 mDWFactory;
+    IDWriteTextFormat*              mDWTextFmt;
 };

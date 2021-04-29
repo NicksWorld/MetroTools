@@ -17,6 +17,10 @@
 #include "engine/Animator.h"
 
 
+#pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "dwrite.lib")
+
+
 RenderPanel::RenderPanel(QWidget* parent)
     : QWidget(parent)
     , mHWnd(rcast<HWND>(this->winId()))
@@ -41,6 +45,11 @@ RenderPanel::RenderPanel(QWidget* parent)
     , mShowBones(false)
     , mShowBonesLinks(false)
     , mShowBonesNames(false)
+    // text drawing
+    , mD2DFactory(nullptr)
+    , mD2DRT(nullptr)
+    , mDWFactory(nullptr)
+    , mDWTextFmt(nullptr)
 {
     QPalette pal = palette();
     pal.setColor(QPalette::Window, Qt::black);
@@ -56,7 +65,15 @@ RenderPanel::RenderPanel(QWidget* parent)
     this->setAttribute(Qt::WA_NoSystemBackground);
 }
 RenderPanel::~RenderPanel() {
+    this->ReleaseD2DResources();
 
+    MySafeRelease(mDWTextFmt);
+    MySafeRelease(mDWFactory);
+    MySafeRelease(mD2DFactory);
+
+    MySafeDelete(mSwapchain);
+    MySafeDelete(mCamera);
+    MySafeDelete(mScene);
 }
 
 bool RenderPanel::Initialize() {
@@ -67,6 +84,36 @@ bool RenderPanel::Initialize() {
     if (!result) {
         MySafeDelete(mSwapchain);
     } else {
+        D2D1_FACTORY_OPTIONS d2dOptions = {
+#ifdef _DEBUG
+            D2D1_DEBUG_LEVEL_WARNING
+#else
+            D2D1_DEBUG_LEVEL_NONE
+#endif
+        };
+
+        HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory), &d2dOptions, (void**)&mD2DFactory);
+        if (FAILED(hr)) {
+            return false;
+        }
+        hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&mDWFactory);
+        if (FAILED(hr)) {
+            return false;
+        }
+        hr = mDWFactory->CreateTextFormat(L"Courier New",
+                                          nullptr,
+                                          DWRITE_FONT_WEIGHT_REGULAR,
+                                          DWRITE_FONT_STYLE_NORMAL,
+                                          DWRITE_FONT_STRETCH_NORMAL,
+                                          10.0f,
+                                          L"en-us",
+                                          &mDWTextFmt);
+        if (FAILED(hr)) {
+            return false;
+        }
+
+        this->CreateD2DResources();
+
         mScene = new u4a::Scene();
         mScene->Initialize();
 
@@ -200,6 +247,33 @@ void RenderPanel::SetDebugSkeletonShowBonesNames(const bool show) {
 
 
 
+void RenderPanel::CreateD2DResources() {
+    float dpi = scast<float>(::GetDpiForWindow(mHWnd));
+    if (dpi == 0.0f) {
+        dpi = 96.0f;
+    }
+
+    D2D1_RENDER_TARGET_PROPERTIES d2dRTProps =
+        D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),
+            dpi,
+            dpi
+        );
+
+    ID3D11Texture2D* backbuffer = mSwapchain->GetBackbuffer();
+    IDXGISurface* dxgiBackbuffer = nullptr;
+    HRESULT hr = backbuffer->QueryInterface(&dxgiBackbuffer);
+    if (SUCCEEDED(hr)) {
+        hr = mD2DFactory->CreateDxgiSurfaceRenderTarget(dxgiBackbuffer, &d2dRTProps, &mD2DRT);
+        MySafeRelease(dxgiBackbuffer);
+    }
+}
+
+void RenderPanel::ReleaseD2DResources() {
+    MySafeRelease(mD2DRT);
+}
+
 void RenderPanel::UpdateCamera() {
     if (mModel) {
         const float r = mModel->GetBSphere().radius * mZoom;
@@ -309,25 +383,38 @@ void RenderPanel::Render() {
 
             renderer.EndDebugDraw();
 
-#if 0
             if (showBonesNames) {
                 ID2D1SolidColorBrush* brush = nullptr;
+                ID2D1SolidColorBrush* brushShadow = nullptr;
                 const D2D1_COLOR_F color = { 0.231f, 0.0f, 1.0f, 1.0f };
+                const D2D1_COLOR_F colorShadow = { 0.0f, 0.0f, 0.0f, 1.0f };
                 mD2DRT->CreateSolidColorBrush(color, &brush);
+                mD2DRT->CreateSolidColorBrush(colorShadow, &brushShadow);
 
                 mD2DRT->BeginDraw();
                 for (size_t i = 0; i < bonesNames.size(); ++i) {
                     const vec2& pos = bonesNamesPos[i];
-                    this->DrawText(pos.x, pos.y, bonesNames[i], brush);
+                    this->DrawText2D(pos.x, pos.y, bonesNames[i], brush);
+                    this->DrawText2D(pos.x + 0.5f, pos.y + 0.5f, bonesNames[i], brushShadow);
                 }
                 mD2DRT->EndDraw();
 
                 MySafeRelease(brush);
+                MySafeRelease(brushShadow);
             }
-#endif
         }
 
         mSwapchain->Present();
+    }
+}
+
+void RenderPanel::DrawText2D(const float x, const float y, const CharString& text, ID2D1Brush* brush) {
+    WideString wide = StrUtf8ToWide(text);
+
+    IDWriteTextLayout* txtLayout = nullptr;
+    if (SUCCEEDED(mDWFactory->CreateTextLayout(wide.data(), scast<UINT32>(wide.length()), mDWTextFmt, 800.0f, 800.0f, &txtLayout))) {
+        mD2DRT->DrawTextLayout({ x, y }, txtLayout, brush);
+        MySafeRelease(txtLayout);
     }
 }
 
@@ -384,12 +471,16 @@ void RenderPanel::resizeEvent(QResizeEvent* event) {
     const int realWidth = this->width() * pixelRatio;
     const int realHeight = this->height() * pixelRatio;
 
+    this->ReleaseD2DResources();
+
     if (mSwapchain) {
         mSwapchain->Resize(scast<size_t>(realWidth), scast<size_t>(realHeight));
     }
     if (mCamera) {
         mCamera->SetViewport(ivec4(0, 0, realWidth, realHeight));
     }
+
+    this->CreateD2DResources();
 }
 
 void RenderPanel::mouseMoveEvent(QMouseEvent* event) {

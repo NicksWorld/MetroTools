@@ -46,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent)
     mRenderPanel->setGeometry(QRect(0, 0, ui->renderContainer->width(), ui->renderContainer->height()));
     ui->renderContainer->layout()->addWidget(mRenderPanel);
 
-    bool deviceIsOk = u4a::Renderer::Get().CreateDevice();
+    bool deviceIsOk = u4a::Renderer::Get().CreateDevice(u4a::Renderer::IF_D2D_Support);
     if (!deviceIsOk) {
         QMessageBox::critical(this, this->windowTitle(), tr("Failed to create DirectX 11 graphics!\n3D viewer will be unavailable."));
     } else {

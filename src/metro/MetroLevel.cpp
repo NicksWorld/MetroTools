@@ -1,6 +1,7 @@
 #include "MetroLevel.h"
 #include "MetroContext.h"
 #include "MetroBinArchive.h"
+#include "MetroModel.h"
 #include "reflection/MetroReflection.h"
 
 PACKED_STRUCT_BEGIN
@@ -25,6 +26,7 @@ enum SectorDescriptionChunk : size_t {
     SDC_Header      = 0x00000001,
     SDC_Materials   = 0x00000002,
     SDC_Sections    = 0x00000003,
+    SDC_Instances   = 0x00000008,
 };
 
 enum SectorSectionChunk : size_t {
@@ -228,9 +230,9 @@ StringArray MetroLevel::ReadSectorsList(const CharString& path) {
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
     MemStream stream = mfs.OpenFileFromPath(path);
     if (stream.Good()) {
-        /*const size_t version = stream.ReadTyped<uint32_t>();*/ stream.SkipBytes(sizeof(uint32_t));
+        /*const size_t version = stream.ReadU32();*/ stream.SkipBytes(sizeof(uint32_t));
         /*if (version == 1)*/ {
-            const size_t numSectors = stream.ReadTyped<uint32_t>();
+            const size_t numSectors = stream.ReadU32();
 
             result.resize(numSectors);
             for (CharString& s : result) {
@@ -272,14 +274,14 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
 
             MemStream stream = mfs.OpenFileStream(sectorDescFile);
             while (!stream.Ended()) {
-                const size_t chunkIdx = stream.ReadTyped<uint32_t>();
-                const size_t chunkSize = stream.ReadTyped<uint32_t>();
+                const size_t chunkIdx = stream.ReadU32();
+                const size_t chunkSize = stream.ReadU32();
                 const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
                 switch (chunkIdx) {
                     case SDC_Header: {
-                        version = stream.ReadTyped<uint16_t>();
-                        flags = stream.ReadTyped<uint16_t>();
+                        version = stream.ReadU16();
+                        flags = stream.ReadU16();
                     } break;
 
                     case SDC_Materials: {
@@ -287,14 +289,55 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
 
                     case SDC_Sections: {
                         MemStream subStream = stream.Substream(chunkSize);
+                        size_t idx = 0;
                         while (!subStream.Ended()) {
-                            /*const size_t sectionIdx = subStream.ReadTyped<uint32_t>();*/ subStream.SkipBytes(sizeof(uint32_t));
-                            const size_t sectionSize = subStream.ReadTyped<uint32_t>();
+                            const size_t sectionIdx = subStream.ReadU32();
+                            const size_t sectionSize = subStream.ReadU32();
                             const size_t sectionEnd = subStream.GetCursor() + sectionSize;
 
-                            newSector.sections.resize(newSector.sections.size() + 1);
-                            MemStream sectionStream = subStream.Substream(sectionSize);
-                            this->ReadSectorSection(sectionStream, newSector.sections.back(), version);
+                            assert(idx == sectionIdx);
+                            ++idx;
+
+                            MemStream mdlStream = subStream.Substream(sectionSize);
+
+                            MetroModelLoadParams params = {
+                                kEmptyString,
+                                kEmptyString,
+                                scast<uint32_t>(version),
+                                MetroModelLoadParams::LoadEverything,
+                                MetroFSPath(MetroFSPath::Invalid)
+                            };
+                            RefPtr<MetroModelBase> mdl = MetroModelFactory::CreateModelFromStream(mdlStream, params);
+                            if (mdl) {
+                                newSector.superStaticMeshes.emplace_back(mdl);
+                            }
+
+                            subStream.SetCursor(sectionEnd);
+                        }
+                    } break;
+
+                    case SDC_Instances: {
+                        MemStream subStream = stream.Substream(chunkSize);
+                        size_t idx = 0;
+                        while (!subStream.Ended()) {
+                            const size_t sectionIdx = subStream.ReadU32();
+                            const size_t sectionSize = subStream.ReadU32();
+                            const size_t sectionEnd = subStream.GetCursor() + sectionSize;
+
+                            assert(idx == sectionIdx);
+                            ++idx;
+
+                            const size_t instanceChunkIdx = subStream.ReadU32();
+                            const size_t instanceChunkSize = subStream.ReadU32();
+                            assert(instanceChunkIdx == 2);
+                            assert(instanceChunkSize == 4);
+
+                            newSector.superStaticInstances.push_back(subStream.ReadU32());
+
+                            if (version >= kLevelVersionExodus) {
+                                newSector.name = subStream.ReadStringZ();
+                                newSector.lmapScale = subStream.ReadF32();
+                            }
 
                             subStream.SetCursor(sectionEnd);
                         }
@@ -311,25 +354,25 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
 
             MemStream stream = mfs.OpenFileStream(sectorGeomFile);
             while (!stream.Ended()) {
-                const size_t chunkIdx = stream.ReadTyped<uint32_t>();
-                const size_t chunkSize = stream.ReadTyped<uint32_t>();
+                const size_t chunkIdx = stream.ReadU32();
+                const size_t chunkSize = stream.ReadU32();
                 const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
                 switch (chunkIdx) {
                     case SGC_Version: {
-                        version = stream.ReadTyped<uint16_t>();
-                        flags = stream.ReadTyped<uint16_t>();
+                        version = stream.ReadU16();
+                        flags = stream.ReadU16();
                     } break;
 
                     case SGC_Checksum: {
-                        checksum = stream.ReadTyped<uint32_t>();
+                        checksum = stream.ReadU32();
                     } break;
 
                     case SGC_Vertices: {
                         size_t totalVertices = 0;
                         if (version >= kLevelVersionExodus) {
-                            //const size_t numVertices = stream.ReadTyped<uint32_t>();
-                            //const size_t numShadowVertices = stream.ReadTyped<uint32_t>();
+                            //const size_t numVertices = stream.ReadU32();
+                            //const size_t numShadowVertices = stream.ReadU32();
                             stream.SkipBytes(8);
 
                             //totalVertices = numVertices + ((numShadowVertices + 1) / 2);
@@ -362,8 +405,8 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
                     case SGC_Indices: {
                         size_t totalIndices = 0;
                         if (version >= kLevelVersionExodus) {
-                            //const size_t numIndices = stream.ReadTyped<uint32_t>();
-                            //const size_t numShadowIndices = stream.ReadTyped<uint32_t>();
+                            //const size_t numIndices = stream.ReadU32();
+                            //const size_t numShadowIndices = stream.ReadU32();
                             stream.SkipBytes(8);
 
                             //totalIndices = numIndices + numShadowIndices;
@@ -386,50 +429,6 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
                 stream.SetCursor(chunkEnd);
             }
         }
-    }
-}
-
-void MetroLevel::ReadSectorSection(MemStream& stream, SectorSection& section, const size_t version) {
-    while (!stream.Ended()) {
-        const size_t chunkIdx = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
-        const size_t chunkEnd = stream.GetCursor() + chunkSize;
-
-        switch (chunkIdx) {
-            case SSC_Desc: {
-                section.desc.vertexType = stream.ReadTyped<uint32_t>();
-                section.desc.vbOffset = stream.ReadTyped<uint32_t>();
-                section.desc.numVertices = stream.ReadTyped<uint32_t>();
-                if (version >= kLevelVersionExodus) {
-                    section.desc.numShadowVertices = stream.ReadTyped<uint32_t>();
-                } else {
-                    section.desc.numShadowVertices = 0;
-                }
-                section.desc.ibOffset = stream.ReadTyped<uint32_t>();
-                section.desc.numIndices = stream.ReadTyped<uint32_t>();
-                if (version >= kLevelVersionExodus) {
-                    section.desc.numShadowIndices = stream.ReadTyped<uint32_t>();
-                } else {
-                    section.desc.numShadowIndices = 0;
-                }
-            } break;
-
-            case SSC_Materials: {
-                section.textureName = stream.ReadStringZ();
-                section.shaderName = stream.ReadStringZ();
-                section.materialName = stream.ReadStringZ();
-            } break;
-
-            case SSC_MeshHeader: {
-                MdlHeader hdr;
-                stream.ReadStruct(hdr);
-                section.bbox = hdr.bbox;
-                section.bsphere = hdr.bsphere;
-                section.texelDensity = hdr.texelDensity;
-            } break;
-        }
-
-        stream.SetCursor(chunkEnd);
     }
 }
 
@@ -465,7 +464,7 @@ void MetroLevel::LoadBin(const MetroFSPath& file) {
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
     MemStream stream = mfs.OpenFileStream(file);
     if (stream.Good()) {
-        const uint32_t magic = stream.ReadTyped<uint32_t>();
+        const uint32_t magic = stream.ReadU32();
         if (magic == 'lvel') {
             stream.SetCursor(0);
 

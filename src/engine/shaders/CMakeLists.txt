@@ -29,6 +29,7 @@ set(VERTEX_SHADERS
     VS_Level.hlsl
     VS_Skinned.hlsl
     VS_Static.hlsl
+    VS_Soft.hlsl
     VS_Terrain.hlsl)
 set_property(SOURCE ${VERTEX_SHADERS} PROPERTY VS_TOOL_OVERRIDE "None")
 

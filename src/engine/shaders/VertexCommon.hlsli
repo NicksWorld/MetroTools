@@ -25,6 +25,13 @@ struct VertexLevel {
     int4    uv0uv1  : TEXCOORD0;
 };
 
+struct VertexSoft {
+    float3  pos     : POSITION;
+    float4  tangent : TANGENT;      // aux0
+    float3  normal  : NORMAL;
+    int2    uv      : TEXCOORD0;
+};
+
 
 
 // Intermediate vertex representation
@@ -138,6 +145,29 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
 
 #endif // if defined(VTX_TYPE_LEVEL)
 
+
+#if defined(VTX_TYPE_SOFT)
+
+#define InputVertex VertexSoft
+
+VertexCommon ProcessInputVertex(in InputVertex src) {
+    VertexCommon dst = (VertexCommon)0;
+
+    const float kUVDequant = 1.0f / 2048.0f;
+
+    float4 t = src.tangent * 2.0f - 1.0f;
+
+    dst.pos = FromMetroV3(src.pos);
+    dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
+    dst.tangent = FromMetroV3(t);
+    dst.bitangent = cross(dst.normal, dst.tangent) * t.w;
+    dst.uv0 = float2(src.uv) * kUVDequant;
+    dst.vao = 1.0f;
+
+    return dst;
+}
+
+#endif // if defined(VTX_TYPE_SOFT)
 
 
 #if !defined(VTX_TYPE_TERRAIN)

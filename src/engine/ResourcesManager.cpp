@@ -13,7 +13,8 @@
 namespace u4a {
 
 ResourcesManager::ResourcesManager()
-    : mFallbackBase(nullptr)
+    : mLoadHighRes(false)
+    , mFallbackBase(nullptr)
     , mFallbackNormal(nullptr)
     , mFallbackBump(nullptr)
 {
@@ -98,6 +99,11 @@ void ResourcesManager::Clear() {
     mDanglingLevelGeos.clear();
 }
 
+void ResourcesManager::SetLoadHighRes(const bool load) {
+    mLoadHighRes = load;
+}
+
+
 Surface ResourcesManager::GetSurface(const HashString& name) {
     auto it = mSurfaces.find(name);
     if (it != mSurfaces.end()) {
@@ -147,22 +153,9 @@ Model* ResourcesManager::GetModel(const HashString& name, const bool needAnimati
     }
 }
 
-Model* ResourcesManager::ConstructModel(MetroModel* model) {
+Model* ResourcesManager::ConstructModel(MetroModelBase* model) {
     Model* result = new Model();
     if (!result->Create(model)) {
-        MySafeDelete(result);
-    }
-
-    if (result) {
-        mDanglingModels.push_back(result);
-    }
-
-    return result;
-}
-
-Model* ResourcesManager::ConstructModelNew(MetroModelBase* model) {
-    Model* result = new Model();
-    if (!result->CreateNew(model)) {
         MySafeDelete(result);
     }
 
@@ -259,9 +252,9 @@ Surface ResourcesManager::LoadSurface(const HashString& name) {
 
     MetroSurfaceDescription desc = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(name, true);
 
-    result.base = Util_LoadTexture(desc.albedoPaths, Texture::Flag_SRGB, true);
-    result.normal = Util_LoadTexture(desc.normalmapPaths, 0, true);
-    result.bump = Util_LoadTexture(desc.bumpPaths, 0, true);
+    result.base = Util_LoadTexture(desc.albedoPaths, Texture::Flag_SRGB, !mLoadHighRes);
+    result.normal = Util_LoadTexture(desc.normalmapPaths, 0, !mLoadHighRes);
+    result.bump = Util_LoadTexture(desc.bumpPaths, 0, !mLoadHighRes);
 
     if (!result.base) {
         result.base = mFallbackBase;
@@ -343,6 +336,7 @@ Texture* ResourcesManager::LoadHMapTexture(const HashString& name, const size_t 
 Model* ResourcesManager::LoadModel(const HashString& name, const bool needAnimations) {
     Model* result = nullptr;
 
+#if 0
     MetroModel srcModel;
     if (srcModel.LoadFromName(name.str, needAnimations)) {
         result = new Model();
@@ -350,6 +344,16 @@ Model* ResourcesManager::LoadModel(const HashString& name, const bool needAnimat
             MySafeDelete(result);
         }
     }
+#else
+    const uint32_t loadFlags = MetroModelLoadParams::LoadGeometry | MetroModelLoadParams::LoadSkeleton | MetroModelLoadParams::LoadTPresets;
+    RefPtr<MetroModelBase> srcModel = MetroModelFactory::CreateModelFromFullName(name.str, loadFlags);
+    if (srcModel) {
+        result = new Model();
+        if (!result->Create(srcModel.get())) {
+            MySafeDelete(result);
+        }
+    }
+#endif
 
     if (result) {
         mModels.insert({ name, result });

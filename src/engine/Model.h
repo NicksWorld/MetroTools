@@ -31,7 +31,8 @@ class Model {
 public:
     enum class Type : size_t {
         Static  = 0,
-        Skinned = 1
+        Skinned = 1,
+        Soft    = 2
     };
 
 public:
@@ -52,8 +53,7 @@ public:
     bool                    HasTransparency() const;
     bool                    HasTranslucency() const;
 
-    bool                    Create(const MetroModel* mdl);
-    bool                    CreateNew(const MetroModelBase* mdl);
+    bool                    Create(const MetroModelBase* mdl);
     void                    Destroy();
 
     ID3D11Buffer*           GetVertexBuffer() const;

@@ -12,8 +12,7 @@ public:
     void        SetExcludeCollision(const bool b);
     void        SetExporterName(const CharString& name);
     void        SetTexturesExtension(const CharString& ext);
-    bool        ExportModel(const MetroModel& model, const fs::path& filePath) const;
-    bool        ExportModelNew(const MetroModelBase& model, const fs::path& filePath) const;
+    bool        ExportModel(const MetroModelBase& model, const fs::path& filePath) const;
 
 private:
     bool        mExcludeCollision;

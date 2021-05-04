@@ -215,7 +215,7 @@ bool MetroFileSystem::IsFile(const MetroFSPath& entry) const {
     return !this->IsFolder(entry);
 }
 
-const CharString& MetroFileSystem::GetName(const MetroFSPath& entry) const {
+CharString MetroFileSystem::GetName(const MetroFSPath& entry) const {
     if (mIsRealFS) {
         return entry.filePath.filename().string();
     } else if (entry.fileHandle < mEntries.size()) {

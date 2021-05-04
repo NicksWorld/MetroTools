@@ -50,7 +50,7 @@ public:
 
     bool                    IsFolder(const MetroFSPath& entry) const;
     bool                    IsFile(const MetroFSPath& entry) const;
-    const CharString&       GetName(const MetroFSPath& entry) const;
+    CharString              GetName(const MetroFSPath& entry) const;
     CharString              GetFullPath(const MetroFSPath& entry) const;
     size_t                  GetCompressedSize(const MetroFSPath& entry) const;
     size_t                  GetUncompressedSize(const MetroFSPath& entry) const;

@@ -61,7 +61,15 @@ struct MdlHeader {          // size = 64
     float       texelDensity;
 } PACKED_STRUCT_END;
 
-
+PACKED_STRUCT_BEGIN
+struct VertexSoftLegacy {
+    vec3     pos;
+    uint32_t aux0;
+    uint32_t aux1;
+    vec3     normal;
+    int16_t  uv[2];
+} PACKED_STRUCT_END;
+static_assert(sizeof(VertexSoftLegacy) == 36);
 
 
 // Base class for all Metro models
@@ -72,6 +80,8 @@ MetroModelBase::MetroModelBase()
     , mEngineMtl(0xFFFF)
     , mChecksum(0)
     , mSSABias(0.0f)
+    , mBBox{}
+    , mBSphere{}
     , mMaterialFlags0(2)
     , mMaterialFlags1(4)
     , mIsCollisionModel(false)
@@ -274,6 +284,27 @@ void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result, const 
     }
 }
 
+void MetroModelBase::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
+    if (this->MeshValid()) {
+        const CharString& mname = mMaterialStrings[3];
+        if (!mname.empty()) {
+            const auto iit = std::find_if(tpreset.items.begin(), tpreset.items.end(), [&mname](const MetroModelTPreset::Item& item)->bool {
+                return item.mtl_name == mname;
+            });
+
+            if (iit != tpreset.items.end()) {
+                const MetroModelTPreset::Item& item = *iit;
+                if (!item.t_dst.empty()) {
+                    mMaterialStrings[0] = item.t_dst;
+                }
+                if (!item.s_dst.empty()) {
+                    mMaterialStrings[1] = item.s_dst;
+                }
+            }
+        }
+    }
+}
+
 
 
 // Simple static model, could be just a *.mesh file
@@ -301,9 +332,15 @@ bool MetroModelStd::Load(MemStream& stream, MetroModelLoadParams& params) {
 
         mMesh->verticesOffset = meshRefStream.ReadU32();
         mMesh->verticesCount = meshRefStream.ReadU32();
+        if (params.formatVersion >= kModelVersionEarlyArktika1) {
+            mMesh->shadowVerticesCount = meshRefStream.ReadU32();
+        }
 
         mMesh->indicesOffset = meshRefStream.ReadU32();
         mMesh->facesCount = meshRefStream.ReadU32() / 3;
+        if (params.formatVersion >= kModelVersionEarlyArktika1) {
+            mMesh->shadowFacesCount = meshRefStream.ReadU32() / 3;
+        }
 
         mMesh->vertexType = vtxType;
     } else {
@@ -587,16 +624,17 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
     StreamChunker chunker(stream);
 
     if (MetroModelBase::Load(stream, params)) {
+        if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadTPresets) || !params.tpresetName.empty()) {
+            this->LoadTPresets(chunker);
+        }
+
         MemStream childrenRefsStream = chunker.GetChunkStream(MC_ChildrenRefsChunk);
         if (childrenRefsStream) {
-            //#TODO_SK: implement fully!
             const size_t meshesCount = childrenRefsStream.ReadU32();
-            mChildren.reserve(meshesCount);
-            for (size_t i = 0; i < meshesCount; ++i) {
-                const size_t meshIdx = childrenRefsStream.ReadU32();
-                // ?????
-                //mChildren.push_back(somewhere[meshIdx]);
-            }
+            mChildrenRefs.resize(meshesCount);
+            childrenRefsStream.ReadToBuffer(mChildrenRefs.data(), meshesCount * sizeof(uint32_t));
+
+            result = true;
         } else {
             MemStream childrenStream = chunker.GetChunkStream(MC_ChildrenChunk);
             if (childrenStream) {
@@ -610,7 +648,7 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
                     const size_t childChunkId = childrenChunks.GetChunkIDByIdx(i);
                     if (childChunkId == i) {
                         MemStream childStream = childrenChunks.GetChunkStreamByIdx(i);
-                        RefPtr<MetroModelBase> child = MetroModelFactory::CreateModelFromStream(childStream, params.loadFlags);
+                        RefPtr<MetroModelBase> child = MetroModelFactory::CreateModelFromStream(childStream, params);
                         if (child) {
                             bool skipChild = false;
                             if (!TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadCollision) && child->IsCollisionModel()) {
@@ -629,10 +667,10 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
             }
 
             MemStream lod1Stream = chunker.GetChunkStream(MC_Lod_1_Chunk);
-            RefPtr<MetroModelBase> lod1Model = lod1Stream ? MetroModelFactory::CreateModelFromStream(lod1Stream, params.loadFlags) : nullptr;
+            RefPtr<MetroModelBase> lod1Model = lod1Stream ? MetroModelFactory::CreateModelFromStream(lod1Stream, params) : nullptr;
 
             MemStream lod2Stream = chunker.GetChunkStream(MC_Lod_2_Chunk);
-            RefPtr<MetroModelBase> lod2Model = lod2Stream ? MetroModelFactory::CreateModelFromStream(lod2Stream, params.loadFlags) : nullptr;
+            RefPtr<MetroModelBase> lod2Model = lod2Stream ? MetroModelFactory::CreateModelFromStream(lod2Stream, params) : nullptr;
 
             if (lod1Model) {
                 mLods.push_back(lod1Model);
@@ -640,6 +678,10 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
             if (lod2Model) {
                 mLods.push_back(lod2Model);
             }
+        }
+
+        if (!params.tpresetName.empty()) {
+            this->ApplyTPreset(params.tpresetName);
         }
     }
 
@@ -699,12 +741,30 @@ void MetroModelHierarchy::CollectGeomData(MyArray<MetroModelGeomData>& result, c
     }
 }
 
+void MetroModelHierarchy::ApplyTPreset(const CharString& tpresetName) {
+    const auto it = std::find_if(mTPresets.begin(), mTPresets.end(), [&tpresetName](const MetroModelTPreset& p)->bool {
+        return p.name == tpresetName;
+    });
+
+    if (it != mTPresets.end()) {
+        this->ApplyTPresetInternal(*it);
+    }
+}
+
 size_t MetroModelHierarchy::GetChildrenCount() const {
     return mChildren.size();
 }
 
 RefPtr<MetroModelBase> MetroModelHierarchy::GetChild(const size_t idx) const {
     return mChildren[idx];
+}
+
+size_t MetroModelHierarchy::GetChildrenRefsCount() const {
+    return mChildrenRefs.size();
+}
+
+uint32_t MetroModelHierarchy::GetChildRef(const size_t idx) const {
+    return mChildrenRefs[idx];
 }
 
 void MetroModelHierarchy::AddChild(const RefPtr<MetroModelBase>& child) {
@@ -716,6 +776,44 @@ void MetroModelHierarchy::AddChild(const RefPtr<MetroModelBase>& child) {
     } else {
         mBSphere.Absorb(child->GetBSphere());
         mBBox.Absorb(child->GetBBox());
+    }
+}
+
+void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {
+    MemStream tpresetsStream = chunker.GetChunkStream(MC_TexturesPresets);
+    if (tpresetsStream) {
+        const size_t numPresets = tpresetsStream.ReadU16();
+        mTPresets.resize(numPresets);
+        for (auto& preset : mTPresets) {
+            preset.name = tpresetsStream.ReadStringZ();
+            if (mVersion >= 12) {
+                preset.hit_preset = tpresetsStream.ReadStringZ();
+            }
+            if (mVersion >= 21) {
+                preset.voice = tpresetsStream.ReadStringZ();
+            }
+            if (mVersion >= 23) {
+                preset.flags = tpresetsStream.ReadU32();
+            }
+
+            const size_t numItems = tpresetsStream.ReadU16();
+            preset.items.resize(numItems);
+            for (auto& item : preset.items) {
+                item.mtl_name = tpresetsStream.ReadStringZ();
+                item.t_dst = tpresetsStream.ReadStringZ();
+                item.s_dst = tpresetsStream.ReadStringZ();
+            }
+        }
+    }
+}
+
+void MetroModelHierarchy::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
+    for (auto& child : mChildren) {
+        child->ApplyTPresetInternal(tpreset);
+    }
+
+    for (auto& lod : mChildren) {
+        lod->ApplyTPresetInternal(tpreset);
     }
 }
 
@@ -735,6 +833,10 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
     StreamChunker chunker(stream);
 
     const bool hasHeader = MetroModelBase::Load(stream, params);
+
+    if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadTPresets) || !params.tpresetName.empty()) {
+        this->LoadTPresets(chunker);
+    }
 
     MemStream meshesLinksStream = chunker.GetChunkStream(MC_MeshesLinks);
     if (meshesLinksStream) {
@@ -776,6 +878,10 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
                 }
             }
         }
+    }
+
+    if (!params.tpresetName.empty()) {
+        this->ApplyTPreset(params.tpresetName);
     }
 
     if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadSkeleton)) {
@@ -865,7 +971,9 @@ bool MetroModelSkeleton::LoadLodMeshes(MetroModelHierarchy* target, CharString& 
             if (file.IsValid()) {
                 MemStream stream = mfs.OpenFileStream(file);
                 stream.SetName(mfs.GetName(file));
-                if (!this->LoadLodMesh(target, stream, params, lodIdx)) {
+                MetroModelLoadParams loadParams = params;
+                loadParams.srcFile = file;
+                if (!this->LoadLodMesh(target, stream, loadParams, lodIdx)) {
                     result = false;
                     break;
                 }
@@ -908,7 +1016,11 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
     bool result = false;
 
     if (stream) {
-        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, params.loadFlags);
+        MetroModelLoadParams loadParams = params;
+        //#NOTE_SK: for some weird reason some of the child meshes have empty header (all nulls, still 64 bytes)
+        //          so we detect it as static mesh and fail miserably, so now we enforce skin mesh type
+        loadParams.loadFlags |= MetroModelLoadParams::LoadForceSkin;
+        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, loadParams);
         if (mesh) {
             //#NOTE_SK: are we sure it's always hierarchy/skeleton ?
             RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mesh);
@@ -927,6 +1039,167 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
     }
 
     return result;
+}
+
+
+MetroModelSoft::MetroModelSoft() {
+
+}
+MetroModelSoft::~MetroModelSoft() {
+
+}
+
+bool MetroModelSoft::Load(MemStream& stream, MetroModelLoadParams& params) {
+    bool result = false;
+
+    if (Base::Load(stream, params)) {
+        MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
+        MetroFSPath folder = mfs.GetParentFolder(params.srcFile);
+
+        CharString fileName = mfs.GetName(params.srcFile);
+        const CharString& clothExt = MetroContext::Get().GetClothModelExtension();
+
+        CharString::size_type dotPos = fileName.find('.');
+        if (dotPos != CharString::npos) {
+            fileName = fileName.substr(0, dotPos);
+        }
+
+        MetroFSPath file = mfs.FindFile(fileName + clothExt, folder);
+        if (file.IsValid()) {
+            MemStream stream = mfs.OpenFileStream(file);
+
+            mClothModel = MakeRefPtr<MetroClothModel>();
+            if (mClothModel->Load(stream)) {
+                mMesh = MakeRefPtr<MetroModelMesh>();
+
+                mMesh->verticesCount = mClothModel->GetVerticesCount();
+                mMesh->facesCount = mClothModel->GetIndicesCount() / 3;
+
+                mMesh->vertexType = MetroVertexType::Soft;
+                mMesh->verticesScale = 1.0f;
+
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}
+
+bool MetroModelSoft::Save(MemWriteStream& stream) {
+    return false;
+}
+
+size_t MetroModelSoft::GetVerticesMemSize() const {
+    return mClothModel->GetVerticesCount() * sizeof(VertexSoft);
+}
+
+const void* MetroModelSoft::GetVerticesMemData() const {
+    return mClothModel->GetVertices();
+}
+
+size_t MetroModelSoft::GetFacesMemSize() const {
+    return mClothModel->GetIndicesCount() * sizeof(uint16_t);
+}
+
+const void* MetroModelSoft::GetFacesMemData() const {
+    return mClothModel->GetIndices();
+}
+
+void MetroModelSoft::FreeGeometryMem() {
+}
+
+
+MetroClothModel::MetroClothModel()
+    : mFormat(0)
+    , mChecksum(0)
+    , mTearingFactor(0.0f)
+    , mBendStiffness(0.0f)
+    , mStretchStiffness(0.0f)
+    , mDensity(0.0f)
+    , mTearable(false)
+    , mApplyPressure(false)
+    , mApplyWelding(false)
+    , mPressure(0.0f)
+    , mWeldingDistance(0.0f) {
+}
+MetroClothModel::~MetroClothModel() {
+}
+
+bool MetroClothModel::Load(MemStream& stream) {
+    const uint32_t magic = stream.ReadU32();
+    if (0x001BDF01 != magic) {
+        return false;
+    }
+
+    stream.SkipBytes(1);
+
+    mFormat = stream.ReadU32();
+    mChecksum = stream.ReadU32();
+
+    if (mFormat > 0) {
+        mTearable = stream.ReadBool();
+        mTearingFactor = stream.ReadF32();
+        mBendStiffness = stream.ReadF32();
+        mStretchStiffness = stream.ReadF32();
+
+        if (mFormat >= 2) {
+            mDensity = stream.ReadF32();
+
+            if (mFormat >= 3) {
+                mApplyPressure = stream.ReadBool();
+                mPressure = stream.ReadF32();
+                mApplyWelding = stream.ReadBool();
+                mWeldingDistance = stream.ReadF32();
+            }
+        }
+    }
+
+    const size_t numIndices = stream.ReadU32();
+    const size_t numVertices = stream.ReadU32();
+    const size_t vertexSize = stream.ReadU32();
+
+    assert(vertexSize == sizeof(VertexSoft) || vertexSize == sizeof(VertexSoftLegacy));
+
+    mIndices.resize(numIndices);
+    stream.ReadToBuffer(mIndices.data(), numIndices * sizeof(uint16_t));
+
+    mVertices.resize(numVertices);
+    if (mFormat > 4) {
+        assert(vertexSize == sizeof(VertexSoft));
+        stream.ReadToBuffer(mVertices.data(), numVertices * sizeof(VertexSoft));
+    } else {
+        assert(vertexSize == sizeof(VertexSoftLegacy));
+        // slowly reading legacy vertices and converting them
+        VertexSoftLegacy legacy;
+        for (VertexSoft& v : mVertices) {
+            stream.ReadStruct(legacy);
+
+            v.pos = legacy.pos;
+            v.aux0 = legacy.aux0;
+            v.normal = legacy.normal;
+            v.uv[0] = legacy.uv[0];
+            v.uv[1] = legacy.uv[1];
+        }
+    }
+
+    return true;
+}
+
+size_t MetroClothModel::GetVerticesCount() const {
+    return mVertices.size();
+}
+
+const VertexSoft* MetroClothModel::GetVertices() const {
+    return mVertices.data();
+}
+
+size_t MetroClothModel::GetIndicesCount() const {
+    return mIndices.size();
+}
+
+const uint16_t* MetroClothModel::GetIndices() const {
+    return mIndices.data();
 }
 
 
@@ -956,8 +1229,7 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromType(const MetroModelTy
         } break;
 
         case MetroModelType::Soft: {
-            //#TODO_SK: Implement!
-            assert(false && "Implement me!!!");
+            result = MakeRefPtr<MetroModelSoft>();
         } break;
 
         case MetroModelType::ParticlesEffect: {
@@ -974,7 +1246,7 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromType(const MetroModelTy
     return result;
 }
 
-RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& stream, const uint32_t loadFlags, const MetroFSPath& srcFile) {
+RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& stream, const MetroModelLoadParams& params) {
     RefPtr<MetroModelBase> result;
 
     StreamChunker chunker(stream);
@@ -984,17 +1256,16 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
         MdlHeader hdr;
         headerStream.ReadStruct(hdr);
 
+        if (!hdr.type && TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkin)) {
+            hdr.type = scast<uint8_t>(MetroModelType::Skin);
+        }
+
         result = MetroModelFactory::CreateModelFromType(scast<MetroModelType>(hdr.type));
         if (result) {
-            MetroModelLoadParams params = {
-                kEmptyString,
-                kEmptyString,
-                hdr.version,
-                loadFlags,
-                srcFile
-            };
+            MetroModelLoadParams loadParams = params;
+            loadParams.formatVersion = hdr.version;
 
-            const bool success = result->Load(stream, params);
+            const bool success = result->Load(stream, loadParams);
             if (!success) {
                 result = nullptr;
             } else {
@@ -1009,653 +1280,58 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
 RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromFile(const MetroFSPath& file, const uint32_t loadFlags) {
     MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
     if (stream) {
-        return MetroModelFactory::CreateModelFromStream(stream, loadFlags, file);
+        MetroModelLoadParams params = {
+            kEmptyString,
+            kEmptyString,
+            0,
+            loadFlags,
+            file
+        };
+        return MetroModelFactory::CreateModelFromStream(stream, params);
     } else {
         return nullptr;
     }
 }
 
+RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromFullName(const CharString& fullName, const uint32_t loadFlags) {
+    // break full name into:
+    //  model name
+    //  tpreset name
+    //  modifier name (???)
 
+    CharString modelName, tpresetName, modifierName;
 
-
-MetroModel::MetroModel()
-    : mType(0)
-    , mSkeleton(nullptr)
-    , mCurrentMesh(nullptr)
-    , mThisFileIdx(MetroFSPath::Invalid)
-{
-    for (size_t i = 0; i < kMetroModelMaxLods; ++i) {
-        mLodModels[i] = nullptr;
-    }
-}
-MetroModel::~MetroModel() {
-    std::for_each(mMeshes.begin(), mMeshes.end(), [](MetroMesh* mesh) { MySafeDelete(mesh); });
-    std::for_each(mMotions.begin(), mMotions.end(), [](MetroModel::MotionInfo& mi) { MySafeDelete(mi.motion); });
-    MySafeDelete(mSkeleton);
-    for (size_t i = 0; i < kMetroModelMaxLods; ++i) {
-        MySafeDelete(mLodModels[i]);
-    }
-}
-
-bool MetroModel::LoadFromName(const CharString& name, const bool needAnimations) {
-    bool result = false;
-
-    CharString modelPath = name, tpreset;
-    const size_t atPos = name.find('@');
+    size_t atPos = fullName.find('@');
     if (atPos != CharString::npos) {
-        modelPath = name.substr(0, atPos);
-        tpreset = name.substr(atPos + 1);
+        modelName = fullName.substr(0, atPos);
+        tpresetName = fullName.substr(atPos + 1);
+
+        atPos = tpresetName.find('@');
+        if (atPos != CharString::npos) {
+            modifierName = tpresetName.substr(atPos + 1);
+            tpresetName = tpresetName.substr(0, atPos);
+        }
+    } else {
+        modelName = fullName;
     }
 
-    CharString fullPath =  MetroFileSystem::Paths::MeshesFolder + modelPath + ".model";
+    CharString fullPath = MetroFileSystem::Paths::MeshesFolder + modelName + ".model";
     MetroFSPath file = MetroContext::Get().GetFilesystem().FindFile(fullPath);
     if (file.IsValid()) {
         MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
-        if (stream.Good()) {
-            result = this->LoadFromData(stream, file, needAnimations);
-            if (result && !tpreset.empty()) {
-                this->SetTPreset(tpreset);
-            }
-        }
-    }
-
-    return result;
-}
-
-bool MetroModel::LoadFromData(MemStream& stream, const MetroFSPath& fileIdx, const bool needAnimations) {
-    bool result = false;
-
-#if 0
-    RefPtr<MetroModelBase> test = MetroModelFactory::CreateModelFromStream(stream, MetroModelLoadParams::LoadGeometry);
-#endif
-
-    mThisFileIdx = fileIdx;
-
-    this->ReadSubChunks(stream);
-
-    this->ReplaceTextures();
-
-    if (needAnimations) {
-        this->LoadMotions();
-    }
-
-    result = !mMeshes.empty();
-
-    return result;
-}
-
-
-bool MetroModel::IsAnimated() const {
-    bool hasAnimMesh = false;
-    for (auto m : mMeshes) {
-        hasAnimMesh = hasAnimMesh || m->skinned;
-    }
-
-    if (!mSkeleton && hasAnimMesh) {
-        return true;
-    }
-
-    return mSkeleton != nullptr;
-}
-
-const AABBox& MetroModel::GetBBox() const {
-    return mBBox;
-}
-
-const BSphere& MetroModel::GetBSphere() const {
-    return mBSphere;
-}
-
-size_t MetroModel::GetNumMeshes() const {
-    return mMeshes.size();
-}
-
-const MetroMesh* MetroModel::GetMesh(const size_t idx) const {
-    return mMeshes[idx];
-}
-
-MyArray<MetroVertex> MetroModel::MakeCommonVertices(const size_t meshIdx) const {
-    MyArray<MetroVertex> result;
-
-    const MetroMesh* mesh = this->GetMesh(meshIdx);
-    if (this->IsAnimated()) {
-        const VertexSkinned* srcVerts = rcast<const VertexSkinned*>(mesh->rawVB.data());
-
-        result.resize(mesh->numVertices);
-        MetroVertex* dstVerts = result.data();
-
-        for (size_t i = 0; i < mesh->numVertices; ++i) {
-            *dstVerts = ConvertVertex(*srcVerts);
-            dstVerts->pos *= mesh->vscale;
-            ++srcVerts;
-            ++dstVerts;
-        }
-    } else {
-        const VertexStatic* srcVerts = rcast<const VertexStatic*>(mesh->rawVB.data());
-
-        result.resize(mesh->numVertices);
-        MetroVertex* dstVerts = result.data();
-
-        for (size_t i = 0; i < mesh->numVertices; ++i) {
-            *dstVerts = ConvertVertex(*srcVerts);
-            //dstVerts->pos *= mesh->vscale;
-            ++srcVerts;
-            ++dstVerts;
-        }
-    }
-
-    return std::move(result);
-}
-
-const CharString& MetroModel::GetSkeletonPath() const {
-    return mSkeletonPath;
-}
-
-const MetroSkeleton* MetroModel::GetSkeleton() const {
-    return mSkeleton;
-}
-
-MetroModel* MetroModel::GetLodModel(const size_t idx) const {
-    if (idx < kMetroModelMaxLods) {
-        return mLodModels[idx];
-    } else {
-        return nullptr;
-    }
-}
-
-size_t MetroModel::GetNumMotions() const {
-    return mMotions.size();
-}
-
-CharString MetroModel::GetMotionName(const size_t idx) const {
-    const MetroFSPath& file = mMotions[idx].file;
-    const CharString& fileName = MetroContext::Get().GetFilesystem().GetName(file);
-
-    CharString name = fileName.substr(0, fileName.length() - 3);
-    return name;
-}
-
-const CharString& MetroModel::GetMotionPath(const size_t idx) const {
-    return mMotions[idx].path;
-}
-
-float MetroModel::GetMotionDuration(const size_t idx) const {
-    return scast<float>(mMotions[idx].numFrames) / scast<float>(MetroMotion::kFrameRate);
-}
-
-const MetroMotion* MetroModel::GetMotion(const size_t idx) {
-    MetroMotion* motion = mMotions[idx].motion;
-
-    if (!motion) {
-        const CharString& name = this->GetMotionName(idx);
-        const MetroFSPath& file = mMotions[idx].file;
-
-        motion = new MetroMotion(name);
-        MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
-
-        if (MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033) {
-            motion->LoadFromData_2033(stream);
-        } else {
-            motion->LoadFromData(stream);
-        }
-
-        mMotions[idx].motion = motion;
-    }
-
-    return motion;
-}
-
-const CharString& MetroModel::GetTextureReplacement(const HashString& name) const {
-    auto it = mTextureReplacements.find(name);
-    if (it != mTextureReplacements.end()) {
-        return it->second;
-    } else {
-        return name.str;
-    }
-}
-
-const CharString& MetroModel::GetComment() const {
-    return mComment;
-}
-
-
-static void FixAndRemapBones(VertexSkinned& v, const BytesArray& remap) {
-    v.bones[0] = remap[v.bones[0] / 3];
-    v.bones[1] = remap[v.bones[1] / 3];
-    v.bones[2] = remap[v.bones[2] / 3];
-    v.bones[3] = remap[v.bones[3] / 3];
-}
-
-void MetroModel::ReadSubChunks(MemStream& stream) {
-    while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
-        const size_t chunkEnd = stream.GetCursor() + chunkSize;
-
-        switch (chunkId) {
-            case MC_HeaderChunk: {
-                MdlHeader hdr;
-                stream.ReadStruct(hdr);
-
-                if (hdr.vscale <= MM_Epsilon) {
-                    hdr.vscale = 1.0f;
-                }
-
-                if (mCurrentMesh) {
-                    mCurrentMesh->version = hdr.version;
-                    mCurrentMesh->flags = hdr.flags;
-                    mCurrentMesh->vscale = hdr.vscale;
-                    mCurrentMesh->bbox.minimum = MetroSwizzle(hdr.bbox.minimum);
-                    mCurrentMesh->bbox.maximum = MetroSwizzle(hdr.bbox.maximum);
-                    mCurrentMesh->type = hdr.type;
-                    mCurrentMesh->shaderId = hdr.shaderId;
-                } else {
-                    mVersion = hdr.version;
-                    mBBox.minimum = MetroSwizzle(hdr.bbox.minimum);
-                    mBBox.maximum = MetroSwizzle(hdr.bbox.maximum);
-                    mBSphere.center = MetroSwizzle(hdr.bsphere.center);
-                    mBSphere.radius = hdr.bsphere.radius;
-                    mType = hdr.type;
-                }
-            } break;
-
-            case MC_MaterialsChunk: {
-                if (!mCurrentMesh) {
-                    return;
-                }
-
-                mCurrentMesh->materials.resize(kMetroModelMaxMaterials);
-                mCurrentMesh->materials[0] = stream.ReadStringZ();  // texture name
-                mCurrentMesh->materials[1] = stream.ReadStringZ();  // shader name
-                mCurrentMesh->materials[2] = stream.ReadStringZ();  // game material name
-                if (mCurrentMesh->version >= kModelVersionLastLight) {
-                    mCurrentMesh->materials[3] = stream.ReadStringZ();
-                }
-
-                //#NOTE_SK: here's the game, depending on some other flags, might read uint16_t
-                //          uint16_t matFlags = materialsStream.ReadU16();
-                //          bool ignore_model = matFlags & 8;
-                const uint16_t flags0 = stream.ReadU16();
-                const uint16_t flags1 = stream.ReadU16();
-
-                //#NOTE_SK: seems like meshes with either "invalid" texture, and/or "collision" source materials
-                //          are additional collision geometry, invisible during drawing
-                //const CharString& textureName = mCurrentMesh->materials[0];
-                //const CharString& shaderName = mCurrentMesh->materials[1];
-                //const CharString& srcMatName = mCurrentMesh->materials[3];
-                //const bool noCollision = StrContains(srcMatName, "no collision");
-                //if (!noCollision &&
-                //    (StrEndsWith(textureName, "invalid") ||
-                //     StrContains(shaderName, "invisible") ||
-                //     StrContains(srcMatName, "collision") ||
-                //     StrContains(srcMatName, "colision"))) {
-                    //mCurrentMesh->isCollision = true;
-                    //LogPrintF(LogLevel::Info, "collision detected, flags0 = 0x%04x, flags1 = 0x%04x", flags0, flags1);
-
-                    if (flags0 & 8) {
-                        //LogPrintF(LogLevel::Info, "collision detected, texture = %s, shader = %s, srcMat = %s", textureName.c_str(), shaderName.c_str(), srcMatName.c_str());
-                        mCurrentMesh->isCollision = true;
-                    }
-                //}
-
-            } break;
-
-            case MC_VerticesChunk: {
-                if (mCurrentMesh) {
-                    mCurrentMesh->skinned = false;
-
-                    const size_t vertexType = stream.ReadTyped<uint32_t>();
-                    const size_t numVertices = stream.ReadTyped<uint32_t>();
-                    const size_t numShadowVertices = mCurrentMesh->version >= kModelVersionArktika1 ? stream.ReadTyped<uint16_t>() : 0;
-
-                    mCurrentMesh->numVertices = numVertices;
-
-                    const size_t vbSize = numVertices * sizeof(VertexStatic);
-                    mCurrentMesh->rawVB.resize(vbSize);
-
-                    stream.ReadToBuffer(mCurrentMesh->rawVB.data(), vbSize);
-                }
-            } break;
-
-            case MC_SkinnedVerticesChunk: {
-                if (mCurrentMesh) {
-                    mCurrentMesh->skinned = true;
-
-                    const size_t numBones = stream.ReadTyped<uint8_t>();
-
-                    mCurrentMesh->bonesRemap.resize(numBones);
-                    stream.ReadToBuffer(mCurrentMesh->bonesRemap.data(), numBones);
-
-                    mCurrentMesh->hitBoxes.resize(numBones);
-                    stream.ReadToBuffer(mCurrentMesh->hitBoxes.data(), numBones * sizeof(MetroOBB));
-
-                    size_t numVertices = 0, numShadowVertices = 0;
-
-                    numVertices = stream.ReadTyped<uint32_t>();
-                    if (mCurrentMesh->version >= kModelVersionArktika1) {
-                        numShadowVertices = stream.ReadTyped<uint16_t>();
-                    } else {
-                        mCurrentMesh->vscale = 12.0f;   //#NOTE_SK: Redux and Original versions are in range [-12 .. 12]
-                    }
-
-                    mCurrentMesh->numVertices = numVertices;
-
-                    const size_t vbSize = numVertices * sizeof(VertexSkinned);
-                    mCurrentMesh->rawVB.resize(vbSize);
-
-                    stream.ReadToBuffer(mCurrentMesh->rawVB.data(), vbSize);
-
-                    VertexSkinned* vertices = rcast<VertexSkinned*>(mCurrentMesh->rawVB.data());
-                    for (size_t i = 0; i < numVertices; ++i) {
-                        FixAndRemapBones(vertices[i], mCurrentMesh->bonesRemap);
-                    }
-                }
-            } break;
-
-            case MC_FacesChunk: {
-                if (mCurrentMesh) {
-                    size_t numFaces = 0, numShadowFaces = 0;
-
-                    if (!mCurrentMesh->skinned) {
-                        numFaces = stream.ReadTyped<uint32_t>();
-                        if (mCurrentMesh->version >= kModelVersionArktika1) {
-                            numShadowFaces = stream.ReadTyped<uint16_t>();
-                        }
-
-                        if (mCurrentMesh->version < kModelVersionArktika1) {
-                            numFaces /= 3;  //#NOTE_SK: Redux and Original models store number of indices, not faces
-                            numShadowFaces /= 3;
-                        }
-                    } else {
-                        numFaces = stream.ReadTyped<uint16_t>();
-                        numShadowFaces = stream.ReadTyped<uint16_t>();
-
-                        if (mCurrentMesh->version < kModelVersionLastLight) {
-                            numFaces /= 3;  //#NOTE_SK: 2033 models store number of indices, not faces
-                            numShadowFaces /= 3;
-                        }
-                    }
-
-                    mCurrentMesh->faces.resize(numFaces);
-                    stream.ReadToBuffer(mCurrentMesh->faces.data(), numFaces * sizeof(MetroFace));
-                }
-            } break;
-
-            case MC_ChildrenChunk: {
-                MemStream meshesStream = stream.Substream(chunkSize);
-                size_t nextMeshId = 0;
-                while (!meshesStream.Ended()) {
-                    const size_t subMeshId = meshesStream.ReadTyped<uint32_t>();
-                    const size_t subMeshSize = meshesStream.ReadTyped<uint32_t>();
-
-                    if (subMeshId == nextMeshId) {
-                        mCurrentMesh = new MetroMesh();
-                        mMeshes.push_back(mCurrentMesh);
-
-                        MemStream subStream = meshesStream.Substream(subMeshSize);
-                        this->ReadSubChunks(subStream);
-                        ++nextMeshId;
-
-                        meshesStream.SkipBytes(subMeshSize);
-                    } else {
-                        break;
-                    }
-                }
-                mCurrentMesh = nullptr;
-            } break;
-
-            case MC_Lod_1_Chunk: {
-                if (mLodModels[0] != nullptr) {
-                    MySafeDelete(mLodModels[0]);
-                }
-                MetroModel* model = new MetroModel();
-                if (model->LoadFromData(stream, mThisFileIdx)) {
-                    mLodModels[0] = model;
-                } else {
-                    MySafeDelete(model);
-                }
-            } break;
-
-            case MC_Lod_2_Chunk: {
-                if (mLodModels[1] != nullptr) {
-                    MySafeDelete(mLodModels[1]);
-                }
-                MetroModel* model = new MetroModel();
-                if (model->LoadFromData(stream, mThisFileIdx)) {
-                    mLodModels[1] = model;
-                } else {
-                    MySafeDelete(model);
-                }
-            } break;
-
-            case MC_MeshesInline: {
-                stream.SkipBytes(16); // wtf ???
-                MemStream subStream = stream.Substream(chunkSize - 16);
-                this->ReadSubChunks(subStream);
-            } break;
-
-            case MC_MeshesLinks: {
-                const size_t numStrings = stream.ReadTyped<uint32_t>();
-                StringArray links, linksLod1, linksLod2;
-                for (size_t i = 0; i < numStrings; ++i) {
-                    CharString linksString = stream.ReadStringZ();
-                    if (!linksString.empty()) {
-                        StringArray splittedLinks = StrSplit(linksString, ',');
-                        if (this->IsAnimated() && numStrings <= 3) { // is it correct to find lods of dynamic models this way?
-                            if (i == 1) {
-                                linksLod1.insert(linksLod1.end(), splittedLinks.begin(), splittedLinks.end());
-                            } else if (i == 2) {
-                                linksLod2.insert(linksLod2.end(), splittedLinks.begin(), splittedLinks.end());
-                            } else {
-                                links.insert(links.end(), splittedLinks.begin(), splittedLinks.end());
-                            }
-                        } else {
-                            links.insert(links.end(), splittedLinks.begin(), splittedLinks.end());
-                        }
-                    }
-                }
-
-                if (!links.empty()) {
-                    this->LoadLinkedMeshes(links);
-                }
-                if (!linksLod1.empty()) {
-                    if (mLodModels[0] == nullptr) {
-                        mLodModels[0] = new MetroModel();
-                        mLodModels[0]->mThisFileIdx = this->mThisFileIdx;
-                    }
-                    mLodModels[0]->LoadLinkedMeshes(linksLod1);
-                }
-                if (!linksLod2.empty()) {
-                    if (mLodModels[1] == nullptr) {
-                        mLodModels[1] = new MetroModel();
-                        mLodModels[1]->mThisFileIdx = this->mThisFileIdx;
-                    }
-                    mLodModels[1]->LoadLinkedMeshes(linksLod2);
-                }
-            } break;
-
-            case MC_SkeletonLink: {
-                CharString skeletonRef = stream.ReadStringZ();
-                mSkeletonPath = MetroFileSystem::Paths::MeshesFolder + skeletonRef + MetroContext::Get().GetSkeletonExtension();
-                const MetroFSPath file = MetroContext::Get().GetFilesystem().FindFile(mSkeletonPath);
-                if (file.IsValid()) {
-                    MemStream stream = MetroContext::Get().GetFilesystem().OpenFileStream(file);
-                    if (stream) {
-                        mSkeleton = new MetroSkeleton();
-                        const bool result = (MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033) ?
-                                                mSkeleton->LoadFromData_2033(stream) : mSkeleton->LoadFromData(stream);
-                        if (!result) {
-                            MySafeDelete(mSkeleton);
-                        }
-                    }
-                }
-            } break;
-
-            case MC_SkeletonInline: {
-                mSkeleton = new MetroSkeleton();
-                MemStream skelStream = stream.Substream(chunkSize);
-                const bool result = (MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033) ?
-                                        mSkeleton->LoadFromData_2033(skelStream) : mSkeleton->LoadFromData(skelStream);
-                if (!result) {
-                    MySafeDelete(mSkeleton);
-                }
-            } break;
-
-            case MC_TexturesReplacements: {
-                const CharString& replacementsString = stream.ReadStringZ();
-                const StringArray& splits = StrSplit(replacementsString, ',');
-                if (!splits.empty()) {
-                    mTextureReplacements.reserve(splits.size());
-                    for (const auto& s : splits) {
-                        const size_t equalPos = s.find_first_of('=');
-                        if (CharString::npos != equalPos) {
-                            mTextureReplacements[s.substr(0, equalPos)] = s.substr(equalPos + 1);
-                        }
-                    }
-                }
-            } break;
-
-            case MC_TexturesPresets: {
-                const size_t numPresets = stream.ReadTyped<uint16_t>();
-                mTexturePresets.resize(numPresets);
-                for (auto& preset : mTexturePresets) {
-                    preset.name = stream.ReadStringZ();
-                    preset.hit_preset = stream.ReadStringZ();
-                    if (mVersion >= kModelVersionLastLightRelease) {
-                        preset.voice = stream.ReadStringZ();
-                    }
-                    if (mVersion >= kModelVersionRedux) {
-                        preset.flags = stream.ReadTyped<uint32_t>();
-                    }
-
-                    const size_t numItems = stream.ReadTyped<uint16_t>();
-                    preset.items.resize(numItems);
-                    for (auto& item : preset.items) {
-                        item.mtl_name = stream.ReadStringZ();
-                        item.t_dst = stream.ReadStringZ();
-                        item.s_dst = stream.ReadStringZ();
-                    }
-                }
-            } break;
-
-            case MC_Comment: {
-                if (chunkSize > 15) {
-                    stream.SkipBytes(15); // wtf ???
-                    CharString c0 = stream.ReadStringZ();
-                    CharString c1 = stream.ReadStringZ();
-                    mComment = c0.empty() ? c1 : (c0 + "\n\n" + c1);
-                }
-            } break;
-        }
-
-        stream.SetCursor(chunkEnd);
-    }
-}
-
-void MetroModel::LoadLinkedMeshes(const StringArray& links) {
-    mCurrentMesh = nullptr;
-
-    const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
-    for (const CharString& lnk : links) {
-        MetroFSPath file(MetroFSPath::Invalid);
-
-        if (lnk[0] == '.' && lnk[1] == kPathSeparator) { // relative path
-            const MetroFSPath folder = mfs.GetParentFolder(mThisFileIdx);
-            file = mfs.FindFile(lnk.substr(2) + ".mesh", folder);
-        } else {
-            CharString meshFilePath = MetroFileSystem::Paths::MeshesFolder + lnk + ".mesh";
-            file = mfs.FindFile(meshFilePath);
-        }
-        if (file.IsValid()) {
-            MemStream stream = mfs.OpenFileStream(file);
-            if (stream) {
-                this->ReadSubChunks(stream);
-            }
-
-            mCurrentMesh = nullptr;
-        }
-    }
-}
-
-void MetroModel::ReplaceTextures() {
-    for (MetroMesh* m : mMeshes) {
-        CharString& ts = m->materials.front();
-        ts = this->GetTextureReplacement(ts);
-    }
-}
-
-void MetroModel::SetTPreset(const CharString& tpreset) {
-    const auto it = std::find_if(mTexturePresets.begin(), mTexturePresets.end(), [&tpreset](const TexturePreset& p)->bool {
-        return p.name == tpreset;
-    });
-
-    if (it != mTexturePresets.end()) {
-        const TexturePreset& preset = *it;
-        for (MetroMesh* m : mMeshes) {
-            const CharString& mname = m->materials[3];
-            if (!mname.empty()) {
-                const auto iit = std::find_if(preset.items.begin(), preset.items.end(), [&mname](const TexturePreset::Item& item)->bool {
-                    return item.mtl_name == mname;
-                });
-
-                if (iit != preset.items.end()) {
-                    const TexturePreset::Item& item = *iit;
-                    if (!item.t_dst.empty()) {
-                        m->materials[0] = item.t_dst;
-                    }
-                    if (!item.s_dst.empty()) {
-                        m->materials[1] = item.s_dst;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void MetroModel::LoadMotions() {
-    CharString motionsStr;
-    if (mSkeleton) {
-        motionsStr = mSkeleton->GetMotionsStr();
-    }
-
-    if (motionsStr.empty()) {
-        return;
-    }
-
-    const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
-
-    const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
-
-    MyArray<MetroFSPath> motionFiles;
-
-    StringArray motionFolders = StrSplit(motionsStr, ',');
-    StringArray motionPaths;
-    const CharString& motionsExt = MetroContext::Get().GetMotionExtension();
-    for (const CharString& f : motionFolders) {
-        CharString fullFolderPath = MetroFileSystem::Paths::MotionsFolder + f + "\\";
-
-        const auto& files = mfs.FindFilesInFolder(fullFolderPath, motionsExt);
-
-        for (const auto& file : files) {
-            motionPaths.push_back(fullFolderPath + mfs.GetName(file));
-        }
-
-        motionFiles.insert(motionFiles.end(), files.begin(), files.end());
-    }
-
-    const size_t numBones = mSkeleton->GetNumBones();
-
-    mMotions.reserve(motionFiles.size());
-    size_t i = 0;
-    for (const MetroFSPath& fp : motionFiles) {
-        MemStream stream = mfs.OpenFileStream(fp);
         if (stream) {
-            MetroMotion motion(kEmptyString);
-            const bool loaded = is2033 ? motion.LoadHeader_2033(stream) : motion.LoadHeader(stream);
-            if (loaded && motion.GetNumBones() == numBones) {
-                mMotions.push_back({fp, motion.GetNumFrames(), motionPaths[i], nullptr});
-            }
+            MetroModelLoadParams params = {
+                modelName,
+                tpresetName,
+                0,
+                loadFlags,
+                file
+            };
+
+            return MetroModelFactory::CreateModelFromStream(stream, params);
         }
-        ++i;
     }
+
+    return nullptr;
 }
+

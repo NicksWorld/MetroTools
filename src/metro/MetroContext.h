@@ -31,6 +31,7 @@ public:
 
     const CharString&       GetSkeletonExtension() const;
     const CharString&       GetMotionExtension() const;
+    const CharString&       GetClothModelExtension() const;
 
 private:
     void                    GuessGameVersionFromFS();

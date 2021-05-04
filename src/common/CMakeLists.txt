@@ -10,11 +10,18 @@ target_sources(common PRIVATE
     dds_utils.h
     log.cpp
     log.h
+    hashing.cpp
+    fileio.cpp
+    encoding.cpp
     mycommon.h
-    mymath.h)
+    mymath.h
+    mex_settings.cpp
+    mex_settings.h)
 target_link_libraries(common
     PUBLIC
         Bc7enc16::Bc7enc16
         glm
+        pugixml
+        Xxhash::Xxhash
     PRIVATE
         Stb::Stb)

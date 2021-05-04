@@ -27,6 +27,10 @@ add_library(stb INTERFACE)
 add_library(Stb::Stb ALIAS stb)
 target_include_directories(stb INTERFACE stb)
 
+add_library(tinyobjloader INTERFACE)
+add_library(TinyObjLoader::TinyObjLoader ALIAS tinyobjloader)
+target_include_directories(tinyobjloader INTERFACE tinyobjloader)
+
 add_library(lz4 STATIC)
 add_library(Lz4::Lz4 ALIAS lz4)
 target_include_directories(lz4 PUBLIC lz4)

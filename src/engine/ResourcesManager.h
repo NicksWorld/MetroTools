@@ -26,14 +26,15 @@ public:
 
     void        Clear();
 
+    void        SetLoadHighRes(const bool load);
+
     Surface     GetSurface(const HashString& name);
     Texture*    GetSimpleTexture(const HashString& name, const bool linear);
     Texture*    GetLMapTexture(const HashString& name);
     Texture*    GetHMapTexture(const HashString& name, const size_t w, const size_t h);
     Model*      GetModel(const HashString& name, const bool needAnimations);
 
-    Model*      ConstructModel(MetroModel* model);
-    Model*      ConstructModelNew(MetroModelBase* model);
+    Model*      ConstructModel(MetroModelBase* model);
     LevelGeo*   ConstructLevelGeo(MetroLevel* level);
 
 private:
@@ -44,6 +45,8 @@ private:
     Model*      LoadModel(const HashString& name, const bool needAnimations);
 
 private:
+    bool                            mLoadHighRes;
+
     Texture*                        mFallbackBase;
     Texture*                        mFallbackNormal;
     Texture*                        mFallbackBump;

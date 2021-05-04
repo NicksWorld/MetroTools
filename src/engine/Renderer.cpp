@@ -63,6 +63,7 @@ Renderer::Renderer()
     , mVertexShaderStatic(nullptr)
     , mVertexShaderSkinned(nullptr)
     , mVertexShaderLevelGeo(nullptr)
+    , mVertexShaderSoft(nullptr)
     , mVertexShaderTerrain(nullptr)
     , mVertexShaderFullscreen(nullptr)
     , mVertexShaderDebug(nullptr)
@@ -76,6 +77,7 @@ Renderer::Renderer()
     , mInputLayoutStatic(nullptr)
     , mInputLayoutSkinned(nullptr)
     , mInputLayoutLevelGeo(nullptr)
+    , mInputLayoutSoft(nullptr)
     , mInputLayoutTerrain(nullptr)
     , mInputLayoutDebug(nullptr)
     // Samplers states
@@ -102,13 +104,16 @@ Renderer::~Renderer() {
 
 }
 
-bool Renderer::CreateDevice(const size_t /*flags*/) {
+bool Renderer::CreateDevice(const size_t flags) {
     const D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
     UINT deviceFlags = 0;
 #ifdef _DEBUG
     deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-    //deviceFlags |= D3D11_CREATE_DEVICE_BGRA_SUPPORT;    // for d2d
+
+    if (TestBit<size_t>(flags, InitFlags::IF_D2D_Support)) {
+        deviceFlags |= D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    }
 
     HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE,
                                    nullptr, deviceFlags, &featureLevel, 1,
@@ -403,11 +408,17 @@ SceneNode* Renderer::PickObject(Swapchain& swapchain, Scene& scene, const vec2& 
                 mContext->IASetInputLayout(mInputLayoutStatic);
                 mContext->VSSetShader(mVertexShaderStatic, nullptr, 0);
                 stride = sizeof(VertexStatic);
-            } else {
+            } else if (model->GetType() == Model::Type::Skinned) {
                 mContext->IASetInputLayout(mInputLayoutSkinned);
                 mContext->VSSetShader(mVertexShaderSkinned, nullptr, 0);
                 stride = sizeof(VertexSkinned);
                 isDynamic = true;
+            } else if (model->GetType() == Model::Type::Soft) {
+                mContext->IASetInputLayout(mInputLayoutSoft);
+                mContext->VSSetShader(mVertexShaderSoft, nullptr, 0);
+                stride = sizeof(VertexSoft);
+            } else {
+                assert(false && "Invalid model type!");
             }
 
             mCBSurfParamsData.param0 = RGBAUintToFloat(pickColour);
@@ -784,6 +795,13 @@ bool Renderer::CreateShaders() {
         return false;
     }
 
+    // soft vertex
+    hr = mDevice->CreateVertexShader(sVS_SoftDataPtr, sVS_SoftDataLen, nullptr, &mVertexShaderSoft);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create soft VS, hr = %d", hr);
+        return false;
+    }
+
     // level terrain
     hr = mDevice->CreateVertexShader(sVS_TerrainDataPtr, sVS_TerrainDataLen, nullptr, &mVertexShaderTerrain);
     if (FAILED(hr)) {
@@ -877,6 +895,14 @@ bool Renderer::CreateVertexInputLayouts() {
         { "TEXCOORD",  0, DXGI_FORMAT_R16G16B16A16_SINT, 0, offsetof(VertexLevel, uv0),    D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
+    // soft vertex
+    D3D11_INPUT_ELEMENT_DESC iedSoft[] = {
+        { "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT,   0, offsetof(VertexSoft, pos),    D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TANGENT",   0, DXGI_FORMAT_R8G8B8A8_UNORM,    0, offsetof(VertexSoft, aux0),   D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT,   0, offsetof(VertexSoft, normal), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD",  0, DXGI_FORMAT_R16G16_SINT,       0, offsetof(VertexSoft, uv),     D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
     // level-geo vertex
     D3D11_INPUT_ELEMENT_DESC iedTerrain[] = {
         { "INSTDATA",  0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
@@ -918,6 +944,17 @@ bool Renderer::CreateVertexInputLayouts() {
                                     &mInputLayoutLevelGeo);
     if (FAILED(hr)) {
         LogPrintF(LogLevel::Error, "Failed to create level IL, hr = %d", hr);
+        return false;
+    }
+
+    // soft vertex
+    hr = mDevice->CreateInputLayout(iedSoft,
+                                    scast<UINT>(std::size(iedSoft)),
+                                    sVS_SoftDataPtr,
+                                    sVS_SoftDataLen,
+                                    &mInputLayoutSoft);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create soft IL, hr = %d", hr);
         return false;
     }
 
@@ -1137,11 +1174,17 @@ void Renderer::DrawModelNode(ModelNode* node) {
         mContext->IASetInputLayout(mInputLayoutStatic);
         mContext->VSSetShader(mVertexShaderStatic, nullptr, 0);
         stride = sizeof(VertexStatic);
-    } else {
+    } else if (model->GetType() == Model::Type::Skinned) {
         mContext->IASetInputLayout(mInputLayoutSkinned);
         mContext->VSSetShader(mVertexShaderSkinned, nullptr, 0);
         stride = sizeof(VertexSkinned);
         isDynamic = true;
+    } else if (model->GetType() == Model::Type::Soft) {
+        mContext->IASetInputLayout(mInputLayoutSoft);
+        mContext->VSSetShader(mVertexShaderSoft, nullptr, 0);
+        stride = sizeof(VertexSoft);
+    } else {
+        assert(false && "Invalid model type!");
     }
 
     ID3D11Buffer* vb = model->GetVertexBuffer();

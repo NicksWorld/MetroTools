@@ -353,7 +353,7 @@ public:
         , length(_size)
         , cursor(0)
     {
-        //#NOTE_SK: dirty hack to own pointer
+        //#NOTE_SK: dirty hack to own a pointer
         if (_ownMem) {
             ownedPtr = OwnedPtrType(const_cast<uint8_t*>(data), free);
         }
@@ -818,7 +818,7 @@ public:
         stream.SetCursor(savedCursor);
     }
 
-    MemStream GetChunkStream(const size_t chunkId) {
+    MemStream GetChunkStream(const size_t chunkId) const {
         auto it = std::find_if(mChunks.begin(), mChunks.end(), [chunkId](const ChunkInfo& ci)->bool {
             return ci.id == chunkId;
         });

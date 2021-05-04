@@ -9,8 +9,11 @@ struct MetroModelLoadParams {
         LoadGeometry    = 1,
         LoadCollision   = 2,
         LoadSkeleton    = 4,
+        LoadTPresets    = 8,
 
-        LoadEverything  = ~0u
+        LoadForceSkin   = 0x10000,
+
+        LoadEverything  = 0xF
     };
 
     CharString  modelName;
@@ -18,6 +21,21 @@ struct MetroModelLoadParams {
     uint32_t    formatVersion;
     uint32_t    loadFlags;
     MetroFSPath srcFile;
+};
+
+
+struct MetroModelTPreset {
+    struct Item {
+        CharString  mtl_name;
+        CharString  t_dst;
+        CharString  s_dst;
+    };
+
+    CharString      name;
+    CharString      hit_preset;
+    CharString      voice;
+    uint32_t        flags;  // lowest bit is use_as_modifier
+    MyArray<Item>   items;
 };
 
 
@@ -49,6 +67,8 @@ class MetroModelStd;
 class MetroModelSkin;
 class MetroModelHierarchy;
 class MetroModelSkeleton;
+class MetroModelSoft;
+class MetroClothModel;
 
 struct MetroModelGeomData {
     AABBox                  bbox;
@@ -77,6 +97,12 @@ enum class MetroModelType : size_t {
 
 // Base class for all Metro models
 class MetroModelBase {
+    friend class MetroModelStd;
+    friend class MetroModelSkin;
+    friend class MetroModelHierarchy;
+    friend class MetroModelSkeleton;
+    friend class MetroModelSoft;
+
 public:
     MetroModelBase();
     virtual ~MetroModelBase();
@@ -119,6 +145,11 @@ public:
     virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const;
 
     virtual bool                    IsSkeleton() const { return false; }
+    virtual bool                    IsHierarchy() const { return false; }
+    virtual bool                    IsSoft() const { return false; }
+
+protected:
+    virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset);
 
 protected:
     uint16_t                        mVersion;
@@ -138,7 +169,7 @@ protected:
 };
 
 // Simple static model, could be just a *.mesh file
-class MetroModelStd : public MetroModelBase {
+class MetroModelStd final : public MetroModelBase {
     INHERITED_CLASS(MetroModelBase);
 public:
     MetroModelStd();
@@ -166,7 +197,7 @@ protected:
 };
 
 // Simple skinned model, could be just a *.mesh file
-class MetroModelSkin : public MetroModelBase {
+class MetroModelSkin final : public MetroModelBase {
     INHERITED_CLASS(MetroModelBase);
 public:
     MetroModelSkin();
@@ -199,29 +230,42 @@ public:
     MetroModelHierarchy();
     virtual ~MetroModelHierarchy();
 
-    virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool            Save(MemWriteStream& stream) override;
+    virtual bool                Load(MemStream& stream, MetroModelLoadParams& params) override;
+    virtual bool                Save(MemWriteStream& stream) override;
 
-    virtual size_t          GetLodCount() const override;
+    virtual size_t              GetLodCount() const override;
 
-    virtual void            FreeGeometryMem() override;
+    virtual void                FreeGeometryMem() override;
 
-    virtual void            CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
+    virtual void                CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
-    size_t                  GetChildrenCount() const;
-    RefPtr<MetroModelBase>  GetChild(const size_t idx) const;
+    virtual bool                IsHierarchy() const { return true; }
 
-    void                    AddChild(const RefPtr<MetroModelBase>& child);
+    void                        ApplyTPreset(const CharString& tpresetName);
+
+    size_t                      GetChildrenCount() const;
+    RefPtr<MetroModelBase>      GetChild(const size_t idx) const;
+
+    size_t                      GetChildrenRefsCount() const;
+    uint32_t                    GetChildRef(const size_t idx) const;
+
+    void                        AddChild(const RefPtr<MetroModelBase>& child);
+
+protected:
+    void                        LoadTPresets(const StreamChunker& chunker);
+    virtual void                ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
 
 protected:
     using ModelPtr = RefPtr<MetroModelBase>;
 
-    MyArray<ModelPtr>       mChildren;
-    MyArray<ModelPtr>       mLods;
+    MyArray<ModelPtr>           mChildren;
+    MyArray<uint32_t>           mChildrenRefs;
+    MyArray<ModelPtr>           mLods;
+    MyArray<MetroModelTPreset>  mTPresets;
 };
 
 // Complete animated model, can consist of multiple Skin models (inline or external *.mesh files)
-class MetroModelSkeleton : public MetroModelHierarchy {
+class MetroModelSkeleton final : public MetroModelHierarchy {
     INHERITED_CLASS(MetroModelHierarchy);
 public:
     MetroModelSkeleton();
@@ -249,6 +293,60 @@ protected:
     MyArray<LodMeshesArr>   mLodMeshes;
 };
 
+class MetroModelSoft final : public MetroModelBase {
+    INHERITED_CLASS(MetroModelBase);
+public:
+    MetroModelSoft();
+    virtual ~MetroModelSoft();
+
+    virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
+    virtual bool            Save(MemWriteStream& stream) override;
+
+    virtual size_t          GetVerticesMemSize() const override;
+    virtual const void*     GetVerticesMemData() const override;
+    virtual size_t          GetFacesMemSize() const override;
+    virtual const void*     GetFacesMemData() const override;
+
+    virtual void            FreeGeometryMem() override;
+
+    virtual bool            IsSoft() const override { return true; }
+
+protected:
+    RefPtr<MetroClothModel> mClothModel;
+};
+
+
+class MetroClothModel {
+public:
+    MetroClothModel();
+    ~MetroClothModel();
+
+    bool                Load(MemStream& stream);
+
+    size_t              GetVerticesCount() const;
+    const VertexSoft*   GetVertices() const;
+
+    size_t              GetIndicesCount() const;
+    const uint16_t*     GetIndices() const;
+
+private:
+    uint32_t            mFormat;
+    uint32_t            mChecksum;
+    // params
+    float               mTearingFactor;
+    float               mBendStiffness;
+    float               mStretchStiffness;
+    float               mDensity;
+    bool                mTearable;
+    bool                mApplyPressure;
+    bool                mApplyWelding;
+    float               mPressure;
+    float               mWeldingDistance;
+    // geometry
+    MyArray<VertexSoft> mVertices;
+    MyArray<uint16_t>   mIndices;
+};
+
 
 class MetroModelFactory {
     MetroModelFactory() = delete;
@@ -257,84 +355,8 @@ class MetroModelFactory {
 
 public:
     static RefPtr<MetroModelBase>   CreateModelFromType(const MetroModelType type);
-    static RefPtr<MetroModelBase>   CreateModelFromStream(MemStream& stream, const uint32_t loadFlags, const MetroFSPath& srcFile = MetroFSPath(MetroFSPath::Invalid));
+    static RefPtr<MetroModelBase>   CreateModelFromStream(MemStream& stream, const MetroModelLoadParams& params);
     static RefPtr<MetroModelBase>   CreateModelFromFile(const MetroFSPath& file, const uint32_t loadFlags);
+    static RefPtr<MetroModelBase>   CreateModelFromFullName(const CharString& fullName, const uint32_t loadFlags);
 };
 
-
-class MetroModel {
-    struct TexturePreset {
-        struct Item {
-            CharString  mtl_name;
-            CharString  t_dst;
-            CharString  s_dst;
-        };
-
-        CharString      name;
-        CharString      hit_preset;
-        CharString      voice;
-        uint32_t        flags;  // lowest bit is use_as_modifier
-        MyArray<Item>   items;
-    };
-
-public:
-    static const size_t kMetroModelMaxLods          = 2;
-
-public:
-    MetroModel();
-    ~MetroModel();
-
-    bool                    LoadFromName(const CharString& name, const bool needAnimations);
-    bool                    LoadFromData(MemStream& stream, const MetroFSPath& fileIdx, const bool needAnimations = true);
-
-    bool                    IsAnimated() const;
-    const AABBox&           GetBBox() const;
-    const BSphere&          GetBSphere() const;
-    size_t                  GetNumMeshes() const;
-    const MetroMesh*        GetMesh(const size_t idx) const;
-    MyArray<MetroVertex>    MakeCommonVertices(const size_t meshIdx) const;
-
-    const CharString&       GetSkeletonPath() const;
-    const MetroSkeleton*    GetSkeleton() const;
-    MetroModel*             GetLodModel(const size_t lodId) const;
-    size_t                  GetNumMotions() const;
-    CharString              GetMotionName(const size_t idx) const;
-    const CharString&       GetMotionPath(const size_t idx) const;
-    float                   GetMotionDuration(const size_t idx) const;
-    const MetroMotion*      GetMotion(const size_t idx);
-
-    const CharString&       GetTextureReplacement(const HashString& name) const;
-    const CharString&       GetComment() const;
-
-private:
-    void                    ReadSubChunks(MemStream& stream);
-    void                    LoadLinkedMeshes(const StringArray& links);
-    void                    ReplaceTextures();
-    void                    SetTPreset(const CharString& tpreset);
-    void                    LoadMotions();
-
-private:
-    struct MotionInfo {
-        MetroFSPath     file;
-        size_t          numFrames;
-        CharString      path;
-        MetroMotion*    motion;
-    };
-
-    size_t                          mVersion;
-    AABBox                          mBBox;
-    BSphere                         mBSphere;
-    size_t                          mType;
-    MyArray<MetroMesh*>             mMeshes;
-    MetroModel*                     mLodModels[kMetroModelMaxLods];
-    CharString                      mSkeletonPath;
-    MetroSkeleton*                  mSkeleton;
-    MyArray<MotionInfo>             mMotions;
-    MyDict<HashString, CharString>  mTextureReplacements;
-    MyArray<TexturePreset>          mTexturePresets;
-    CharString                      mComment;
-
-    // these are temp pointers, invalid after loading
-    MetroMesh*                      mCurrentMesh;
-    MetroFSPath                     mThisFileIdx;
-};

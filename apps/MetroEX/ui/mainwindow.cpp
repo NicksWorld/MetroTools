@@ -785,7 +785,7 @@ void MainWindow::ShowBin(MyHandle file, size_t subIdx)
     if (subIdx == kInvalidValue)
         return;
     const MetroConfigsDatabase& mcfgdb = MetroContext::Get().GetConfigsDB();
-    auto stream = mcfgdb.GetFileStream(mcfgdb.GetFileByIdx(subIdx).nameStr);
+    auto stream = mcfgdb.GetFileStream(mcfgdb.GetFileByIdx(subIdx).nameCRC);
     if (stream.Good()) {
             MetroBinArchive bin(kEmptyString, stream, 0);
             StrongPtr<MetroReflectionStream> reader = bin.ReflectionReader();

@@ -485,34 +485,33 @@ void MainWindow::AddBinaryArchive(MyHandle file, QTreeWidgetItem* rootItem) {
 
         const bool isNameDecrypted = !ci.nameStr.empty();
 
-        QString fileName = isNameDecrypted ? QString::fromStdString(ci.nameStr) : QString("unknCRC32_0x%1.bin").arg(ci.nameCRC, 8, 16, QLatin1Char('0'));
+        QString fileName = isNameDecrypted ? QString::fromStdString(ci.nameStr) : QString("unkn\\CRC32_0x%1.bin").arg(ci.nameCRC, 8, 16, QLatin1Char('0'));
 
         MyTreeWidgetItem* lastNode = fileNode; // folder to add file
-        if (isNameDecrypted) {
-            QStringList pathArray = fileName.split(QLatin1Char('\\'));
-            fileName = pathArray.back();
 
-            // Add all sub-folders
-            QString curPath = pathArray.front();
-            for (qsizetype i = 0; i < (pathArray.length() - 1); ++i) {
-                QList<MyTreeWidgetItem*> folderNodes = lastNode->FindInChildren(curPath);
-                if (folderNodes.empty()) {
-                    // Create new folder node
-                    QString folderName = pathArray[i];
+        QStringList pathArray = fileName.split(QLatin1Char('\\'));
+        fileName = pathArray.back();
 
-                    MyTreeWidgetItem* newNode = new MyTreeWidgetItem(QStringList(folderName));
-                    newNode->setToolTip(0, curPath);
-                    newNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(file, FileType::FolderBin, 0)));
-                    lastNode->addChild(newNode);
-                    lastNode = newNode;
-                    this->UpdateNodeIcon(lastNode);
-                } else {
-                    // Use existing node folder
-                    lastNode = folderNodes[0];
-                }
+        // Add all sub-folders
+        QString curPath = pathArray.front();
+        for (qsizetype i = 0; i < (pathArray.length() - 1); ++i) {
+            QList<MyTreeWidgetItem*> folderNodes = lastNode->FindInChildren(curPath);
+            if (folderNodes.empty()) {
+                // Create new folder node
+                QString folderName = pathArray[i];
 
-                curPath += QString("\\") + pathArray[i + 1];
+                MyTreeWidgetItem* newNode = new MyTreeWidgetItem(QStringList(folderName));
+                newNode->setToolTip(0, curPath);
+                newNode->setData(0, Qt::UserRole, QVariant::fromValue<uint64_t>(MakeNodeTag(file, FileType::FolderBin, 0)));
+                lastNode->addChild(newNode);
+                lastNode = newNode;
+                this->UpdateNodeIcon(lastNode);
+            } else {
+                // Use existing node folder
+                lastNode = folderNodes[0];
             }
+
+            curPath += QString("\\") + pathArray[i + 1];
         }
 
         // Add binary file

@@ -19,6 +19,10 @@ class ImagePanel;
 class RenderPanel;
 class ImageInfoPanel;
 class ModelInfoPanel;
+namespace QtNodes {
+    class FlowView;
+    class FlowScene;
+}
 
 enum class FileType : size_t {
     Unknown,
@@ -40,7 +44,9 @@ enum class PanelType : size_t {
     Texture,
     Model,
     Sound,
-    Localization
+    Localization,
+    VisualScript,
+    Empty,
 };
 
 struct FileExtractionCtx {
@@ -102,11 +108,12 @@ private:
     void AddBinaryArchive(MyHandle file, QTreeWidgetItem* rootItem);
     void UpdateNodeIcon(QTreeWidgetItem* node);
     void FilterTree(QTreeWidgetItem* node, const QString& text);
-    void DetectFileAndShow(MyHandle file);
+    void DetectFileAndShow(MyHandle file, size_t subIdx);
     void ShowTexture(MyHandle file);
     void ShowModel(MyHandle file);
     void ShowLevel(MyHandle file);
     void ShowLocalization(MyHandle file);
+    void ShowBin(MyHandle file, size_t subIdx);
     void SwitchViewPanel(const PanelType t);
     void SwitchInfoPanel(const PanelType t);
 
@@ -168,6 +175,8 @@ private:
     ImagePanel*                 mImagePanel;
     RenderPanel*                mRenderPanel;
     QTableWidget*               mLocalizationPanel;
+    QtNodes::FlowView*          mVisualScriptPanel;
+    std::unique_ptr<QtNodes::FlowScene> mCurScriptScene;
 
     // Info panels
     ImageInfoPanel*             mImageInfoPanel;

@@ -29,6 +29,8 @@ using quat = glm::highp_quat;
 using ivec4 = glm::highp_ivec4;
 using uvec4 = glm::highp_uvec4;
 
+using vec4s16 = glm::highp_i16vec4;
+
 struct anglef : public glm::highp_vec1 {};
 
 struct color4f : public vec4 {

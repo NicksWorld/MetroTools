@@ -10,6 +10,7 @@
 #include "renderpanel.h"
 #include "imageinfopanel.h"
 #include "modelinfopanel.h"
+#include "nodes/scriptscene.h"
 
 #include "settingsdlg.h"
 #include "mex_settings.h"
@@ -22,6 +23,11 @@
 #include "metro/MetroSound.h"
 #include "metro/MetroLocalization.h"
 #include "metro/MetroLevel.h"
+#include "metro/MetroBinArchive.h"
+#undef IN
+#undef OUT
+#include "metro/reflection/MetroReflection.h"
+#include "metro/scripts/MetroScript.h"
 
 #include "exporters/ExporterOBJ.h"
 #include "exporters/ExporterFBX.h"
@@ -29,6 +35,8 @@
 #include "engine/Renderer.h"
 #include "engine/ResourcesManager.h"
 
+#include <nodes/FlowScene>
+#include <nodes/FlowView>
 
 class MyTreeWidgetItem : public QTreeWidgetItem {
 public:
@@ -171,6 +179,14 @@ MainWindow::MainWindow(QWidget *parent)
     mLocalizationPanel->setGeometry(QRect(0, 0, ui->panelViewers->width(), ui->panelViewers->height()));
     ui->panelViewers->layout()->addWidget(mLocalizationPanel);
     mLocalizationPanel->hide();
+
+    SetNodeStyle();
+    mCurScriptScene = std::make_unique<QtNodes::FlowScene>();
+    mVisualScriptPanel = new QtNodes::FlowView(mCurScriptScene.get(), ui->panelViewers);
+    mVisualScriptPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mVisualScriptPanel->setGeometry(QRect(0, 0, ui->panelViewers->width(), ui->panelViewers->height()));
+    ui->panelViewers->layout()->addWidget(mVisualScriptPanel);
+    mVisualScriptPanel->hide();
 
     // Info panels
     mImageInfoPanel = new ImageInfoPanel(ui->panelMetaProps);
@@ -370,15 +386,14 @@ void MainWindow::on_treeFiles_itemSelectionChanged() {
         QTreeWidgetItem* node = selection.front();
         const uint64_t tag = node->data(0, Qt::UserRole).value<uint64_t>();
         MyHandle file = GetFileHandleFromTag(tag);
-        const bool isSubFile = false;//fileData->subFileIdx != kInvalidValue;
+        FileType type = GetFileTypeFromTag(tag);
+        size_t subIdx = GetFileSubIdxFromTag(tag);
 
         const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
         if (!mfs.Empty()) {
-            if (!isSubFile) {
-                const bool isFolder = mfs.IsFolder(MetroFSPath(file));
-                if (!isFolder) {
-                    this->DetectFileAndShow(file);
-                }
+            const bool isFolder = mfs.IsFolder(MetroFSPath(file)) || type == FileType::FolderBin || type == FileType::BinArchive;
+            if (!isFolder) {
+                this->DetectFileAndShow(file, subIdx);
             }
         }
     }
@@ -599,7 +614,7 @@ void MainWindow::FilterTree(QTreeWidgetItem* node, const QString& text) {
     }
 }
 
-void MainWindow::DetectFileAndShow(MyHandle file) {
+void MainWindow::DetectFileAndShow(MyHandle file, size_t subIdx) {
     const bool isFolder = MetroContext::Get().GetFilesystem().IsFolder(MetroFSPath(file));
     if (!isFolder) {
         const FileType fileType = DetectFileType(MetroFSPath(file));
@@ -627,6 +642,10 @@ void MainWindow::DetectFileAndShow(MyHandle file) {
 
             case FileType::Localization: {
                 this->ShowLocalization(file);
+            } break;
+
+            case FileType::Bin: {
+                this->ShowBin(file, subIdx);
             } break;
 
             default:
@@ -758,57 +777,87 @@ void MainWindow::ShowLocalization(MyHandle file) {
     }
 }
 
+void MainWindow::ShowBin(MyHandle file, size_t subIdx)
+{
+    this->SwitchViewPanel(PanelType::Empty);
+    this->SwitchInfoPanel(PanelType::Empty);
+
+    if (subIdx == kInvalidValue)
+        return;
+    const MetroConfigsDatabase& mcfgdb = MetroContext::Get().GetConfigsDB();
+    auto stream = mcfgdb.GetFileStream(mcfgdb.GetFileByIdx(subIdx).nameStr);
+    if (stream.Good()) {
+            MetroBinArchive bin(kEmptyString, stream, 0);
+            StrongPtr<MetroReflectionStream> reader = bin.ReflectionReader();
+            if (reader) {
+                MetroReflectionStream* scriptReader = reader->OpenSection("script");
+                if (scriptReader) {
+                    MetroScript script;
+                    *scriptReader >> script;
+                    reader->CloseSection(scriptReader);
+
+                    auto newScene = CreateScriptScene(script);
+                    mVisualScriptPanel->setScene(newScene.get());
+                    mCurScriptScene = std::move(newScene);
+
+                    this->SwitchViewPanel(PanelType::VisualScript);
+                    this->SwitchInfoPanel(PanelType::VisualScript);
+                }
+            }
+    }
+}
+
 void MainWindow::SwitchViewPanel(const PanelType t) {
+    mImagePanel->hide();
+    mRenderPanel->hide();
+    mLocalizationPanel->clear();
+    mLocalizationPanel->hide();
+    //mSoundPanel->Hide();
+    mVisualScriptPanel->hide();
+
     switch (t) {
         case PanelType::Texture: {
-            mRenderPanel->hide();
-            //mSoundPanel->Hide();
-            mLocalizationPanel->clear();
-            mLocalizationPanel->hide();
             mImagePanel->show();
         } break;
 
         case PanelType::Model: {
-            mImagePanel->hide();
-            //mSoundPanel->Hide();
-            mLocalizationPanel->clear();
-            mLocalizationPanel->hide();
             mRenderPanel->show();
         } break;
 
         case PanelType::Sound: {
-            mImagePanel->hide();
-            mRenderPanel->hide();
-            mLocalizationPanel->clear();
-            mLocalizationPanel->hide();
             //mSoundPanel->Show();
         } break;
 
         case PanelType::Localization: {
-            mImagePanel->hide();
-            mRenderPanel->hide();
-            //mSoundPanel->Hide();
             mLocalizationPanel->show();
+        } break;
+
+        case PanelType::VisualScript: {
+            mVisualScriptPanel->show();
+        } break;
+
+        case PanelType::Empty: {
         } break;
     }
 }
 
 void MainWindow::SwitchInfoPanel(const PanelType t) {
+    mModelInfoPanel->hide();
+    mImageInfoPanel->hide();
+
     switch (t) {
         case PanelType::Texture: {
-            mModelInfoPanel->hide();
             mImageInfoPanel->show();
         } break;
 
         case PanelType::Model: {
-            mImageInfoPanel->hide();
             mModelInfoPanel->show();
         } break;
 
         case PanelType::Sound:
-        case PanelType::Localization: {
-            mModelInfoPanel->hide();
-            mImageInfoPanel->hide();
+        case PanelType::Localization:
+        case PanelType::VisualScript:
+        case PanelType::Empty: {
         } break;
     }
 }

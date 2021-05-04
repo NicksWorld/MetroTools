@@ -40,6 +40,10 @@ target_sources(MetroEX_QT PRIVATE
     src/ui/renderpanel.h
     src/ui/settingsdlg.cpp
     src/ui/settingsdlg.h
+    src/ui/nodes/scriptblocknode.cpp
+    src/ui/nodes/scriptblocknode.h
+    src/ui/nodes/scriptscene.cpp
+    src/ui/nodes/scriptscene.h
     cpp.hint)
 target_link_libraries(MetroEX_QT PRIVATE
     MetroTools::Common
@@ -50,4 +54,5 @@ target_link_libraries(MetroEX_QT PRIVATE
     Qt6::Gui
     Qt6::Widgets
     pugixml
-    Xxhash::Xxhash)
+    Xxhash::Xxhash
+    NodeEditor::nodes)

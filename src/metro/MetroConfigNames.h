@@ -9,9 +9,10 @@ public:
     MyDict<uint32_t, CharString>  mCRC32ToPath;
 
     // Convert file path to CRC32 hash, add it to DB
-    void AddName(const CharString& path) {
+    bool AddName(const CharString& path) {
         const uint32_t pathCRC = Hash_CalculateCRC32(path);
-        mCRC32ToPath.insert({ pathCRC, path });
+        auto&& [_, ok] = mCRC32ToPath.insert({ pathCRC, path });
+        return ok;
     }
 
     // Find file path by it's CRC32 hash name

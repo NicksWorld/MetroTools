@@ -77,6 +77,7 @@ METRO_REGISTER_TYPE_ALIAS(quat, vec4f)
 METRO_REGISTER_TYPE_ALIAS(CharString, stringz)
 METRO_REGISTER_TYPE_ALIAS(Bool8, bool8)
 METRO_REGISTER_TYPE_ALIAS(ivec4, vec4i);
+METRO_REGISTER_TYPE_ALIAS(vec4s16, vec4s16);
 
 METRO_REGISTER_INHERITED_TYPE_ALIAS(color4f, vec4f, color)
 METRO_REGISTER_INHERITED_TYPE_ALIAS(color32u, u32, color)
@@ -196,13 +197,14 @@ public:
     virtual MetroReflectionStream* OpenSection(const CharString& sectionName, const bool nameUnknown = false) = 0;
     virtual void CloseSection(MetroReflectionStream* section) = 0;
 
-    bool SkipSection(const CharString& sectionName, const bool nameUnknown = false) {
+    int SkipSection(const CharString& sectionName, const bool nameUnknown = false) {
         MetroReflectionStream* section = this->OpenSection(sectionName, nameUnknown);;
         if (section) {
+            int result = section->GetRemains();
             this->CloseSection(section);
-            return true;
+            return result;
         } else {
-            return false;
+            return -1;
         }
     }
 
@@ -384,6 +386,10 @@ inline void operator >>(MetroReflectionStream& s, fp32_q8& v) {
 
 inline void operator >>(MetroReflectionStream& s, EntityLink& v) {
     s >> v.value;
+}
+
+inline void operator >>(MetroReflectionStream& s, vec4s16& v) {
+    s.SerializeRawBytes(&v, sizeof(v));
 }
 
 // Binary serialization

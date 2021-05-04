@@ -1,4 +1,6 @@
 #pragma once
+
+#include "metro/scripts/MetroScript.h"
 #include "mycommon.h"
 #include "mymath.h"
 
@@ -71,22 +73,28 @@ struct UObject {
         return false;
     }
 
-    CharString      name;               // name thing, implement ???
-    Bool8           oflags;
-    Bool8           sflags;
-    float           cull_distance;
-    pose_43         pose;
-    CharString      visual;
-    uint16_t        dao_val;
-    color4f         render_aux_val;
-    bool            vs_active;
-    uint16_t        spatial_sector;
-    uint8_t         qsave_chunk;
+    using Scripts = MyArray<MetroScript>;
+    using ScriptRefs = MyArray<MetroScriptRef>;
+
+    CharString         name;               // name thing, implement ???
+    Bool8              oflags;
+    Bool8              sflags;
+    float              cull_distance;
+    pose_43            pose;
+    CharString         visual;
+    uint16_t           dao_val;
+    color4f            render_aux_val;
+    Scripts            vss_ver_6;
+    bool               vs_active;
+    uint16_t           spatial_sector;
+    uint8_t            qsave_chunk;
+    ScriptRefs         commons_vs;
+    ScriptRefs         removed_vs;
 
     // transient members
-    UObjectInitData initData;
-    CharString      cls;
-    CharString      static_data;
+    UObjectInitData    initData;
+    CharString         cls;
+    CharString         static_data;
 
     UObjectStaticParams* static_params;
 };

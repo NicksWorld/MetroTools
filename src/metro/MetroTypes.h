@@ -368,6 +368,19 @@ inline MetroVertex ConvertVertex<VertexLevel>(const VertexLevel& v) {
     return result;
 }
 
+template <>
+inline MetroVertex ConvertVertex<VertexSoft>(const VertexSoft& v) {
+    const float uvDequant = 1.0f / 2048.0f;
+
+    MetroVertex result = {};
+
+    result.pos = MetroSwizzle(v.pos);
+    result.normal = vec4(MetroSwizzle(v.normal), 0.0f);
+    result.uv0 = vec2(scast<float>(v.uv[0]) * uvDequant,
+                      scast<float>(v.uv[1]) * uvDequant);
+    return result;
+}
+
 
 enum class MetroBodyPart : size_t {
     Invalid     = 0,

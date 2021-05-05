@@ -25,10 +25,17 @@ static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
         for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
             *dstVerts = ConvertVertex(*srcVerts);
             dstVerts->pos *= gd.mesh->verticesScale;
+
+            //#NOTE_SK: need to remap bones
+            dstVerts->bones[0] = gd.mesh->bonesRemap[srcVerts->bones[0] / 3];
+            dstVerts->bones[1] = gd.mesh->bonesRemap[srcVerts->bones[1] / 3];
+            dstVerts->bones[2] = gd.mesh->bonesRemap[srcVerts->bones[2] / 3];
+            dstVerts->bones[3] = gd.mesh->bonesRemap[srcVerts->bones[3] / 3];
+
             ++srcVerts;
             ++dstVerts;
         }
-    } else {
+    } else if (gd.mesh->vertexType == MetroVertexType::Static) {
         const VertexStatic* srcVerts = rcast<const VertexStatic*>(gd.vertices);
 
         result.resize(gd.mesh->verticesCount);
@@ -36,10 +43,22 @@ static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
 
         for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
             *dstVerts = ConvertVertex(*srcVerts);
-            //dstVerts->pos *= gd.mesh->verticesScale;
             ++srcVerts;
             ++dstVerts;
         }
+    } else if (gd.mesh->vertexType == MetroVertexType::Soft) {
+        const VertexSoft* srcVerts = rcast<const VertexSoft*>(gd.vertices);
+
+        result.resize(gd.mesh->verticesCount);
+        MetroVertex* dstVerts = result.data();
+
+        for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
+            *dstVerts = ConvertVertex(*srcVerts);
+            ++srcVerts;
+            ++dstVerts;
+        }
+    } else {
+        assert(false && "Unknown vertex type!");
     }
 
     return std::move(result);

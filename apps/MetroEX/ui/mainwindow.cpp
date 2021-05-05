@@ -130,6 +130,7 @@ MainWindow::MainWindow(QWidget *parent)
     , mLocalizationPanel(nullptr)
     , mImageInfoPanel(nullptr)
     , mModelInfoPanel(nullptr)
+    , mExtractionCtx{}
     , mExtractionProgressDlg(nullptr)
 {
     ui->setupUi(this);
@@ -901,6 +902,7 @@ void MainWindow::ShowContextMenuModel(QTreeWidgetItem* /*node*/, const QPoint& p
     }
 
     if (shouldExtractModel) {
+        mExtractionCtx.batch = false;
         if (!this->ExtractModel(mExtractionCtx, fs::path())) {
             QMessageBox::critical(this, this->windowTitle(), tr("Failed to extract model!"));
         }

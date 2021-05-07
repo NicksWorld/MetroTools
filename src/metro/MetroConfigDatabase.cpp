@@ -76,6 +76,11 @@ MemStream MetroConfigsDatabase::GetFileStream(const CharString& name) const {
     return (i == nullptr) ? MemStream() : mStream.Substream(i->offset, i->length);
 }
 
+MemStream MetroConfigsDatabase::GetFileStream(const uint32_t nameCRC) const {
+    auto i = this->FindFile(nameCRC);
+    return (i == nullptr) ? MemStream() : mStream.Substream(i->offset, i->length);
+}
+
 bool MetroConfigsDatabase::ReplaceFileByIdx(const size_t chunkIdx, const MemStream& stream) {
     bool result = false;
 

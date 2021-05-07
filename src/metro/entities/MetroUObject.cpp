@@ -77,17 +77,14 @@ void UObject::Serialize(MetroReflectionStream& s) {
     if (entitiesVersion >= UObject::kVersionRedux) {
         METRO_SERIALIZE_MEMBER(s, render_aux_val);
     }
-
-    //#TODO_SK:  METRO_SERIALIZE_STRUCT_ARRAY_MEMBER  !!!
-    s.SkipSection("vss_ver_6");
-
+    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(s, vss_ver_6);
     METRO_SERIALIZE_MEMBER(s, vs_active);
     METRO_SERIALIZE_MEMBER(s, spatial_sector);
     METRO_SERIALIZE_MEMBER(s, qsave_chunk);
 
     if (this->common_vss()) {
-        s.SkipSection("commons_vs");
-        s.SkipSection("removed_vs");
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(s, commons_vs);
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(s, removed_vs);
     }
 }
 

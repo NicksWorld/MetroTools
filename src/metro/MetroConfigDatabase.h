@@ -25,6 +25,7 @@ public:
     const ConfigInfo*   FindFile(const CharString& name) const;
 
     MemStream           GetFileStream(const CharString& name) const;
+    MemStream           GetFileStream(const uint32_t nameCRC) const;
     bool                ReplaceFileByIdx(const size_t chunkIdx, const MemStream& stream);
 
     size_t              GetNumFiles() const;

@@ -63,7 +63,14 @@ target_sources(metro PRIVATE
     reflection/MetroReflectionBinary.inl
     reflection/MetroReflectionJson.inl
     vfs/MetroVFS.cpp
-    vfs/MetroVFS.h)
+    vfs/MetroVFS.h
+    scripts/MetroBlock.cpp
+    scripts/MetroBlock.h
+    scripts/MetroBlockFactory.cpp
+    scripts/MetroBlockFactory.h
+    scripts/MetroBlockMeta.h
+    scripts/MetroScript.cpp
+    scripts/MetroScript.h)
 target_link_libraries(metro 
     PRIVATE
         MetroTools::Common

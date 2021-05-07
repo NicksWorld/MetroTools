@@ -27,6 +27,10 @@ target_sources(MetroEX_QT PRIVATE
     ui/renderpanel.h
     ui/settingsdlg.cpp
     ui/settingsdlg.h
+    ui/nodes/scriptblocknode.cpp
+    ui/nodes/scriptblocknode.h
+    ui/nodes/scriptscene.cpp
+    ui/nodes/scriptscene.h
     cpp.hint)
 target_link_libraries(MetroEX_QT PRIVATE
     MetroTools::Common
@@ -35,4 +39,5 @@ target_link_libraries(MetroEX_QT PRIVATE
     MetroTools::Engine
 
     Qt6::Gui
-    Qt6::Widgets)
+    Qt6::Widgets
+    NodeEditor::nodes)

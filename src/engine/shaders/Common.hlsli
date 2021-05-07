@@ -1,10 +1,9 @@
 // Vertex shader output
 struct VSOutput {
     float4 pos          : SV_Position;
-    float4 normal       : TEXCOORD0;   // vao in W
-    float4 tangent      : TEXCOORD1;   // W is vacant
-    float4 bitangent    : TEXCOORD2;   // W is vacant
-    float4 uv0uv1       : TEXCOORD3;
+    float4 wpos         : TEXCOORD0;    // W is vacant
+    float4 normal       : TEXCOORD1;    // vao in W
+    float4 uv0uv1       : TEXCOORD2;
 };
 
 struct VSOutputSimple {

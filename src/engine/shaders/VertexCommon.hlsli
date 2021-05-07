@@ -38,8 +38,6 @@ struct VertexSoft {
 struct VertexCommon {
     float3  pos;
     float3  normal;
-    float3  tangent;
-    float3  bitangent;
     float2  uv0;
     float2  uv1;
     float   vao;
@@ -56,12 +54,8 @@ struct VertexCommon {
 VertexCommon ProcessInputVertex(in InputVertex src) {
     VertexCommon dst = (VertexCommon)0;
 
-    float4 t = src.tangent * 2.0f - 1.0f;
-
     dst.pos = FromMetroV3(src.pos);
     dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
-    dst.tangent = FromMetroV3(t);
-    dst.bitangent = cross(dst.normal, dst.tangent) * t.w;
     dst.uv0 = src.uv;
     dst.vao = src.normal.w;
 
@@ -80,8 +74,6 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     const float kPositionDequant = 1.0f / 32767.0f;
     const float kUVDequant = 1.0f / 2048.0f;
 
-    float4 t = src.tangent * 2.0f - 1.0f;
-
     // same logic as in Metro shaders:
     //   mul r1.yzw, r0.xxyz, l(0.000000, 0.000031, 0.000031, 0.000031)
     //   ge r8.xyz, l(32767.000000, 32767.000000, 32767.000000, 0.000000), r0.xyzx
@@ -97,7 +89,6 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     //#NOTE_SK: maybe better  "dst.pos = (dst.pos / 65535.0f) * 2.0f - 1.0f" ??
 
     dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
-    dst.tangent = FromMetroV3(t);
 
     uint4 indices = FromMetroV4(src.bones) / 3; // why the fuck?
     float4 weights = FromMetroV4(src.weights);
@@ -107,9 +98,6 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
                      Skinned_Bones[indices.w] * weights.w;
     dst.pos = mul(float4(dst.pos, 1.0f), skinMat).xyz;
     dst.normal = mul(dst.normal, (float3x3)skinMat);
-    dst.tangent = mul(dst.tangent, (float3x3)skinMat);
-
-    dst.bitangent = cross(dst.normal, dst.tangent) * t.w;
     dst.uv0 = float2(src.uv) * kUVDequant;
     dst.vao = src.normal.w;
 
@@ -128,16 +116,10 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     const float kUV0Dequant = 1.0f / 1024.0f;
     const float kUV1Dequant = 1.0f / 32767.0f;
 
-    float4 t = src.tangent * 2.0f - 1.0f;
-
     dst.pos = FromMetroV3(src.pos);
     dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
-    dst.tangent = FromMetroV3(t);
-    dst.bitangent = cross(dst.normal, dst.tangent) * t.w;
-
     dst.uv0 = src.uv0uv1.xy * kUV0Dequant;
     dst.uv1 = src.uv0uv1.zw * kUV1Dequant;
-
     dst.vao = 1.0f;
 
     return dst;
@@ -159,8 +141,6 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
 
     dst.pos = FromMetroV3(src.pos);
     dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
-    dst.tangent = FromMetroV3(t);
-    dst.bitangent = cross(dst.normal, dst.tangent) * t.w;
     dst.uv0 = float2(src.uv) * kUVDequant;
     dst.vao = 1.0f;
 
@@ -178,12 +158,9 @@ VSOutput TransformVertex(in InputVertex src) {
     VertexCommon vertex = ProcessInputVertex(src);
 
     dst.pos = mul(float4(vertex.pos, 1.0f), Matrices_ModelViewProj);
+    dst.wpos = mul(float4(vertex.pos, 1.0f), Matrices_Model);
     dst.normal.xyz = normalize(mul(vertex.normal, (float3x3)Matrices_NormalWS));
-    dst.tangent.xyz = normalize(mul(vertex.tangent, (float3x3)Matrices_NormalWS));
-    dst.bitangent.xyz = normalize(mul(vertex.bitangent, (float3x3)Matrices_NormalWS));
-
     dst.normal.w = vertex.vao;
-
     dst.uv0uv1.xy = vertex.uv0;
     dst.uv0uv1.zw = vertex.uv1;
 

@@ -779,13 +779,14 @@ void MainWindow::ShowLocalization(MyHandle file) {
     }
 }
 
-void MainWindow::ShowBin(MyHandle file, size_t subIdx)
-{
+void MainWindow::ShowBin(MyHandle file, size_t subIdx) {
     this->SwitchViewPanel(PanelType::Empty);
     this->SwitchInfoPanel(PanelType::Empty);
 
-    if (subIdx == kInvalidValue)
+    if (subIdx == kInvalidValue) {
         return;
+    }
+
     const MetroConfigsDatabase& mcfgdb = MetroContext::Get().GetConfigsDB();
     auto stream = mcfgdb.GetFileStream(mcfgdb.GetFileByIdx(subIdx).nameCRC);
     if (stream.Good()) {

@@ -16,9 +16,19 @@ PSOutput main(in VSOutput IN) {
 
     //float4 bump = TexBump.Sample(SamplerTrilinear, uv0);
 
-    float3x3 TBN = float3x3(normalize(IN.tangent.xyz),
-                            normalize(IN.bitangent.xyz),
-                            normalize(IN.normal.xyz));
+    float3 vertexNormal = normalize(IN.normal.xyz);
+    float3 worldPos = IN.wpos.xyz;
+    float2 uvDdx = ddx_fine(uv0);
+    float2 uvDdy = ddy_fine(uv0);
+    float3 wpDdyN = cross(ddy_fine(worldPos), vertexNormal);
+    float3 wpDdxN = cross(vertexNormal, ddx_fine(worldPos));
+    float3 tangent = (wpDdyN * uvDdx.x) + (wpDdxN * uvDdy.x);
+    float3 bitangent = (wpDdyN * uvDdx.y) + (wpDdxN * uvDdy.y);
+    float il = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
+    tangent *= il;
+    bitangent *= il;
+
+    float3x3 TBN = float3x3(tangent, bitangent, vertexNormal);
 
     float3 normal = TexNormalmap.Sample(SamplerTrilinear, uv0).xyz * 2.0f - 1.0f;
     normal = normalize(mul(normal, TBN));

@@ -97,7 +97,8 @@ static FileType DetectFileType(const MetroFSPath& file) {
     if (StrEndsWith(name, ".dds") ||
         StrEndsWith(name, ".512") || StrEndsWith(name, ".512c") ||
         StrEndsWith(name, ".1024") || StrEndsWith(name, ".1024c") ||
-        StrEndsWith(name, ".2048") || StrEndsWith(name, ".2048c")) {
+        StrEndsWith(name, ".2048") || StrEndsWith(name, ".2048c") ||
+        StrEndsWith(name, ".4096")) {
         result = FileType::Texture;
     } else if (name == "level.bin") {
         result = FileType::Level;
@@ -1140,8 +1141,12 @@ void MainWindow::TextureSaveHelper(const fs::path& folderPath, const FileExtract
 
     const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
-    CharString textureNameSrc = textureName + ".2048";
+    CharString textureNameSrc = textureName + ".4096";
     MetroFSPath textureHandle = mfs.FindFile(textureNameSrc);
+    if (!textureHandle.IsValid()) {
+        textureNameSrc = textureName + ".2048";
+        textureHandle = mfs.FindFile(textureNameSrc);
+    }
     if (!textureHandle.IsValid()) {
         textureNameSrc = textureName + ".1024";
         textureHandle = mfs.FindFile(textureNameSrc);

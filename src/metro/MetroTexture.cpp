@@ -144,6 +144,9 @@ bool MetroTexture::LoadFromData(MemStream& stream, const CharString& fileName) {
         } else if (extension == ".2048" || extension == ".2048c") {
             dimension = 2048;
             numMips = 1;
+        } else if (extension == ".4096") {
+            dimension = 4096;
+            numMips = 1;
         }
 
         const bool isCrunched = extension.back() == 'c';
@@ -215,7 +218,7 @@ bool MetroTexture::LoadFromFile(const fs::path& fileName) {
             uint8_t* pixels = stbi_load_from_memory(fileData.data(), scast<int>(fileData.size()), &width, &height, &bpp, STBI_rgb_alpha);
             fileData.resize(0);
             if (pixels) {
-                mData.resize(width * height * 4);
+                mData.resize(scast<size_t>(width) * scast<size_t>(height) * 4);
                 memcpy(mData.data(), pixels, mData.size());
 
                 stbi_image_free(pixels);
@@ -448,12 +451,13 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
     BytesArray mipBuffer = mData;
     BytesArray nextMipBuffer; nextMipBuffer.resize(mipBuffer.size() / 4);
 
-    WideString extensions[3];
-    extensions[0] = (crunched ? L".2048c" : L".2048");
-    extensions[1] = (crunched ? L".1024c" : L".1024");
-    extensions[2] = (crunched ? L".512c"  : L".512");
+    WideString extensions[4];
+    extensions[0] = L".4096";
+    extensions[1] = (crunched ? L".2048c" : L".2048");
+    extensions[2] = (crunched ? L".1024c" : L".1024");
+    extensions[3] = (crunched ? L".512c"  : L".512");
 
-    if (resolution == 2048) {
+    if (resolution == 4096) {
         std::ofstream file(filePath.native() + extensions[0], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
@@ -471,7 +475,7 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
         mipBuffer = nextMipBuffer;
     }
 
-    if (resolution == 1024) {
+    if (resolution == 2048) {
         std::ofstream file(filePath.native() + extensions[1], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
@@ -489,8 +493,26 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
         mipBuffer = nextMipBuffer;
     }
 
-    if (resolution == 512) {
+    if (resolution == 1024) {
         std::ofstream file(filePath.native() + extensions[2], std::ofstream::binary);
+        if (file.good()) {
+            BytesArray outBuffer;
+            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format, crunched);
+
+            file.write(rcast<const char*>(outBuffer.data()), outSize);
+            file.flush();
+            file.close();
+        }
+
+        stbir_resize_uint8(mipBuffer.data(), scast<int>(resolution), scast<int>(resolution), 0,
+                           nextMipBuffer.data(), scast<int>(resolution / 2), scast<int>(resolution / 2), 0, 4);
+
+        resolution /= 2;
+        mipBuffer = nextMipBuffer;
+    }
+
+    if (resolution == 512) {
+        std::ofstream file(filePath.native() + extensions[3], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
             const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format, crunched);

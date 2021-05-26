@@ -36,6 +36,7 @@ using StringView = std::string_view;
 using WideString = std::wstring;
 using WStringView = std::wstring_view;
 using StringArray = MyArray<CharString>;
+using WStringArray = MyArray<WideString>;
 using BytesArray = MyArray<uint8_t>;
 
 template <typename T>

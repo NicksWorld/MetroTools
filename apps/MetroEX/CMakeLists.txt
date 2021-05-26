@@ -27,6 +27,9 @@ target_sources(MetroEX_QT PRIVATE
     ui/renderpanel.h
     ui/settingsdlg.cpp
     ui/settingsdlg.h
+    ui/maintoolbar.cpp
+    ui/maintoolbar.h
+    ui/maintoolbar.ui
     ui/nodes/scriptblocknode.cpp
     ui/nodes/scriptblocknode.h
     ui/nodes/scriptscene.cpp

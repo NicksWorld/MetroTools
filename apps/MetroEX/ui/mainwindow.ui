@@ -230,70 +230,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionOpen_archive"/>
-   <addaction name="actionOpen"/>
-   <addaction name="separator"/>
-   <addaction name="actionShow_transparency"/>
-   <addaction name="separator"/>
-   <addaction name="actionSettings"/>
   </widget>
-  <action name="actionOpen">
-   <property name="icon">
-    <iconset resource="../res/resources.qrc">
-     <normaloff>:/imgs/FolderOpened_32x.png</normaloff>:/imgs/FolderOpened_32x.png</iconset>
-   </property>
-   <property name="text">
-    <string>Open game folder</string>
-   </property>
-   <property name="toolTip">
-    <string>Open game folder...</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Shift+O</string>
-   </property>
-  </action>
-  <action name="actionOpen_archive">
-   <property name="icon">
-    <iconset resource="../res/resources.qrc">
-     <normaloff>:/imgs/OpenFile_32x.png</normaloff>:/imgs/OpenFile_32x.png</iconset>
-   </property>
-   <property name="text">
-    <string>Open archive</string>
-   </property>
-   <property name="toolTip">
-    <string>Open single archive...</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+O</string>
-   </property>
-  </action>
-  <action name="actionShow_transparency">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../res/resources.qrc">
-     <normaloff>:/imgs/Transparency_32x.png</normaloff>:/imgs/Transparency_32x.png</iconset>
-   </property>
-   <property name="text">
-    <string>Show transparency</string>
-   </property>
-   <property name="toolTip">
-    <string>Show transparency</string>
-   </property>
-  </action>
-  <action name="actionSettings">
-   <property name="icon">
-    <iconset resource="../res/resources.qrc">
-     <normaloff>:/imgs/Settings_32x.png</normaloff>:/imgs/Settings_32x.png</iconset>
-   </property>
-   <property name="text">
-    <string>Settings...</string>
-   </property>
-  </action>
  </widget>
- <resources>
-  <include location="../res/resources.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

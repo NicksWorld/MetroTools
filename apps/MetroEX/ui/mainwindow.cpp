@@ -11,6 +11,7 @@
 #include "imageinfopanel.h"
 #include "modelinfopanel.h"
 #include "nodes/scriptscene.h"
+#include "maintoolbar.h"
 
 #include "settingsdlg.h"
 #include "mex_settings.h"
@@ -133,6 +134,7 @@ static FileType DetectFileType(const MetroFSPath& file) {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , mToolbar(new MainToolbar)
     , mIsTreeFiltering(false)
     , mImagePanel(nullptr)
     , mRenderPanel(nullptr)
@@ -145,6 +147,13 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     ui->toolBar->setContextMenuPolicy(Qt::PreventContextMenu);
+    ui->toolBar->addWidget(mToolbar);
+    connect(mToolbar, &MainToolbar::OnOpenArchiveTriggered, this, &MainWindow::on_OpenArchive_triggered);
+    connect(mToolbar, &MainToolbar::OnOpenGameFolderTriggered, this, &MainWindow::on_OpenGameFolder_triggered);
+    connect(mToolbar, &MainToolbar::OnShowTransparencyTriggered, this, &MainWindow::on_ShowTransparency_triggered);
+    connect(mToolbar, &MainToolbar::OnSettingsTriggered, this, &MainWindow::on_Settings_triggered);
+    connect(mToolbar, &MainToolbar::OnAboutTriggered, this, &MainWindow::on_About_triggered);
+
     ui->treeFiles->setContextMenuPolicy(Qt::CustomContextMenu);
 
     // Viewers panels
@@ -234,27 +243,31 @@ MainWindow::~MainWindow() {
 }
 
 
-void MainWindow::on_actionOpen_archive_triggered() {
-    QString name = QFileDialog::getOpenFileName(this, tr("Open Metro archive file..."), QString(), tr("Metro archive files (*.vfx *.vfx0 *.vfi)"));
-    if (name.length() > 3) {
+void MainWindow::on_OpenArchive_triggered(QString path) {
+    QString name = path.isEmpty() ? QFileDialog::getOpenFileName(this, tr("Open Metro archive file..."), QString(), tr("Metro archive files (*.vfx *.vfx0 *.vfi)")) : path;
+    if (!name.isEmpty()) {
         if (MetroContext::Get().InitFromSingleArchive(name.toStdWString())) {
             this->UpdateFilesList();
         }
     }
 }
 
-void MainWindow::on_actionOpen_triggered() {
+void MainWindow::on_OpenGameFolder_triggered(QString path) {
 
 }
 
-void MainWindow::on_actionShow_transparency_triggered() {
-    mImagePanel->ShowTransparency(ui->actionShow_transparency->isChecked());
+void MainWindow::on_ShowTransparency_triggered(bool checked) {
+    mImagePanel->ShowTransparency(checked);
 }
 
-void MainWindow::on_actionSettings_triggered() {
+void MainWindow::on_Settings_triggered() {
     SettingsDlg dlg(this);
     dlg.setWindowIcon(this->windowIcon());
     dlg.exec();
+}
+
+void MainWindow::on_About_triggered() {
+    QMessageBox::aboutQt(this, this->windowTitle());
 }
 
 

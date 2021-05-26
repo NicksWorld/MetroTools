@@ -23,6 +23,7 @@ namespace QtNodes {
     class FlowView;
     class FlowScene;
 }
+class MainToolbar;
 
 enum class FileType : size_t {
     Unknown,
@@ -91,10 +92,11 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_actionOpen_archive_triggered();
-    void on_actionOpen_triggered();
-    void on_actionShow_transparency_triggered();
-    void on_actionSettings_triggered();
+    void on_OpenArchive_triggered(QString path);
+    void on_OpenGameFolder_triggered(QString path);
+    void on_ShowTransparency_triggered(bool checked);
+    void on_Settings_triggered();
+    void on_About_triggered();
     void on_treeFiles_itemCollapsed(QTreeWidgetItem* item);
     void on_treeFiles_itemExpanded(QTreeWidgetItem* item);
     void on_treeFiles_customContextMenuRequested(const QPoint& pos);
@@ -165,6 +167,9 @@ private:
     QIcon                       mIconModel;
     QIcon                       mIconBin;
     QIcon                       mIconBinArchive;
+
+    // Toolbar
+    MainToolbar*                mToolbar;
 
     // Filterable tree
     QList<QTreeWidgetItem*>     mOriginalTreeRootNodes;

@@ -246,6 +246,7 @@ MainWindow::~MainWindow() {
 void MainWindow::on_OpenArchive_triggered(QString path) {
     QString name = path.isEmpty() ? QFileDialog::getOpenFileName(this, tr("Open Metro archive file..."), QString(), tr("Metro archive files (*.vfx *.vfx0 *.vfi)")) : path;
     if (!name.isEmpty()) {
+        mToolbar->AddArchiveToHistory(name.toStdWString());
         if (MetroContext::Get().InitFromSingleArchive(name.toStdWString())) {
             this->UpdateFilesList();
         }
@@ -253,7 +254,7 @@ void MainWindow::on_OpenArchive_triggered(QString path) {
 }
 
 void MainWindow::on_OpenGameFolder_triggered(QString path) {
-
+    // mToolbar->AddFolderToHistory(name.toStdWString());
 }
 
 void MainWindow::on_ShowTransparency_triggered(bool checked) {

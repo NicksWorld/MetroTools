@@ -64,24 +64,21 @@ void MainToolbar::SetOpenGameFolderHistory(const WStringArray& history) {
     }
 }
 
-void MainToolbar::AddArchiveToHistory(const WideString& path)
-{
+void MainToolbar::AddArchiveToHistory(const WideString& path) {
     MEXSettings& settings = MEXSettings::Get();
 
     AddPathToHistory(path, settings.openHistory.archives);
     SetOpenArchiveHistory(settings.openHistory.archives);
 }
 
-void MainToolbar::AddFolderToHistory(const WideString& path)
-{
+void MainToolbar::AddFolderToHistory(const WideString& path) {
     MEXSettings& settings = MEXSettings::Get();
 
     AddPathToHistory(path, settings.openHistory.folders);
     SetOpenGameFolderHistory(settings.openHistory.folders);
 }
 
-void MainToolbar::AddPathToHistory(const WideString& path, WStringArray& history)
-{
+void MainToolbar::AddPathToHistory(const WideString& path, WStringArray& history) {
     const auto iterator = std::find(history.begin(), history.end(), path);
     if (iterator != history.end()) {
         history.erase(iterator);

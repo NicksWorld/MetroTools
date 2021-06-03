@@ -18,6 +18,11 @@ public:
 
     void    SetOpenArchiveHistory(const WStringArray& history);
     void    SetOpenGameFolderHistory(const WStringArray& history);
+    void    AddArchiveToHistory(const WideString& path);
+    void    AddFolderToHistory(const WideString& path);
+
+private:
+    void    AddPathToHistory(const WideString& path, WStringArray& history);
 
 private slots:
     void    on_tbtnOpenArchive_triggered(QAction* action);

@@ -76,6 +76,7 @@ bool MEXSettings::Load() {
             pugi::xml_node decl = doc.child("MetroEX-document");
             if (decl && decl.value() == CharString(R"(type="Settings")")) {
                 result = this->LoadExtraction(doc);
+                result = result && this->LoadOpenHistory(doc);
             }
         }
     }
@@ -99,6 +100,7 @@ bool MEXSettings::Save() {
     excelDecl.append_attribute("type") = "Settings";
 
     this->SaveExtraction(doc);
+    this->SaveOpenHistory(doc);
 
     return doc.save_file(path.native().c_str(), "  ", pugi::format_default, pugi::encoding_utf8);
 }
@@ -173,6 +175,44 @@ bool MEXSettings::SaveExtraction(pugi::xml_document& doc) {
 
     //stuff
     SetBoolValue(extractionNode, "askEveryTime", this->extraction.askEveryTime);
+
+    return true;
+}
+
+bool MEXSettings::LoadOpenHistory(pugi::xml_document& doc) {
+    openHistory.archives.clear();
+    openHistory.folders.clear();
+
+    pugi::xml_node openHistoryNode = doc.child("OpenHistory");
+    if (openHistoryNode) {
+        pugi::xml_node openArchiveHistoryNode = openHistoryNode.child("Archives");
+
+        for(auto& pathNode : openArchiveHistoryNode.children()) {
+            openHistory.archives.push_back(StrUtf8ToWide(pathNode.text().get()));
+        }
+
+        pugi::xml_node openFolderHistoryNode = openHistoryNode.child("Folders");
+
+        for (auto& pathNode : openFolderHistoryNode.children()) {
+            openHistory.folders.push_back(StrUtf8ToWide(pathNode.text().get()));
+        }
+    }
+
+    return true;
+}
+
+bool MEXSettings::SaveOpenHistory(pugi::xml_document& doc) {
+    pugi::xml_node openHistoryNode = doc.append_child("OpenHistory");
+
+    pugi::xml_node openArchiveHistoryNode = openHistoryNode.append_child("Archives");
+    for(auto& path : openHistory.archives) {
+        openArchiveHistoryNode.append_child("path").text() = StrWideToUtf8(path).c_str();
+    }
+
+    pugi::xml_node openFolderHistoryNode = openHistoryNode.append_child("Folders");
+    for (auto& path : openHistory.folders) {
+        openFolderHistoryNode.append_child("path").text() = StrWideToUtf8(path).c_str();
+    }
 
     return true;
 }

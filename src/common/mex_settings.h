@@ -18,11 +18,13 @@ public:
     void    InitDefaults();
 
 private:
-    // loading
+    // extraction
     bool    LoadExtraction(pugi::xml_document& doc);
-
-    // saving
     bool    SaveExtraction(pugi::xml_document& doc);
+
+    // open history
+    bool    LoadOpenHistory(pugi::xml_document& doc);
+    bool    SaveOpenHistory(pugi::xml_document& doc);
 
 public:
     //// Extraction options
@@ -57,6 +59,12 @@ public:
         // stuff
         bool        askEveryTime;
     } extraction;
+
+    struct OpenHistory
+    {
+        WStringArray archives;
+        WStringArray folders;
+    } openHistory;
 
 private:
     fs::path    mFolder;

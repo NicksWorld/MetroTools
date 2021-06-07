@@ -64,59 +64,13 @@ void MainToolbar::SetOpenGameFolderHistory(const WStringArray& history) {
     }
 }
 
-void MainToolbar::AddArchiveToHistory(const WideString& path) {
-    MEXSettings& settings = MEXSettings::Get();
-
-    AddPathToHistory(path, settings.openHistory.archives);
-    SetOpenArchiveHistory(settings.openHistory.archives);
-}
-
-void MainToolbar::AddFolderToHistory(const WideString& path) {
-    MEXSettings& settings = MEXSettings::Get();
-
-    AddPathToHistory(path, settings.openHistory.folders);
-    SetOpenGameFolderHistory(settings.openHistory.folders);
-}
-
-void MainToolbar::AddPathToHistory(const WideString& path, WStringArray& history) {
-    const auto iterator = std::find(history.begin(), history.end(), path);
-    if (iterator != history.end()) {
-        history.erase(iterator);
-    }
-
-    while(history.size() >= 10)
-    {
-        history.erase(history.begin());
-    }
-
-    history.push_back(path);
-
-    MEXSettings& settings = MEXSettings::Get();
-    settings.Save();
-}
-
 void MainToolbar::on_tbtnOpenArchive_triggered(QAction* action) {
-    QString path;
-    if (action != nullptr && !action->text().isEmpty()) {
-        path = action->text();
-        AddArchiveToHistory(path.toStdWString());
-    } else {
-        path = "";
-    }
-
+    QString path = (action != nullptr) ? action->text() : "";
     emit OnOpenArchiveTriggered(path);
 }
 
 void MainToolbar::on_tbtnOpenGameFolder_triggered(QAction* action) {
-    QString path;
-    if (action != nullptr && !action->text().isEmpty()) {
-        path = action->text();
-        AddFolderToHistory(path.toStdWString());
-    }
-    else {
-        path = "";
-    }
-
+    QString path = (action != nullptr) ? action->text() : "";
     emit OnOpenGameFolderTriggered(path);
 }
 

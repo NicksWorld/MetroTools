@@ -146,6 +146,11 @@ private:
     bool ExtractFolderComplete(const FileExtractionCtx& ctx, const fs::path& outPath);
     void ExtractionProcessFunc(const fs::path& folderPath);
 
+    void AddPathToHistory(const WideString& path, WStringArray& history);
+    void AddArchiveToHistory(const WideString& path);
+    void AddFolderToHistory(const WideString& path);
+    WideString GetLastArchivePathFromHistory() const;
+
     // property panels
     // model props
 private slots:

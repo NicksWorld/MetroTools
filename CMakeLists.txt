@@ -13,3 +13,4 @@ add_subdirectory(src/simpleribbon)
 
 add_subdirectory(apps/MetroEX)
 add_subdirectory(apps/MetroME)
+add_subdirectory(apps/MetroTEX)

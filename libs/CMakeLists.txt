@@ -78,4 +78,6 @@ target_link_libraries(crunch INTERFACE $<IF:$<CONFIG:Debug>,Debug_DLL/x64/crnlib
 set(BUILD_EXAMPLES ON)
 add_subdirectory(nodeeditor)
 
+add_subdirectory(QtPropertyBrowser)
+
 set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash uninstall PROPERTIES FOLDER "external")

@@ -305,8 +305,16 @@ inline StringArray StrSplit(const CharString& s, const char delimiter) {
     return __utils::StrSplitCommon<CharString>(s, delimiter);
 }
 
+inline WStringArray WStrSplit(const WideString& s, const wchar_t delimiter) {
+    return __utils::StrSplitCommon<WideString>(s, delimiter);
+}
+
 inline MyArray<StringView> StrSplitViews(const StringView& s, const char delimiter) {
     return __utils::StrSplitCommon<StringView>(s, delimiter);
+}
+
+inline MyArray<WStringView> WStrSplitViews(const WStringView& s, const wchar_t delimiter) {
+    return __utils::StrSplitCommon<WStringView>(s, delimiter);
 }
 
 

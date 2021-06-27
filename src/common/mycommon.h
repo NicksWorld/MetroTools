@@ -271,11 +271,25 @@ inline WideString StrUtf8ToWide(const CharString& source) {
     return std::move(result);
 }
 
-inline CharString StrWideToUtf8(const WideString&) {
-    //CharString result = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}.to_bytes(source);
-    //return std::move(result);
-    assert(false);
-    return kEmptyString;
+inline CharString StrWideToUtf8(const WideString& source) {
+    CharString result;
+
+    for (wchar_t wc : source) {
+        if (wc < 0x80) {            // U+0000..U+007F
+            result.push_back(scast<char>(wc));
+        }
+        else if (wc < 0x800) {    // U+0080..U+07FF
+            result.push_back(scast<char>(0xC0 | (wc >> 6)));
+            result.push_back(scast<char>(0x80 | (wc & 0x3F)));
+        }
+        else {                    // U+0800..U+FFFF
+            result.push_back(scast<char>(0xE0 | (wc >> 12)));
+            result.push_back(scast<char>(0x80 | ((wc >> 6) & 0x3F)));
+            result.push_back(scast<char>(0x80 | (wc & 0x3F)));
+        }
+    }
+
+    return std::move(result);
 }
 
 // for string delimiter

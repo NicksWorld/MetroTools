@@ -244,9 +244,9 @@ MainWindow::~MainWindow() {
 
 
 void MainWindow::on_OpenArchive_triggered(QString path) {
-    QString name = path.isEmpty() ? QFileDialog::getOpenFileName(this, tr("Open Metro archive file..."), QString(), tr("Metro archive files (*.vfx *.vfx0 *.vfi)")) : path;
+    QString name = path.isEmpty() ? QFileDialog::getOpenFileName(this, tr("Open Metro archive file..."), QString::fromStdWString(GetLastArchivePathFromHistory()), tr("Metro archive files (*.vfx *.vfx0 *.vfi)")) : path;
     if (!name.isEmpty()) {
-        mToolbar->AddArchiveToHistory(name.toStdWString());
+        AddArchiveToHistory(name.toStdWString());
         if (MetroContext::Get().InitFromSingleArchive(name.toStdWString())) {
             this->UpdateFilesList();
         }
@@ -254,7 +254,7 @@ void MainWindow::on_OpenArchive_triggered(QString path) {
 }
 
 void MainWindow::on_OpenGameFolder_triggered(QString path) {
-    // mToolbar->AddFolderToHistory(name.toStdWString());
+    // AddFolderToHistory(name.toStdWString());
 }
 
 void MainWindow::on_ShowTransparency_triggered(bool checked) {
@@ -1712,4 +1712,49 @@ void MainWindow::OnModelInfoExportMotionClicked() {
     if (!this->ExtractMotion(mExtractionCtx, fs::path())) {
         QMessageBox::critical(this, this->windowTitle(), tr("Failed to extract motion!"));
     }
+}
+
+void MainWindow::AddArchiveToHistory(const WideString& path) {
+    MEXSettings& settings = MEXSettings::Get();
+
+    AddPathToHistory(path, settings.openHistory.archives);
+    mToolbar->SetOpenArchiveHistory(settings.openHistory.archives);
+}
+
+void MainWindow::AddFolderToHistory(const WideString& path) {
+    MEXSettings& settings = MEXSettings::Get();
+
+    AddPathToHistory(path, settings.openHistory.folders);
+    mToolbar->SetOpenGameFolderHistory(settings.openHistory.folders);
+}
+
+void MainWindow::AddPathToHistory(const WideString& path, WStringArray& history) {
+    const auto iterator = std::find(history.begin(), history.end(), path);
+    if (iterator != history.end()) {
+        history.erase(iterator);
+    }
+
+    while (history.size() >= 10)
+    {
+        history.erase(history.begin());
+    }
+
+    history.push_back(path);
+
+    MEXSettings& settings = MEXSettings::Get();
+    settings.Save();
+}
+
+WideString MainWindow::GetLastArchivePathFromHistory() const {
+    MEXSettings& settings = MEXSettings::Get();
+
+    for (long i = settings.openHistory.archives.size() - 1; i >= 0; --i) {
+        auto path = std::filesystem::path(settings.openHistory.archives[i]).parent_path();
+
+        if (exists(path)) {
+            return path.generic_wstring();
+        }
+    }
+
+    return WideString();
 }

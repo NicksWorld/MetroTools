@@ -19,6 +19,9 @@ target_sources(MetroME PRIVATE
     ui/mainribbon.h
     ui/renderpanel.h
     ui/renderpanel.cpp
+    ui/props/materialstringsprop.h
+    ui/props/objectpropertybrowser.cpp
+    ui/props/objectpropertybrowser.h
     cpp.hint
 )
 target_link_libraries(MetroME PRIVATE
@@ -31,4 +34,6 @@ target_link_libraries(MetroME PRIVATE
 
     Qt6::Gui
     Qt6::Widgets
+
+    QtPropertyBrowser::QtPropertyBrowser
 )

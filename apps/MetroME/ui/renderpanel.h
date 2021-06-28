@@ -34,6 +34,7 @@ public:
     bool                            Initialize();
     void                            SetModel(const RefPtr<MetroModelBase>& model);
     const RefPtr<MetroModelBase>&   GetModel() const;
+    void                            UpdateModelProps();
 
     void                            SetLod(const size_t lodId);
     void                            SwitchMotion(const size_t idx);

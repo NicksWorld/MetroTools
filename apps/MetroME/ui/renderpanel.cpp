@@ -140,7 +140,8 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
         if (mModel) {
             u4a::ResourcesManager::Get().Clear();
 
-            mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), vec3(0.0f), true));
+            const vec3& center = mModel->GetBBox().Center();
+            mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), -center, true));
         }
 
         this->ResetCamera();
@@ -149,6 +150,16 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
 
 const RefPtr<MetroModelBase>& RenderPanel::GetModel() const {
     return mModel;
+}
+
+void RenderPanel::UpdateModelProps() {
+    if (mModel) {
+        const vec3& center = mModel->GetBBox().Center();
+        vec3 pos = (mModelNode != nullptr) ? mModelNode->GetPosition() : -center;
+
+        mScene->Clear();
+        mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), pos, true));
+    }
 }
 
 void RenderPanel::SetLod(const size_t lodId) {

@@ -41,6 +41,10 @@ MainRibbon::MainRibbon(QWidget* parent)
 MainRibbon::~MainRibbon() {
 }
 
+void MainRibbon::EnableSkeletonTab(const bool enable) {
+    mTabSkeleton->setEnabled(enable);
+}
+
 void MainRibbon::OnFileImportMetroModelCommand(bool) {
     emit SignalFileImportMetroModel();
 }

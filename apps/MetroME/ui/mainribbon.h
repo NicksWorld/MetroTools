@@ -16,6 +16,8 @@ public:
     MainRibbon(QWidget* parent = nullptr);
     ~MainRibbon() override;
 
+    void    EnableSkeletonTab(const bool enable);
+
 signals:
     void    SignalFileImportMetroModel();
     void    SignalFileImportOBJModel();

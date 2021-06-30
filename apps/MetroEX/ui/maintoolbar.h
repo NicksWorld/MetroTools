@@ -35,6 +35,8 @@ signals:
 
 private:
     Ui::MainToolbar*    ui;
+    QMenu*              mOpenArchiveMenu;
+    QMenu*              mOpenGameFolderMenu;
     QAction             mOpenArchiveEmptyAction;
     QAction             mOpenGameFolderEmptyAction;
 };

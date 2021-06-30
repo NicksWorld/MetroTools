@@ -4,9 +4,11 @@
 
 #include <QMenu>
 
-MainToolbar::MainToolbar(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::MainToolbar)
+MainToolbar::MainToolbar(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::MainToolbar)
+    , mOpenArchiveMenu(new QMenu)
+    , mOpenGameFolderMenu(new QMenu)
 {
     ui->setupUi(this);
 
@@ -34,11 +36,11 @@ MainToolbar::~MainToolbar() {
 void MainToolbar::SetOpenArchiveHistory(const WStringArray& history) {
     if (!history.empty()) {
         ui->tbtnOpenArchive->setPopupMode(QToolButton::MenuButtonPopup);
-        QMenu* menu = new QMenu();
+        mOpenArchiveMenu->clear();
         for (long i = history.size() - 1; i >= 0; --i) {
-            menu->addAction(QString::fromStdWString(history[i]));
+            mOpenArchiveMenu->addAction(QString::fromStdWString(history[i]));
         }
-        ui->tbtnOpenArchive->setMenu(menu);
+        ui->tbtnOpenArchive->setMenu(mOpenArchiveMenu);
         ui->tbtnOpenArchive->setIcon(mOpenArchiveEmptyAction.icon());
         ui->tbtnOpenArchive->setToolTip(mOpenArchiveEmptyAction.toolTip());
     } else {
@@ -50,12 +52,12 @@ void MainToolbar::SetOpenArchiveHistory(const WStringArray& history) {
 void MainToolbar::SetOpenGameFolderHistory(const WStringArray& history) {
     if (!history.empty()) {
         ui->tbtnOpenGameFolder->setPopupMode(QToolButton::MenuButtonPopup);
-        QMenu* menu = new QMenu();
+        mOpenGameFolderMenu->clear();
         for (long i = history.size() - 1; i >= 0; --i) {
-            menu->addAction(QString::fromStdWString(history[i]));
+            mOpenGameFolderMenu->addAction(QString::fromStdWString(history[i]));
         }
-        ui->tbtnOpenGameFolder->setMenu(menu);
-        ui->tbtnOpenGameFolder->setDefaultAction(menu->actions().first());
+        ui->tbtnOpenGameFolder->setMenu(mOpenGameFolderMenu);
+        ui->tbtnOpenGameFolder->setDefaultAction(mOpenGameFolderMenu->actions().first());
         ui->tbtnOpenGameFolder->setIcon(mOpenGameFolderEmptyAction.icon());
         ui->tbtnOpenGameFolder->setToolTip(mOpenGameFolderEmptyAction.toolTip());
     } else {

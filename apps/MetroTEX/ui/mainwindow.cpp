@@ -136,6 +136,7 @@ MainWindow::MainWindow(QWidget *parent)
     propBrowserLayout->setSpacing(0);
     ui->pnlPropertyGrid->setLayout(propBrowserLayout);
     propBrowserLayout->addWidget(mPropertyBrowser);
+    connect(mPropertyBrowser, SIGNAL(objectPropertyChanged()), this, SLOT(onPropertyBrowserObjectPropertyChanged()));
 
     QHBoxLayout* imagePanelLayout = new QHBoxLayout();
     imagePanelLayout->setContentsMargins(0, 0, 0, 0);

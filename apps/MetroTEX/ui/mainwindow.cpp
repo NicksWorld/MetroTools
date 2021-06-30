@@ -9,6 +9,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTimer>
+#include <QSettings>
 
 #include "metro/MetroTexturesDatabase.h"
 #include "metro/MetroTexture.h"
@@ -116,6 +117,10 @@ static bool LoadMetroTextureFromExisting(const fs::path& path, MetroTexture& tex
 
     return result;
 }
+
+
+static const QString kLastOpenPath("LastOpenPath");
+static const QString kLastSavePath("LastSavePath");
 
 
 
@@ -307,24 +312,41 @@ void MainWindow::on_lstTextures_currentRowChanged(int currentRow) {
 }
 
 void MainWindow::on_actionOpen_textures_bin_triggered() {
-    QString openName = QFileDialog::getOpenFileName(this, tr("Open Metro 2033 textures database..."), QString(), tr("Metro bin file (*.bin)"));
-    if (openName.length() > 3) {
+    QSettings registry;
+    QString lastOpenDir = registry.value(kLastOpenPath).toString();
+
+    QString openName = QFileDialog::getOpenFileName(this, tr("Open Metro 2033 textures database..."), lastOpenDir, tr("Metro bin file (*.bin)"));
+    if (!openName.isEmpty()) {
         fs::path binPath = openName.toStdWString();
+        fs::path folderPath = fs::absolute(binPath.parent_path());
 
         mTexturesDB = MakeStrongPtr<MetroTexturesDatabase>();
         if (mTexturesDB->Initialize(MetroGameVersion::OG2033, binPath)) {
-            mTexturesFolder = binPath.parent_path();
+            mTexturesFolder = folderPath;
 
             this->FillTexturesList();
         }
+
+        lastOpenDir = QString::fromStdWString(folderPath.wstring());
+        registry.setValue(kLastOpenPath, lastOpenDir);
     }
 }
 
 void MainWindow::on_actionSave_textures_bin_triggered() {
     if (mTexturesDB) {
-        QString saveName = QFileDialog::getSaveFileName(this, tr("Save Metro 2033 textures database..."), QString("textures.bin"), tr("Metro bin file (*.bin)"));
-        if (saveName.length() > 3) {
-            mTexturesDB->SaveBin(saveName.toStdWString());
+        QSettings registry;
+        QString lastSavePath = registry.value(kLastSavePath).toString();
+        if (lastSavePath.isEmpty()) {
+            lastSavePath = "textures.bin";
+        }
+
+        QString saveName = QFileDialog::getSaveFileName(this, tr("Save Metro 2033 textures database..."), lastSavePath, tr("Metro bin file (*.bin)"));
+        if (!saveName.isEmpty()) {
+            fs::path savePath = fs::absolute(saveName.toStdWString());
+            mTexturesDB->SaveBin(savePath);
+
+            lastSavePath = QString::fromStdWString(savePath.wstring());
+            registry.setValue(kLastSavePath, lastSavePath);
         }
     }
 }

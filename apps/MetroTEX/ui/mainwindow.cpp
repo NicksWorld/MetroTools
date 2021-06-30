@@ -8,6 +8,7 @@
 
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QTimer>
 
 #include "metro/MetroTexturesDatabase.h"
 #include "metro/MetroTexture.h"
@@ -121,10 +122,11 @@ static bool LoadMetroTextureFromExisting(const fs::path& path, MetroTexture& tex
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , mSearchTimer{}
     , mPropertyBrowser(new ObjectPropertyBrowser(this))
     , mImagePanel(new ImagePanel(this))
-    , mTexturesDB()
-    , mTexturesFolder()
+    , mTexturesDB{}
+    , mTexturesFolder{}
     , mTextureInfoProps{}
 {
     ui->setupUi(this);
@@ -153,20 +155,28 @@ MainWindow::MainWindow(QWidget *parent)
     mImagePanel->ShowTransparency(true);
 
     MetroContext::Get().SetGameVersion(MetroGameVersion::OG2033);
+
+    mSearchTimer = MakeStrongPtr<QTimer>();
+    mSearchTimer->setInterval(1000); // 1 second
+    connect(mSearchTimer.get(), SIGNAL(timeout()), this, SLOT(onSearchTimerTick()));
 }
 
 MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::FillTexturesList() {
+void MainWindow::FillTexturesList(const QString& subText) {
     ui->lstTextures->clear();
 
     const size_t numTextures = mTexturesDB->GetNumTextures();
     for (size_t i = 0; i < numTextures; ++i) {
-        const CharString& textureName = mTexturesDB->GetTextureNameByIdx(i);
+        QString textureName = QString::fromStdString(mTexturesDB->GetTextureNameByIdx(i));
 
-        ui->lstTextures->addItem(QString::fromStdString(textureName));
+        if (subText.isEmpty() || textureName.contains(subText)) {
+            QListWidgetItem* newItem = new QListWidgetItem(textureName);
+            newItem->setData(Qt::UserRole, QVariant(scast<int>(i)));
+            ui->lstTextures->addItem(newItem);
+        }
     }
 }
 
@@ -229,7 +239,7 @@ void MainWindow::AddOrReplaceTexture(bool replaceCurrent) {
                         QMessageBox::critical(this, this->windowTitle(), tr("Failed to convert texture!"));
                     } else {
                         if (replaceCurrent) {
-                            const size_t selectedIdx = scast<size_t>(ui->lstTextures->currentRow());
+                            const size_t selectedIdx = scast<size_t>(this->GetSelectedTextureIdx());
 
                             MetroTextureInfoCommon info;
                             mTexturesDB->FillCommonInfoByIdx(selectedIdx, info);
@@ -273,9 +283,9 @@ void MainWindow::AddOrReplaceTexture(bool replaceCurrent) {
 }
 
 void MainWindow::on_lstTextures_currentRowChanged(int currentRow) {
-    if (mTexturesDB && ui->lstTextures->currentRow() >= 0) {
+    if (mTexturesDB && this->GetSelectedTextureIdx() >= 0) {
         MetroTextureInfoCommon info;
-        mTexturesDB->FillCommonInfoByIdx(scast<size_t>(ui->lstTextures->currentRow()), info);
+        mTexturesDB->FillCommonInfoByIdx(scast<size_t>(this->GetSelectedTextureIdx()), info);
 
         MetroTexture texture;
         if (LoadMetroTexture(mTexturesFolder, info, texture)) {
@@ -323,8 +333,8 @@ void MainWindow::on_actionAdd_texture_triggered() {
 }
 
 void MainWindow::on_actionRemove_texture_triggered() {
-    if (mTexturesDB && ui->lstTextures->currentRow() >= 0) {
-        const size_t idx = scast<size_t>(ui->lstTextures->currentRow());
+    if (mTexturesDB && this->GetSelectedTextureIdx() >= 0) {
+        const size_t idx = scast<size_t>(this->GetSelectedTextureIdx());
 
         MetroTextureInfoCommon info;
         mTexturesDB->FillCommonInfoByIdx(idx, info);
@@ -334,10 +344,12 @@ void MainWindow::on_actionRemove_texture_triggered() {
 
         if (answer == QMessageBox::Yes) {
             mTexturesDB->RemoveTextureByIdx(idx);
-            ui->lstTextures->removeItemWidget(ui->lstTextures->item(scast<int>(idx)));
 
-            if (idx < ui->lstTextures->count()) {
-                ui->lstTextures->setCurrentRow(scast<int>(idx));
+            const int selectedRow = ui->lstTextures->currentRow();
+            ui->lstTextures->removeItemWidget(ui->lstTextures->item(selectedRow));
+
+            if (selectedRow < ui->lstTextures->count()) {
+                ui->lstTextures->setCurrentRow(selectedRow);
             }
         }
     }
@@ -349,7 +361,7 @@ void MainWindow::on_actionShow_transparency_triggered() {
 
 void MainWindow::on_actionCalculate_texture_average_colour_triggered() {
     const void* imageData = mImagePanel->GetImageData();
-    if (mTexturesDB && ui->lstTextures->currentRow() >= 0 && imageData) {
+    if (mTexturesDB && this->GetSelectedTextureIdx() >= 0 && imageData) {
         const size_t width = mImagePanel->GetImageWidth();
         const size_t height = mImagePanel->GetImageHeight();
 
@@ -379,9 +391,9 @@ void MainWindow::on_actionCalculate_texture_average_colour_triggered() {
         const uint32_t avgColour = (R << 24) | (G << 16) | (B << 8);
 
         MetroTextureInfoCommon info;
-        mTexturesDB->FillCommonInfoByIdx(scast<size_t>(ui->lstTextures->currentRow()), info);
+        mTexturesDB->FillCommonInfoByIdx(scast<size_t>(this->GetSelectedTextureIdx()), info);
         info.avg_color = avgColour;
-        mTexturesDB->SetCommonInfoByIdx(scast<size_t>(ui->lstTextures->currentRow()), info);
+        mTexturesDB->SetCommonInfoByIdx(scast<size_t>(this->GetSelectedTextureIdx()), info);
 
         mPropertyBrowser->setActiveObject(nullptr);
         mTextureInfoProps = MakeStrongPtr<MetroTextureInfoData>();
@@ -391,10 +403,33 @@ void MainWindow::on_actionCalculate_texture_average_colour_triggered() {
 }
 
 void MainWindow::onPropertyBrowserObjectPropertyChanged() {
-    if (mTexturesDB && ui->lstTextures->currentRow() >= 0) {
+    if (mTexturesDB && this->GetSelectedTextureIdx() >= 0) {
         MetroTextureInfoCommon info;
         TextureInfoProps2033ToTextureCommonInfo(mTextureInfoProps.get(), info);
 
-        mTexturesDB->SetCommonInfoByIdx(scast<size_t>(ui->lstTextures->currentRow()), info);
+        mTexturesDB->SetCommonInfoByIdx(scast<size_t>(this->GetSelectedTextureIdx()), info);
+    }
+}
+
+void MainWindow::onSearchTimerTick() {
+    mSearchTimer->stop();
+
+    QString text = ui->txtSearch->text().trimmed();
+    this->FillTexturesList(text);
+}
+
+void MainWindow::on_txtSearch_textEdited(const QString&) {
+    if (mTexturesDB) {
+        mSearchTimer->stop();
+        mSearchTimer->start();
+    }
+}
+
+int MainWindow::GetSelectedTextureIdx() const {
+    if (mTexturesDB && ui->lstTextures->currentItem()) {
+        const int idx = ui->lstTextures->currentItem()->data(Qt::UserRole).toInt();
+        return idx;
+    } else {
+        return -1;
     }
 }

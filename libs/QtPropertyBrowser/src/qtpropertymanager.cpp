@@ -1229,7 +1229,7 @@ public:
 
     struct Data
     {
-        Data() : regExp(QRegularExpression::wildcardToRegularExpression(QString(QLatin1Char('*'))))
+        Data() //: regExp(QRegularExpression::wildcardToRegularExpression(QString(QLatin1Char('*'))))
         {
         }
         QString val;

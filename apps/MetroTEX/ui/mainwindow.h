@@ -23,21 +23,27 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    void FillTexturesList();
-    void AddOrReplaceTexture(bool replaceCurrent);
+    void    FillTexturesList(const QString& subText = QString());
+    void    AddOrReplaceTexture(bool replaceCurrent);
 
 private slots:
-    void on_lstTextures_currentRowChanged(int currentRow);
-    void on_actionOpen_textures_bin_triggered();
-    void on_actionSave_textures_bin_triggered();
-    void on_actionAdd_texture_triggered();
-    void on_actionRemove_texture_triggered();
-    void on_actionShow_transparency_triggered();
-    void on_actionCalculate_texture_average_colour_triggered();
-    void onPropertyBrowserObjectPropertyChanged();
+    void    on_lstTextures_currentRowChanged(int currentRow);
+    void    on_actionOpen_textures_bin_triggered();
+    void    on_actionSave_textures_bin_triggered();
+    void    on_actionAdd_texture_triggered();
+    void    on_actionRemove_texture_triggered();
+    void    on_actionShow_transparency_triggered();
+    void    on_actionCalculate_texture_average_colour_triggered();
+    void    onPropertyBrowserObjectPropertyChanged();
+    void    onSearchTimerTick();
+    void    on_txtSearch_textEdited(const QString& text);
+
+private:
+    int     GetSelectedTextureIdx() const;
 
 private:
     Ui::MainWindow*                     ui;
+    StrongPtr<QTimer>                   mSearchTimer;
     ObjectPropertyBrowser*              mPropertyBrowser;
     ImagePanel*                         mImagePanel;
 

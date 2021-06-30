@@ -7,9 +7,9 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 
-add_executable(MetroEX_QT WIN32)
-set_target_properties(MetroEX_QT PROPERTIES CXX_STANDARD 17)
-target_sources(MetroEX_QT PRIVATE
+add_executable(MetroEX WIN32)
+set_target_properties(MetroEX PROPERTIES CXX_STANDARD 17)
+target_sources(MetroEX PRIVATE
     res/resources.qrc
     main.cpp
     ui/imageinfopanel.cpp
@@ -35,7 +35,7 @@ target_sources(MetroEX_QT PRIVATE
     ui/nodes/scriptscene.cpp
     ui/nodes/scriptscene.h
     cpp.hint)
-target_link_libraries(MetroEX_QT PRIVATE
+target_link_libraries(MetroEX PRIVATE
     MetroTools::Common
     MetroTools::Metro
     MetroTools::Exporters

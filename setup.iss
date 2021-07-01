@@ -1,4 +1,4 @@
-[Setup]
+п»ї[Setup]
 AppName= MetroTools
 AppVerName= MetroTools 11
 DefaultDirName= {pf}\MetroTools
@@ -14,7 +14,7 @@ ArchitecturesInstallIn64BitMode=x64
 Name: ru; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Создать ярдыки на рабочем столе"; GroupDescription: "Создание ярлыков";
+Name: "desktopicon"; Description: "РЎРѕР·РґР°С‚СЊ СЏСЂР»С‹РєРё РЅР° СЂР°Р±РѕС‡РµРј СЃС‚РѕР»Рµ"; GroupDescription: "РЎРѕР·РґР°РЅРёРµ СЏСЂР»С‹РєРѕРІ";
 
 [Files]
 Source: "bin\*.*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs;
@@ -23,7 +23,7 @@ Source: "bin\*.*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs;
 Name: "{group}\MetroEX"; Filename: "{app}\MetroEX.exe"; WorkingDir: "{app}";
 Name: "{group}\MetroTEX"; Filename: "{app}\MetroTEX.exe"; WorkingDir: "{app}";
 Name: "{group}\MetroME"; Filename: "{app}\MetroME.exe"; WorkingDir: "{app}";
-Name: "{group}\Удалить Metro Tools"; Filename: "{uninstallexe}"
+Name: "{group}\РЈРґР°Р»РёС‚СЊ Metro Tools"; Filename: "{uninstallexe}"
 
 ; Shortcuts
 Name: "{userdesktop}\MetroEX"; Filename: "{app}\MetroEX.exe"; Tasks: desktopicon

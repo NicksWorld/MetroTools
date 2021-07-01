@@ -37,8 +37,8 @@ void MainToolbar::SetOpenArchiveHistory(const WStringArray& history) {
     if (!history.empty()) {
         ui->tbtnOpenArchive->setPopupMode(QToolButton::MenuButtonPopup);
         mOpenArchiveMenu->clear();
-        for (long i = history.size() - 1; i >= 0; --i) {
-            mOpenArchiveMenu->addAction(QString::fromStdWString(history[i]));
+        for (auto it = history.crbegin(); it != history.crend(); ++it) {
+            mOpenArchiveMenu->addAction(QString::fromStdWString(*it));
         }
         ui->tbtnOpenArchive->setMenu(mOpenArchiveMenu);
         ui->tbtnOpenArchive->setIcon(mOpenArchiveEmptyAction.icon());
@@ -53,8 +53,8 @@ void MainToolbar::SetOpenGameFolderHistory(const WStringArray& history) {
     if (!history.empty()) {
         ui->tbtnOpenGameFolder->setPopupMode(QToolButton::MenuButtonPopup);
         mOpenGameFolderMenu->clear();
-        for (long i = history.size() - 1; i >= 0; --i) {
-            mOpenGameFolderMenu->addAction(QString::fromStdWString(history[i]));
+        for (auto it = history.crbegin(); it != history.crend(); ++it) {
+            mOpenGameFolderMenu->addAction(QString::fromStdWString(*it));
         }
         ui->tbtnOpenGameFolder->setMenu(mOpenGameFolderMenu);
         ui->tbtnOpenGameFolder->setDefaultAction(mOpenGameFolderMenu->actions().first());

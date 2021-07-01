@@ -1,0 +1,38 @@
+name: Build and make installer
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: jurplel/install-qt-action@v2.13.2
+      with:
+        version: '6.0.4'
+        aqtversion: '>=1.2.2'
+
+    - name: Run cmake
+      shell: cmd
+      run: |
+        md out
+        cd out
+        cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release ../
+        cmake --build . --config Release
+    - name: Run windeployqt.exe
+      shell: cmd
+      run: |
+        md bin
+        copy out\apps\MetroEX\Release\MetroEX.exe bin\MetroEX.exe
+        copy out\apps\MetroTEX\Release\MetroTEX.exe bin\MetroTEX.exe
+        copy out\apps\MetroME\Release\MetroME.exe bin\MetroME.exe
+        windeployqt.exe bin
+        dir bin
+    - name: Create installer
+      shell: cmd
+      run: |
+        "%programfiles(x86)%\Inno Setup 6\iscc.exe" setup.iss
+    - name: Upload installer as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: setup.exe
+        path: setup.exe

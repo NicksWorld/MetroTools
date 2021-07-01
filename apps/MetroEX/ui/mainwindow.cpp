@@ -910,6 +910,11 @@ void MainWindow::ShowContextMenuTexture(QTreeWidgetItem* /*node*/, const QPoint&
 
     const QAction* selectedAction = menu.exec(pos);
 
+    mExtractionCtx.txUseBC3 = false;
+    mExtractionCtx.txSaveAsDds = false;
+    mExtractionCtx.txSaveAsTga = false;
+    mExtractionCtx.txSaveAsPng = false;
+
     if (selectedAction == saveAsDDS) {
         mExtractionCtx.txSaveAsDds = true;
         mExtractionCtx.txUseBC3 = false;

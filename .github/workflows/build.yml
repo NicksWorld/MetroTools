@@ -13,18 +13,23 @@ jobs:
 
     - name: Run cmake
       shell: cmd
+      env:
+        VS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise
       run: |
         md out
         cd out
-        cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release ../
+        call "${{env.VS_PATH}}\VC\Auxiliary\Build\vcvars64.bat"
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM="${{env.VS_PATH}}\COMMON7\IDE\COMMONEXTENSIONS\MICROSOFT\CMAKE\Ninja\ninja.exe" ../
         cmake --build . --config Release
+
     - name: Run windeployqt.exe
       shell: cmd
       run: |
         md bin
-        copy out\apps\MetroEX\Release\MetroEX.exe bin\MetroEX.exe
-        copy out\apps\MetroTEX\Release\MetroTEX.exe bin\MetroTEX.exe
-        copy out\apps\MetroME\Release\MetroME.exe bin\MetroME.exe
+        copy out\apps\MetroEX\MetroEX.exe bin\
+        copy out\apps\MetroTEX\MetroTEX.exe bin\
+        copy out\apps\MetroME\MetroME.exe bin\
+        copy libs\fbx\lib\x64\libfbxsdk.dll bin\
         windeployqt.exe bin
         dir bin
     - name: Create installer

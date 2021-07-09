@@ -240,6 +240,13 @@ namespace std {
     };
 }
 
+inline bool StrStartsWith(const CharString& str, const CharString& beginning) {
+    return (str.rfind(beginning, 0) == 0);
+}
+
+inline bool WStrStartsWith(const WideString& str, const WideString& beginning) {
+    return (str.rfind(beginning, 0) == 0);
+}
 
 inline bool StrEndsWith(const CharString& str, const CharString& ending) {
     return str.size() >= ending.size() && str.compare(str.size() - ending.size(), ending.size(), ending) == 0;
@@ -268,7 +275,7 @@ inline WideString StrUtf8ToWide(const CharString& source) {
         }
     }
 
-    return std::move(result);
+    return result;
 }
 
 inline CharString StrWideToUtf8(const WideString& source) {
@@ -289,7 +296,7 @@ inline CharString StrWideToUtf8(const WideString& source) {
         }
     }
 
-    return std::move(result);
+    return result;
 }
 
 // for string delimiter
@@ -516,7 +523,7 @@ public:
         result.assign(ptr + this->cursor, i - this->cursor);
         this->cursor = i + 1;
 
-        return std::move(result);
+        return result;
     }
 
     inline size_t GetCursor() const {

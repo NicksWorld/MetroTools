@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>463</width>
+    <height>262</height>
+   </rect>
+  </property>
+  <property name="acceptDrops">
+   <bool>true</bool>
+  </property>
+  <property name="windowTitle">
+   <string>Metro Archives Tool</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QPushButton" name="btnUnpack">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>30</y>
+      <width>221</width>
+      <height>200</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Unpack ...</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnPack2033">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>30</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Pack 2033 UPK ...</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnPackLastLight">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>83</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Pack Last Light VFS ...</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnPackRedux">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>137</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Pack Redux VFS ...</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnPackExodus">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>190</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Pack Exodus VFS ...</string>
+    </property>
+   </widget>
+   <widget class="Line" name="line">
+    <property name="geometry">
+     <rect>
+      <x>270</x>
+      <y>30</y>
+      <width>3</width>
+      <height>200</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
+  </widget>
+  <action name="actionOpen_textures_bin">
+   <property name="icon">
+    <iconset resource="../../MetroEX/res/resources.qrc">
+     <normaloff>:/imgs/FolderOpened_32x.png</normaloff>:/imgs/FolderOpened_32x.png</iconset>
+   </property>
+   <property name="text">
+    <string>Open textures.bin</string>
+   </property>
+   <property name="toolTip">
+    <string>Open textures.bin</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionSave_textures_bin">
+   <property name="icon">
+    <iconset resource="../res/resources.qrc">
+     <normaloff>:/imgs/Save_32x.png</normaloff>:/imgs/Save_32x.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save textures.bin</string>
+   </property>
+   <property name="toolTip">
+    <string>Save textures.bin</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionAdd_texture">
+   <property name="icon">
+    <iconset resource="../res/resources.qrc">
+     <normaloff>:/imgs/InsertPicture_32x.png</normaloff>:/imgs/InsertPicture_32x.png</iconset>
+   </property>
+   <property name="text">
+    <string>Add texture</string>
+   </property>
+   <property name="toolTip">
+    <string>Add texture</string>
+   </property>
+  </action>
+  <action name="actionRemove_texture">
+   <property name="icon">
+    <iconset resource="../res/resources.qrc">
+     <normaloff>:/imgs/SketchflowRemoveScreen_32x.png</normaloff>:/imgs/SketchflowRemoveScreen_32x.png</iconset>
+   </property>
+   <property name="text">
+    <string>Remove texture</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove texture</string>
+   </property>
+  </action>
+  <action name="actionShow_transparency">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../MetroEX/res/resources.qrc">
+     <normaloff>:/imgs/Transparency_32x.png</normaloff>:/imgs/Transparency_32x.png</iconset>
+   </property>
+   <property name="text">
+    <string>Show image transparency</string>
+   </property>
+   <property name="toolTip">
+    <string>Show image transparency</string>
+   </property>
+  </action>
+  <action name="actionCalculate_texture_average_colour">
+   <property name="icon">
+    <iconset resource="../res/resources.qrc">
+     <normaloff>:/imgs/ColorWheel_32x.png</normaloff>:/imgs/ColorWheel_32x.png</iconset>
+   </property>
+   <property name="text">
+    <string>Calculate texture average colour</string>
+   </property>
+   <property name="toolTip">
+    <string>Calculate texture average colour</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="../../MetroEX/res/resources.qrc"/>
+  <include location="../res/resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

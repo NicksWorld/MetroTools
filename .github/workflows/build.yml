@@ -1,0 +1,43 @@
+name: Build and make installer
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: jurplel/install-qt-action@v2.13.2
+      with:
+        version: '6.0.4'
+        aqtversion: '>=1.2.2'
+
+    - name: Run cmake
+      shell: cmd
+      env:
+        VS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise
+      run: |
+        md out
+        cd out
+        call "${{env.VS_PATH}}\VC\Auxiliary\Build\vcvars64.bat"
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM="${{env.VS_PATH}}\COMMON7\IDE\COMMONEXTENSIONS\MICROSOFT\CMAKE\Ninja\ninja.exe" ../
+        cmake --build . --config Release
+
+    - name: Run windeployqt.exe
+      shell: cmd
+      run: |
+        md bin
+        copy out\apps\MetroEX\MetroEX.exe bin\
+        copy out\apps\MetroTEX\MetroTEX.exe bin\
+        copy out\apps\MetroME\MetroME.exe bin\
+        copy libs\fbx\lib\x64\libfbxsdk.dll bin\
+        windeployqt.exe bin
+        dir bin
+    - name: Create installer
+      shell: cmd
+      run: |
+        "%programfiles(x86)%\Inno Setup 6\iscc.exe" setup.iss
+    - name: Upload installer as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: setup.exe
+        path: setup.exe

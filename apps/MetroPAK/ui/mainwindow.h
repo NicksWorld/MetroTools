@@ -21,6 +21,7 @@ public:
 private:
     void ThreadedExtractionMethod(fs::path archivePath, fs::path outputFolderPath);
     void OnMetroPackSelected(const fs::path& archivePath);
+    void ThreadedPack2033Method(fs::path contentPath, fs::path archivePath);
 
 protected:
     void dragEnterEvent(QDragEnterEvent* event) override;

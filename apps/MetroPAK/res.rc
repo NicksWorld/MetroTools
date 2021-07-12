@@ -50,8 +50,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,0,3,0
- PRODUCTVERSION 0,0,3,0
+ FILEVERSION 0,0,1,0
+ PRODUCTVERSION 0,0,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -67,13 +67,13 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Sergii 'iOrange' Kudlai"
-            VALUE "FileDescription", "Metro textures editor"
-            VALUE "FileVersion", "0.0.3.0"
-            VALUE "InternalName", "MetroTEX.exe"
+            VALUE "FileDescription", "Metro archives tool"
+            VALUE "FileVersion", "0.0.1.0"
+            VALUE "InternalName", "MetroPAK.exe"
             VALUE "LegalCopyright", "2021, Sergii 'iOrange' Kudlai"
-            VALUE "OriginalFilename", "MetroTEX.exe"
-            VALUE "ProductName", "MetroTEX"
-            VALUE "ProductVersion", "0, 0, 3, 0"
+            VALUE "OriginalFilename", "MetroPAK.exe"
+            VALUE "ProductName", "MetroPAK"
+            VALUE "ProductVersion", "0, 0, 1, 0"
         END
     END
     BLOCK "VarFileInfo"

@@ -44,6 +44,9 @@
     </property>
    </widget>
    <widget class="QPushButton" name="btnPackLastLight">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>300</x>
@@ -57,6 +60,9 @@
     </property>
    </widget>
    <widget class="QPushButton" name="btnPackRedux">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>300</x>
@@ -70,6 +76,9 @@
     </property>
    </widget>
    <widget class="QPushButton" name="btnPackExodus">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>300</x>

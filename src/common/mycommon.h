@@ -154,7 +154,7 @@ constexpr uint32_t sCRC32Table[256] = {
     0xb40bbe37u, 0xc30c8ea1u, 0x5a05df1bu, 0x2d02ef8du
 };
 
-template<class T>
+template<typename T>
 constexpr uint32_t Hash_CalculateCRC32(const T* data, const size_t dataLength) {
     uint32_t result = ~0u;
 
@@ -170,6 +170,25 @@ constexpr uint32_t Hash_CalculateCRC32(const StringView& view) {
 constexpr uint32_t CRC32(const StringView& view) {
     return view.empty() ? 0 : Hash_CalculateCRC32(view.data(), view.length());
 }
+
+class Crc32Stream {
+public:
+    void Update(const void* data, const size_t dataLength) {
+        const uint8_t* bytes = rcast<const uint8_t*>(data);
+
+        for (size_t i = 0; i < dataLength; ++i) {
+            hash = sCRC32Table[(hash ^ bytes[i]) & 0xFF] ^ (hash >> 8);
+        }
+    }
+
+    uint32_t Finalize() const {
+        return (hash ^ (~0u));
+    }
+
+private:
+    uint32_t hash = ~0u;
+};
+
 uint32_t Hash_CalculateXX(const uint8_t* data, const size_t dataLength);
 uint32_t Hash_CalculateXX(const StringView& view);
 

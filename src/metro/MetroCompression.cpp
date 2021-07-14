@@ -4,7 +4,7 @@
 #include "lz4.h"
 #include "lz4hc.h"
 
-//#NOTE_SK: these settings seems to match those used in oler Metro games
+//#NOTE_SK: these settings seems to match those used in older Metro games
 //#define QLZ_COMPRESSION_LEVEL   3
 //#define QLZ_STREAMING_BUFFER    0x20000
 #include "quicklz.h"

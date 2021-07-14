@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>463</width>
-    <height>262</height>
+    <height>284</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -102,6 +102,22 @@
     </property>
     <property name="orientation">
      <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="chkCompressFiles">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>250</y>
+      <width>141</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Compress files</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
     </property>
    </widget>
   </widget>

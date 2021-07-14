@@ -152,7 +152,7 @@ MemStream VFIReader::ExtractFile(const size_t fileIdx, const size_t subOffset, c
         }
     }
 
-    return std::move(result);
+    return result;
 }
 
 void VFIReader::ReadPackage(MemStream& stream) {

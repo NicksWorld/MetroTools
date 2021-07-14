@@ -18,10 +18,13 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+public slots:
+    void OnWindowLoaded();
+
 private:
     void ThreadedExtractionMethod(fs::path archivePath, fs::path outputFolderPath);
     void OnMetroPackSelected(const fs::path& archivePath);
-    void ThreadedPack2033Method(fs::path contentPath, fs::path archivePath);
+    void ThreadedPack2033Method(fs::path contentPath, fs::path archivePath, const bool useCompression);
 
 protected:
     void dragEnterEvent(QDragEnterEvent* event) override;

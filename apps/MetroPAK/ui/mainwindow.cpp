@@ -6,6 +6,7 @@
 #include <QSettings>
 #include <QMimeData>
 #include <QDragEnterEvent>
+#include <QTimer>
 
 #include "../metropackunpack.h"
 
@@ -27,7 +28,11 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , mProgressDlg(nullptr)
 {
+    this->setWindowFlags(this->windowFlags() &= (~Qt::WindowMaximizeButtonHint));
+
     ui->setupUi(this);
+
+    QTimer::singleShot(0, this, SLOT(OnWindowLoaded()));
 }
 
 MainWindow::~MainWindow() {
@@ -38,6 +43,11 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
+
+void MainWindow::OnWindowLoaded() {
+    this->setMinimumSize(this->size());
+    this->setMaximumSize(this->size());
+}
 
 void MainWindow::ThreadedExtractionMethod(fs::path archivePath, fs::path outputFolderPath) {
     IProgressDialog* progressDlg = mProgressDlg;
@@ -86,7 +96,7 @@ void MainWindow::OnMetroPackSelected(const fs::path& archivePath) {
     }
 }
 
-void MainWindow::ThreadedPack2033Method(fs::path contentPath, fs::path archivePath) {
+void MainWindow::ThreadedPack2033Method(fs::path contentPath, fs::path archivePath, const bool useCompression) {
     IProgressDialog* progressDlg = mProgressDlg;
 
     auto progressCallback = [progressDlg](float f)->bool {
@@ -100,7 +110,7 @@ void MainWindow::ThreadedPack2033Method(fs::path contentPath, fs::path archivePa
         }
     };
 
-    MetroPackUnpack::PackArchive2033(contentPath, archivePath, progressCallback);
+    MetroPackUnpack::PackArchive2033(contentPath, archivePath, useCompression, progressCallback);
 
     if (mProgressDlg) {
         mProgressDlg->StopProgressDialog();
@@ -164,8 +174,8 @@ void MainWindow::on_btnPack2033_clicked() {
 
                 HRESULT hr = ::CoCreateInstance(CLSID_ProgressDialog, nullptr, CLSCTX_INPROC_SERVER, __uuidof(IProgressDialog), (void**)&mProgressDlg);
                 if (SUCCEEDED(hr)) {
-                    mProgressDlg->SetTitle(L"Extracting files...");
-                    mProgressDlg->SetLine(0, L"Please wait while your files are being extracted...", FALSE, nullptr);
+                    mProgressDlg->SetTitle(L"Creating Metro 2033 archive...");
+                    mProgressDlg->SetLine(0, L"Please wait while your files are being archived...", FALSE, nullptr);
                     mProgressDlg->StartProgressDialog(rcast<HWND>(this->winId()), nullptr,
                         PROGDLG_NORMAL | PROGDLG_MODAL | PROGDLG_AUTOTIME | PROGDLG_NOMINIMIZE,
                         nullptr);
@@ -175,7 +185,9 @@ void MainWindow::on_btnPack2033_clicked() {
                     mThread.join();
                 }
 
-                mThread = std::thread(&MainWindow::ThreadedPack2033Method, this, contentPath, archivePath);
+                const bool useCompression = ui->chkCompressFiles->isChecked();
+
+                mThread = std::thread(&MainWindow::ThreadedPack2033Method, this, contentPath, archivePath, useCompression);
             }
         }
     }

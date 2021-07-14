@@ -8,7 +8,7 @@ struct MetroCompression {
     };
 
     // Original 2033 and Last Light
-    // some custom LZ variant ?
+    // QuickLZ
     static size_t DecompressStreamLegacy(const void* compressedData, const size_t compressedSize, void* uncompressedData, const size_t uncompressedSize);
     static size_t CompressStreamLegacy(const void* data, const size_t dataLength, BytesArray& compressed);
     //

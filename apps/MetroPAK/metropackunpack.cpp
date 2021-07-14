@@ -1,6 +1,7 @@
 #include "metropackunpack.h"
 
 #include "metro/MetroContext.h"
+#include "metro/MetroCompression.h"
 
 #include <fstream>
 
@@ -75,12 +76,13 @@ void MetroPackUnpack::UnpackArchive(const fs::path& archivePath, const fs::path&
 struct FileEntry {
     fs::path    path;
     uint32_t    size;
+    uint32_t    sizeCompressed;
     uint32_t    crc32;
     uint32_t    offset;
 };
 
 // returns CRC32, or null if failed
-uint32_t AppendFileContent(const fs::path& filePath, std::ofstream& dst) {
+static uint32_t AppendFileContent(const fs::path& filePath, std::ofstream& dst) {
     std::ifstream src(filePath, std::ofstream::in | std::ofstream::binary);
     if (src.is_open()) {
         Crc32Stream crcStream;
@@ -102,7 +104,46 @@ uint32_t AppendFileContent(const fs::path& filePath, std::ofstream& dst) {
     }
 }
 
-void MetroPackUnpack::PackArchive2033(const fs::path& contentFolderPath, const fs::path& archivePath, std::function<bool(float)> progress) {
+// returns CRC32 and compressed size, or (null, null) if failed
+static std::pair<uint32_t, uint32_t> CompressAndAppendFileContent(const fs::path& filePath, std::ofstream& dst) {
+    std::pair<uint32_t, uint32_t> result = { 0u, 0u };
+
+    MemStream fileStream = OSReadFile(filePath);
+    if (fileStream.Good()) {
+        BytesArray compressed;
+        MetroCompression::CompressStreamLegacy(fileStream.Data(), fileStream.Length(), compressed);
+
+        result.first = Hash_CalculateCRC32(compressed.data(), compressed.size());
+        result.second = scast<uint32_t>(compressed.size());
+
+        dst.write(rcast<const char*>(compressed.data()), compressed.size());
+    }
+
+    return result;
+}
+
+static bool ShouldCompressFile(const bool useCompression, const CharString& fileName) {
+    if (!useCompression) {
+        return false;
+    } else {
+        CharString extension;
+        CharString::size_type lastDotPos = fileName.find_last_of('\\');
+        if (lastDotPos != CharString::npos) {
+            extension = fileName.substr(lastDotPos + 1);
+        }
+
+        // these type of files are never compressed in 2033
+        if (extension == "ogv" ||
+            extension == "ogg" ||
+            extension == "pe") {
+            return false;
+        } else {
+            return true;
+        }
+    }
+}
+
+void MetroPackUnpack::PackArchive2033(const fs::path& contentFolderPath, const fs::path& archivePath, const bool useCompression, std::function<bool(float)> progress) {
     MyArray<FileEntry> filesList;
     for (const fs::directory_entry& entry : fs::recursive_directory_iterator(contentFolderPath)) {
         const fs::path& path = entry.path();
@@ -110,6 +151,7 @@ void MetroPackUnpack::PackArchive2033(const fs::path& contentFolderPath, const f
             filesList.push_back({
                 path,
                 scast<uint32_t>(OSGetFileSize(path)),
+                0u,
                 0u,
                 0u
             });
@@ -138,10 +180,18 @@ void MetroPackUnpack::PackArchive2033(const fs::path& contentFolderPath, const f
         size_t filesWritten = 0;
 
         for (FileEntry& entry : filesList) {
-            entry.crc32 = AppendFileContent(entry.path, archiveFile);
+            if (!ShouldCompressFile(useCompression, entry.path.filename().string())) {
+                entry.crc32 = AppendFileContent(entry.path, archiveFile);
+                entry.sizeCompressed = entry.size;
+            } else {
+                auto [crc32, compressedSize] = CompressAndAppendFileContent(entry.path, archiveFile);
+                entry.crc32 = crc32;
+                entry.sizeCompressed = compressedSize;
+            }
+
             entry.offset = fileOffset;
 
-            fileOffset += entry.size;
+            fileOffset += entry.sizeCompressed;
 
             filesWritten++;
             const bool okToProceed = progress(scast<float>(filesWritten) / scast<float>(numFilesTotal));
@@ -160,7 +210,7 @@ void MetroPackUnpack::PackArchive2033(const fs::path& contentFolderPath, const f
             writeU32(entry.crc32);
             writeU32(entry.offset);
             writeU32(entry.size);
-            writeU32(entry.size);
+            writeU32(entry.sizeCompressed);
 
             CharString fileName = fs::relative(entry.path, contentBasePath).string();
             writeU32(scast<uint32_t>(fileName.length() + 1));

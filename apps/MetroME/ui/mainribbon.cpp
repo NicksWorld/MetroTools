@@ -64,6 +64,10 @@ void MainRibbon::OnFileExportFBXModelCommand(bool) {
     emit SignalFileExportFBXModel();
 }
 
+void MainRibbon::OnFileExportGLTFModelCommand(bool) {
+    emit SignalFileExportGLTFModel();
+}
+
 //
 void MainRibbon::On3DViewShowBoundsChecked(int state) {
     const bool checked = (Qt::Checked == state);
@@ -150,11 +154,14 @@ void MainRibbon::BuildModelTab() {
         QAction* exportToOBJAction = menu->addAction("Export to OBJ model...");
         menu->addSeparator();
         QAction* exportToFBXAction = menu->addAction("Export to FBX model...");
+        menu->addSeparator();
+        QAction* exportToGLTFAction = menu->addAction("Export to GLTF model...");
         exportModelButton->SetMenu(menu);
 
         connect(exportToModelAction, &QAction::triggered, this, &MainRibbon::OnFileExportMetroModelCommand);
         connect(exportToOBJAction, &QAction::triggered, this, &MainRibbon::OnFileExportOBJModelCommand);
         connect(exportToFBXAction, &QAction::triggered, this, &MainRibbon::OnFileExportFBXModelCommand);
+        connect(exportToGLTFAction, &QAction::triggered, this, &MainRibbon::OnFileExportGLTFModelCommand);
     }
     mGroupModelFile->AddWidget(exportModelButton);
 }

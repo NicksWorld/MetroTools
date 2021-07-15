@@ -80,4 +80,8 @@ add_subdirectory(nodeeditor)
 
 add_subdirectory(QtPropertyBrowser)
 
+add_library(tinygltf INTERFACE)
+add_library(Tinygltf::Tinygltf ALIAS tinygltf)
+target_include_directories(tinygltf INTERFACE tinygltf)
+
 set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash uninstall PROPERTIES FOLDER "external")

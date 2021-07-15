@@ -36,6 +36,7 @@ public slots:
     void    OnExportMetroModel();
     void    OnExportOBJModel();
     void    OnExportFBXModel();
+    void    OnExportGLTFModel();
     //
     void    OnShowBounds(bool checked);
     void    OnBoundsTypeChanged(int index);

@@ -24,6 +24,7 @@ signals:
     void    SignalFileExportMetroModel();
     void    SignalFileExportOBJModel();
     void    SignalFileExportFBXModel();
+    void    SignalFileExportGLTFModel();
     //
     void    Signal3DViewShowBoundsChecked(bool checked);
     void    Signal3DViewBoundsTypeChanged(int index);
@@ -38,6 +39,7 @@ private slots:
     void    OnFileExportMetroModelCommand(bool checked);
     void    OnFileExportOBJModelCommand(bool checked);
     void    OnFileExportFBXModelCommand(bool checked);
+    void    OnFileExportGLTFModelCommand(bool checked);
     //
     void    On3DViewShowBoundsChecked(int state);
     void    On3DViewBoundsTypeChanged(int index);

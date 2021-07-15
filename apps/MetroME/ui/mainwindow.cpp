@@ -21,6 +21,7 @@
 #include "importers/ImporterOBJ.h"
 #include "exporters/ExporterOBJ.h"
 #include "exporters/ExporterFBX.h"
+#include "exporters/ExporterGLTF.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -38,6 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::SignalFileExportMetroModel, this, &MainWindow::OnExportMetroModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportOBJModel, this, &MainWindow::OnExportOBJModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportFBXModel, this, &MainWindow::OnExportFBXModel);
+    connect(ui->ribbon, &MainRibbon::SignalFileExportGLTFModel, this, &MainWindow::OnExportGLTFModel);
     //
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBoundsChecked, this, &MainWindow::OnShowBounds);
     connect(ui->ribbon, &MainRibbon::Signal3DViewBoundsTypeChanged, this, &MainWindow::OnBoundsTypeChanged);
@@ -135,7 +137,7 @@ void MainWindow::OnWindowLoaded() {
 
 void MainWindow::OnImportMetroModel() {
     QString name = QFileDialog::getOpenFileName(this, tr("Choose Metro model/mesh file..."), QString(), tr("Metro model files (*.model);;Metro mesh files (*.mesh);;All files (*.*)"));
-    if (name.length() > 3) {
+    if (!name.isEmpty()) {
         fs::path fullPath = name.toStdWString();
 
         MemStream stream = OSReadFile(fullPath);
@@ -160,7 +162,7 @@ void MainWindow::OnImportMetroModel() {
 
 void MainWindow::OnImportOBJModel() {
     QString name = QFileDialog::getOpenFileName(this, tr("Choose OBJ model file..."), QString(), tr("OBJ model files (*.obj);;All files (*.*)"));
-    if (name.length() > 3) {
+    if (!name.isEmpty()) {
         fs::path fullPath = name.toStdWString();
 
         ImporterOBJ importer;
@@ -175,7 +177,7 @@ void MainWindow::OnImportOBJModel() {
 
 void MainWindow::OnExportMetroModel() {
     QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro model..."), QString(), tr("Metro Model file (*.model);;All files (*.*)"));
-    if (name.length() > 3) {
+    if (!name.isEmpty()) {
         RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
         if (model) {
             MemWriteStream stream;
@@ -189,7 +191,7 @@ void MainWindow::OnExportMetroModel() {
 
 void MainWindow::OnExportOBJModel() {
     QString name = QFileDialog::getSaveFileName(this, tr("Where to export OBJ model..."), QString(), tr("OBJ model file (*.obj);;All files (*.*)"));
-    if (name.length() > 3) {
+    if (!name.isEmpty()) {
         RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
         if (model) {
             fs::path fullPath = name.toStdWString();
@@ -205,7 +207,7 @@ void MainWindow::OnExportOBJModel() {
 
 void MainWindow::OnExportFBXModel() {
     QString name = QFileDialog::getSaveFileName(this, tr("Where to export FBX model..."), QString(), tr("FBX model file (*.fbx);;All files (*.*)"));
-    if (name.length() > 3) {
+    if (!name.isEmpty()) {
         RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
         if (model) {
             fs::path fullPath = name.toStdWString();
@@ -219,6 +221,26 @@ void MainWindow::OnExportFBXModel() {
             expFbx.SetExporterName("MetroME");
             expFbx.SetTexturesExtension(".tga");
             expFbx.ExportModel(*model, fullPath);
+        }
+    }
+}
+
+void MainWindow::OnExportGLTFModel() {
+    QString name = QFileDialog::getSaveFileName(this, tr("Where to export GLTF model..."), QString(), tr("FBX model file (*.gltf);;All files (*.*)"));
+    if (!name.isEmpty()) {
+        RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+        if (model) {
+            fs::path fullPath = name.toStdWString();
+
+            ExporterGLTF expGltf;
+            expGltf.SetExportMesh(true);
+            expGltf.SetExportSkeleton(true);
+            expGltf.SetExcludeCollision(true);
+            expGltf.SetExportAnimation(true);
+
+            expGltf.SetExporterName("MetroME");
+            expGltf.SetTexturesExtension(".tga");
+            expGltf.ExportModel(*model, fullPath);
         }
     }
 }

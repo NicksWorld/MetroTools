@@ -8,11 +8,17 @@ target_include_directories(exporters PUBLIC .)
 target_sources(exporters PRIVATE
     ExporterFBX.cpp
     ExporterOBJ.cpp
+    ExporterGLTF.cpp
     ExporterFBX.h
-    ExporterOBJ.h)
+    ExporterOBJ.h
+    ExporterGLTF.h
+)
 target_link_libraries(exporters
     PRIVATE
         MetroTools::Common
         MetroTools::Metro
+
+        Tinygltf::Tinygltf
     PUBLIC
-        Fbx::Fbx)
+        Fbx::Fbx
+)

@@ -65,6 +65,48 @@ static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
     return result;
 }
 
+using MyGLTFMaterialsDict = MyDict<HashString, int>;
+
+void CreateGLTFMaterials(const MyArray<MetroModelGeomData>& gds,
+                         MyGLTFMaterialsDict& materialsDict,
+                         tinygltf::Model& gltfModel,
+                         const CharString& textureExtension) {
+    int materialIdx = 0;
+    for (auto& gd : gds) {
+        const StringView& gdTexture = gd.texture;
+
+        MetroSurfaceDescription surfaceSet = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(gdTexture, false);
+        const CharString& albedoName = surfaceSet.albedo;
+        const CharString& normalmapName = surfaceSet.normalmap;
+
+        CharString textureName = fs::path(albedoName).filename().string();
+        CharString textureFileName = textureName + textureExtension;
+
+        tinygltf::Image gltfImage;
+        gltfImage.uri = textureFileName;
+
+        tinygltf::Texture gltfTexture;
+        gltfTexture.name = textureName;
+        gltfTexture.source = materialIdx;
+        gltfTexture.sampler = 0;
+
+        gltfModel.images.push_back(gltfImage);
+        gltfModel.textures.push_back(gltfTexture);
+
+        tinygltf::Material gltfMaterial;
+        gltfMaterial.name = textureName;
+        gltfMaterial.pbrMetallicRoughness.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
+        gltfMaterial.pbrMetallicRoughness.baseColorTexture.index = materialIdx;
+        gltfMaterial.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
+        gltfMaterial.pbrMetallicRoughness.metallicFactor = 0.0;
+        gltfMaterial.pbrMetallicRoughness.roughnessFactor = 1.0;
+        gltfMaterial.doubleSided = true;
+        gltfModel.materials.push_back(gltfMaterial);
+
+        materialsDict[HashString(gdTexture)] = materialIdx;
+    }
+}
+
 
 ExporterGLTF::ExporterGLTF()
     : mExcludeCollision(false)
@@ -109,23 +151,30 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
     tinygltf::Model gltfModel;
     tinygltf::Scene gltfScene;
 
+    // common samnpler
+    tinygltf::Sampler gltfSampler;
+    gltfSampler.name = "trilinear";
+    gltfSampler.magFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
+    gltfSampler.minFilter = TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR;
+    gltfSampler.wrapS = TINYGLTF_TEXTURE_WRAP_REPEAT;
+    gltfSampler.wrapT = TINYGLTF_TEXTURE_WRAP_REPEAT;
+    gltfModel.samplers.push_back(gltfSampler);
+
     mTexturesFolder = filePath.parent_path();
     CharString modelName = filePath.stem().string();
-
-    // Create a simple material
-    tinygltf::Material gltfMaterial;
-    gltfMaterial.pbrMetallicRoughness.baseColorFactor = { 1.0f, 0.9f, 0.9f, 1.0f };
-    gltfMaterial.doubleSided = false;
-    gltfModel.materials.push_back(gltfMaterial);
 
     MyArray<MetroModelGeomData> gds;
     model.CollectGeomData(gds);
 
-    size_t meshIdx = 0;
-    for (auto& gd : gds) {
-        const int gltfMeshIdx = scast<int>(meshIdx);
+    MyGLTFMaterialsDict materialsDict;
+    CreateGLTFMaterials(gds, materialsDict, gltfModel, mTexturesExtension);
 
+    int gltfMeshIdx = 0;
+    for (auto& gd : gds) {
         MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
+
+        auto materialIt = materialsDict.find(HashString(gd.texture));
+        const int materialIdx = (materialIt == materialsDict.end()) ? 0 : materialIt->second;
 
         tinygltf::Buffer gltfIB;
         gltfIB.data.resize(scast<size_t>(gd.mesh->facesCount) * 3 * sizeof(uint16_t));
@@ -182,12 +231,12 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
         gltfPrimitive.attributes["POSITION"] = gltfMeshIdx * 2 + 1;     // The index of the accessor for positions
         gltfPrimitive.attributes["NORMAL"] = gltfMeshIdx * 2 + 2;       // The index of the accessor for normals
         gltfPrimitive.attributes["TEXCOORD_0"] = gltfMeshIdx * 2 + 3;   // The index of the accessor for texcoords
-        gltfPrimitive.material = 0;
+        gltfPrimitive.material = materialIdx;
         gltfPrimitive.mode = TINYGLTF_MODE_TRIANGLES;
 
         tinygltf::Mesh gltfMesh;
         gltfMesh.primitives.push_back(gltfPrimitive);
-        gltfMesh.name = CharString("mesh_") + std::to_string(meshIdx++);
+        gltfMesh.name = CharString("mesh_") + std::to_string(gltfMeshIdx);
 
         tinygltf::Node gltfNode;
         gltfNode.mesh = gltfMeshIdx;
@@ -203,6 +252,8 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
         gltfModel.accessors.push_back(gltfVBAccessorPos);
         gltfModel.accessors.push_back(gltfVBAccessorNormal);
         gltfModel.accessors.push_back(gltfVBAccessorUV);
+
+        gltfMeshIdx++;
     }
 
     gltfModel.scenes.push_back(gltfScene);
@@ -210,7 +261,16 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
     gltfModel.asset.generator = mExporterName;
 
     tinygltf::TinyGLTF gltf;
-    return gltf.WriteGltfSceneToFile(&gltfModel, filePath.u8string(), false, true, true, false);
+    const bool result = gltf.WriteGltfSceneToFile(&gltfModel, filePath.u8string(), false, true, true, false);
+
+    if (result) {
+        mUsedTextures.clear();
+        for (auto& it : materialsDict) {
+            mUsedTextures.push_back(it.first.str);
+        }
+    }
+
+    return result;
 }
 
 bool ExporterGLTF::ExportLevel(const MetroLevel& level, const fs::path& filePath) {

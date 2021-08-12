@@ -74,36 +74,40 @@ void CreateGLTFMaterials(const MyArray<MetroModelGeomData>& gds,
     int materialIdx = 0;
     for (auto& gd : gds) {
         const StringView& gdTexture = gd.texture;
+        HashString gdTextureHash(gdTexture);
+        if (materialsDict.find(gdTextureHash) == materialsDict.end()) {
+            MetroSurfaceDescription surfaceSet = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(gdTexture, false);
+            const CharString& albedoName = surfaceSet.albedo;
+            const CharString& normalmapName = surfaceSet.normalmap;
 
-        MetroSurfaceDescription surfaceSet = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(gdTexture, false);
-        const CharString& albedoName = surfaceSet.albedo;
-        const CharString& normalmapName = surfaceSet.normalmap;
+            CharString textureName = fs::path(albedoName).filename().string();
+            CharString textureFileName = textureName + textureExtension;
 
-        CharString textureName = fs::path(albedoName).filename().string();
-        CharString textureFileName = textureName + textureExtension;
+            tinygltf::Image gltfImage;
+            gltfImage.uri = textureFileName;
 
-        tinygltf::Image gltfImage;
-        gltfImage.uri = textureFileName;
+            tinygltf::Texture gltfTexture;
+            gltfTexture.name = textureName;
+            gltfTexture.source = materialIdx;
+            gltfTexture.sampler = 0;
 
-        tinygltf::Texture gltfTexture;
-        gltfTexture.name = textureName;
-        gltfTexture.source = materialIdx;
-        gltfTexture.sampler = 0;
+            gltfModel.images.push_back(gltfImage);
+            gltfModel.textures.push_back(gltfTexture);
 
-        gltfModel.images.push_back(gltfImage);
-        gltfModel.textures.push_back(gltfTexture);
+            tinygltf::Material gltfMaterial;
+            gltfMaterial.name = textureName;
+            gltfMaterial.pbrMetallicRoughness.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
+            gltfMaterial.pbrMetallicRoughness.baseColorTexture.index = materialIdx;
+            gltfMaterial.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
+            gltfMaterial.pbrMetallicRoughness.metallicFactor = 0.0;
+            gltfMaterial.pbrMetallicRoughness.roughnessFactor = 1.0;
+            gltfMaterial.doubleSided = true;
+            gltfModel.materials.push_back(gltfMaterial);
 
-        tinygltf::Material gltfMaterial;
-        gltfMaterial.name = textureName;
-        gltfMaterial.pbrMetallicRoughness.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
-        gltfMaterial.pbrMetallicRoughness.baseColorTexture.index = materialIdx;
-        gltfMaterial.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
-        gltfMaterial.pbrMetallicRoughness.metallicFactor = 0.0;
-        gltfMaterial.pbrMetallicRoughness.roughnessFactor = 1.0;
-        gltfMaterial.doubleSided = true;
-        gltfModel.materials.push_back(gltfMaterial);
+            materialsDict[gdTextureHash] = materialIdx;
 
-        materialsDict[HashString(gdTexture)] = materialIdx;
+            materialIdx++;
+        }
     }
 }
 
@@ -227,10 +231,10 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
         gltfVBAccessorUV.count = vertices.size();
 
         tinygltf::Primitive gltfPrimitive;
-        gltfPrimitive.indices = gltfMeshIdx * 2;                        // The index of the accessor for the vertex indices
-        gltfPrimitive.attributes["POSITION"] = gltfMeshIdx * 2 + 1;     // The index of the accessor for positions
-        gltfPrimitive.attributes["NORMAL"] = gltfMeshIdx * 2 + 2;       // The index of the accessor for normals
-        gltfPrimitive.attributes["TEXCOORD_0"] = gltfMeshIdx * 2 + 3;   // The index of the accessor for texcoords
+        gltfPrimitive.indices = gltfMeshIdx * 4;                        // The index of the accessor for the vertex indices
+        gltfPrimitive.attributes["POSITION"] = gltfMeshIdx * 4 + 1;     // The index of the accessor for positions
+        gltfPrimitive.attributes["NORMAL"] = gltfMeshIdx * 4 + 2;       // The index of the accessor for normals
+        gltfPrimitive.attributes["TEXCOORD_0"] = gltfMeshIdx * 4 + 3;   // The index of the accessor for texcoords
         gltfPrimitive.material = materialIdx;
         gltfPrimitive.mode = TINYGLTF_MODE_TRIANGLES;
 

@@ -11,8 +11,10 @@ SimpleRibbon::SimpleRibbon(QWidget* parent)
 SimpleRibbon::~SimpleRibbon() {
 }
 
+
 SimpleRibbonTab* SimpleRibbon::AddRibbonTab(const QString& title) {
     SimpleRibbonTab* newTab = new SimpleRibbonTab();
+    newTab->setObjectName(title);
     QTabWidget::addTab(newTab, title);
     return newTab;
 }
@@ -35,6 +37,12 @@ void SimpleRibbon::RemoveRibbonTab(const QString& title) {
     }
 }
 
+void SimpleRibbon::EnableRibbonTab(const QString& title, const bool enable) {
+    const int idx = this->FindRibbonTabIdx(title);
+    if (-1 != idx) {
+        QTabWidget::setTabEnabled(idx, enable);
+    }
+}
 
 
 int SimpleRibbon::FindRibbonTabIdx(const QString& title) {

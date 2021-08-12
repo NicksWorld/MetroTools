@@ -293,7 +293,7 @@ mat4 MetroSkeleton::GetBoneTransform(const size_t idx) const {
 
 mat4 MetroSkeleton::GetBoneFullTransform(const size_t idx) const {
     const size_t parentIdx = this->GetBoneParentIdx(idx);
-    if (parentIdx == MetroBone::InvalidIdx) {
+    if (parentIdx == kInvalidValue) {
         return this->GetBoneTransform(idx);
     } else {
         return this->GetBoneFullTransform(parentIdx) * this->GetBoneTransform(idx);
@@ -338,7 +338,7 @@ const CharString& MetroSkeleton::GetBoneParentName(const size_t idx) const {
 }
 
 size_t MetroSkeleton::FindBone(const CharString& name) const {
-    size_t result = MetroBone::InvalidIdx, idx = 0;
+    size_t result = kInvalidValue, idx = 0;
     for (const MetroBone& b : this->bones) {
         if (b.name == name) {
             result = idx;
@@ -529,7 +529,7 @@ void MetroSkeleton::MergeParentSkeleton() {
             for (const ParentMapped& pm : this->parent_bone_maps) {
                 const size_t parentIdx = parentSkel->FindBone(pm.parent_bone);
                 const size_t selfIdx = this->FindBone(pm.self_bone);
-                if (parentIdx != MetroBone::InvalidIdx && selfIdx != MetroBone::InvalidIdx) {
+                if (parentIdx != kInvalidValue && selfIdx != kInvalidValue) {
                     //???
                 }
             }

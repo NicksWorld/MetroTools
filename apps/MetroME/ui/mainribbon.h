@@ -1,3 +1,5 @@
+#pragma once
+
 #include <QWidget>
 #include <QCheckBox>
 #include <QComboBox>
@@ -13,12 +15,21 @@ class MainRibbon final : public QWidget {
     Q_OBJECT
 
 public:
+    enum class TabType {
+        Model,
+        Skeleton,
+        Animation,
+        View
+    };
+
     MainRibbon(QWidget* parent = nullptr);
     ~MainRibbon() override;
 
-    void    EnableSkeletonTab(const bool enable);
+    void    EnableTab(const TabType tab, const bool enable);
 
 signals:
+    void    SignalCurrentTabChanged(const TabType tab);
+    //
     void    SignalFileImportMetroModel();
     void    SignalFileImportOBJModel();
     void    SignalFileExportMetroModel();
@@ -34,6 +45,8 @@ signals:
     void    Signal3DViewShowBonesNamesChecked(bool checked);
 
 private slots:
+    void    OnCurrentTabChanged(int index);
+    //
     void    OnFileImportMetroModelCommand(bool checked);
     void    OnFileImportOBJModelCommand(bool checked);
     void    OnFileExportMetroModelCommand(bool checked);

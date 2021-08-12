@@ -15,6 +15,7 @@ public:
     SimpleRibbonTab*    AddRibbonTab(const QString& title);
     SimpleRibbonTab*    GetRibbonTab(const QString& title);
     void                RemoveRibbonTab(const QString& title);
+    void                EnableRibbonTab(const QString& title, const bool enable);
 
 private:
     int                 FindRibbonTabIdx(const QString& title);

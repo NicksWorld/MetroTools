@@ -50,7 +50,7 @@ const Surface& Model::GetSurface(const size_t idx, const size_t lodIdx) const {
 const mat4 Model::GetBoneTransform(const CharString& boneName) const {
     if (mSkeleton) {
         const size_t idx = mSkeleton->FindBone(boneName);
-        if (MetroBone::InvalidIdx != idx) {
+        if (kInvalidValue != idx) {
             return mSkeleton->GetBoneFullTransform(idx);
         } else {
             return MatIdentity;

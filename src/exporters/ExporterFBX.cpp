@@ -288,7 +288,7 @@ static FbxNode* FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* ske
         const CharString& name = skeleton->GetBoneName(i);
 
         FbxSkeleton* attribute = FbxSkeleton::Create(scene, name.c_str());
-        if (MetroBone::InvalidIdx == parentIdx) {
+        if (kInvalidValue == parentIdx) {
             attribute->SetSkeletonType(FbxSkeleton::eRoot);
         } else {
             attribute->SetSkeletonType(FbxSkeleton::eLimbNode);
@@ -311,7 +311,7 @@ static FbxNode* FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* ske
         node->LclTranslation.Set(MetroVecToFbxVec(bindT));
         node->LclRotation.Set(MetroRotToFbxRot(bindQ));
 
-        if (MetroBone::InvalidIdx != parentIdx) {
+        if (kInvalidValue != parentIdx) {
             boneNodes[parentIdx]->AddChild(node);
         } else {
             rootNode = node;

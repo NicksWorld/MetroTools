@@ -248,6 +248,10 @@ void RenderPanel::SetDebugSkeletonShowBones(const bool show) {
     mShowBones = show;
 }
 
+bool RenderPanel::IsShowingSkeletonShowBones() const {
+    return mShowBones;
+}
+
 void RenderPanel::SetDebugSkeletonShowBonesLinks(const bool show) {
     mShowBonesLinks = show;
 }
@@ -347,7 +351,7 @@ void RenderPanel::Render() {
 
             if (mShowBones) {
                 RefPtr<MetroSkeleton> skeleton;
-                if (mModel->GetModelType() == MetroModelType::Skeleton || mModel->GetModelType() == MetroModelType::Skeleton2) {
+                if (mModel->IsSkeleton()) {
                     skeleton = SCastRefPtr<MetroModelSkeleton>(mModel)->GetSkeleton();
                 }
 
@@ -358,7 +362,9 @@ void RenderPanel::Render() {
                     mat4 viewProj = proj * view;
 
                     const color4f colorPoints(1.0f, 0.85f, 0.0f, 1.0f);
+                    const color4f colorPointsLoc(0.0f, 0.85f, 0.1f, 1.0f);
                     const color4f colorTets(1.0f, 0.12f, 0.95f, 1.0f);
+                    const color4f colorTetsLoc(0.1f, 0.1f, 1.0f, 1.0f);
 
                     const float r = 0.02f;
 
@@ -387,6 +393,33 @@ void RenderPanel::Render() {
                             const vec3 b = vec3(mp[3]) + modelPos;
 
                             renderer.DebugDrawTetrahedron(b, a, r, colorTets);
+                        }
+                    }
+
+                    const size_t numLocators = skeleton->GetNumLocators();
+                    for (size_t i = 0; i < numLocators; ++i) {
+                        const size_t pid = skeleton->GetBoneParentIdx(i + numBones);
+                        const mat4& m = skeleton->GetBoneFullTransform(i + numBones);
+                        const vec3 a = vec3(m[3]) + modelPos;
+
+                        if (showBonesNames) {
+                            vec4 ap = viewProj * vec4(a, 1.0f);
+                            vec2 ap2 = vec2(ap.x / ap.w, ap.y / ap.w) * vec2(0.5f, -0.5f) + 0.5f;
+
+                            ap2.x *= scast<float>(this->width());
+                            ap2.y *= scast<float>(this->height());
+
+                            bonesNames.push_back(skeleton->GetBoneName(i + numBones));
+                            bonesNamesPos.push_back(ap2);
+                        }
+
+                        renderer.DebugDrawBSphere({ a, r }, colorPointsLoc);
+
+                        if (mShowBonesLinks && pid != kInvalidValue) {
+                            const mat4& mp = skeleton->GetBoneFullTransform(pid);
+                            const vec3 b = vec3(mp[3]) + modelPos;
+
+                            renderer.DebugDrawTetrahedron(b, a, r, colorTetsLoc);
                         }
                     }
                 }

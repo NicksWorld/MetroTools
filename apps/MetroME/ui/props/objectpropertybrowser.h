@@ -13,7 +13,7 @@ class ObjectPropertyBrowser : public QtTreePropertyBrowser {
     Q_OBJECT
 
 public:
-    ObjectPropertyBrowser(QWidget* parent);
+    ObjectPropertyBrowser(QWidget* parent = nullptr);
     void setActiveObject(QObject* obj); // connect to QObject using this
 
 private:

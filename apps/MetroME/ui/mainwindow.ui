@@ -190,18 +190,6 @@
                <property name="bottomMargin">
                 <number>0</number>
                </property>
-               <item>
-                <widget class="QTreeWidget" name="treeModelHierarchy">
-                 <attribute name="headerVisible">
-                  <bool>false</bool>
-                 </attribute>
-                 <column>
-                  <property name="text">
-                   <string notr="true">1</string>
-                  </property>
-                 </column>
-                </widget>
-               </item>
               </layout>
              </widget>
              <widget class="QWidget" name="pnlProperties" native="true">

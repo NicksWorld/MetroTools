@@ -12,6 +12,8 @@ public:
     SimpleRibbonTab(QWidget* parent = nullptr);
     ~SimpleRibbonTab() override;
 
+    QString             GetTabName() const;
+
     SimpleRibbonGroup*  AddRibbonGroup(const QString& title);
     SimpleRibbonGroup*  FindRibbonGroup(const QString& title);
     void                RemoveRibbonGroup(const QString& title);

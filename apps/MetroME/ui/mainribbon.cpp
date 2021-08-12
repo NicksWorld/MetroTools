@@ -41,8 +41,27 @@ MainRibbon::MainRibbon(QWidget* parent)
 MainRibbon::~MainRibbon() {
 }
 
-void MainRibbon::EnableSkeletonTab(const bool enable) {
-    mTabSkeleton->setEnabled(enable);
+void MainRibbon::EnableTab(const TabType tab, const bool enable) {
+    switch (tab) {
+        case TabType::Model:
+            mRibbon->EnableRibbonTab(mTabModel->GetTabName(), enable);
+        break;
+        case TabType::Skeleton:
+            mRibbon->EnableRibbonTab(mTabSkeleton->GetTabName(), enable);
+        break;
+        case TabType::Animation:
+            mRibbon->EnableRibbonTab(mTabAnimation->GetTabName(), enable);
+        break;
+        case TabType::View:
+            mRibbon->EnableRibbonTab(mTab3DView->GetTabName(), enable);
+        break;
+    }
+    
+}
+
+
+void MainRibbon::OnCurrentTabChanged(int index) {
+    emit SignalCurrentTabChanged(static_cast<TabType>(index));
 }
 
 void MainRibbon::OnFileImportMetroModelCommand(bool) {
@@ -121,6 +140,8 @@ void MainRibbon::BuildRibbon() {
     this->BuildSkeletonTab();
     this->BuildAnimationTab();
     this->Build3DViewTab();
+
+    connect(mRibbon, &SimpleRibbon::currentChanged, this, &MainRibbon::OnCurrentTabChanged);
 }
 
 void MainRibbon::BuildModelTab() {

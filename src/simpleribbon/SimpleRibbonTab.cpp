@@ -32,6 +32,10 @@ SimpleRibbonTab::~SimpleRibbonTab() {
 }
 
 
+QString SimpleRibbonTab::GetTabName() const {
+    return QObject::objectName();
+}
+
 SimpleRibbonGroup* SimpleRibbonTab::AddRibbonGroup(const QString& title) {
     SimpleRibbonGroup* newGroup = new SimpleRibbonGroup();
     newGroup->SetTitle(title);

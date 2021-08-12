@@ -14,6 +14,7 @@
 
 #include "metro/MetroContext.h"
 #include "metro/MetroModel.h"
+#include "metro/MetroSkeleton.h"
 
 #include "engine/Renderer.h"
 #include "engine/ResourcesManager.h"
@@ -28,12 +29,19 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , mRenderPanel(nullptr)
-    , mPropertyBrowser(new ObjectPropertyBrowser(this))
+    , mModelHierarchyTree(new QTreeWidget)
+    , mSkeletonHierarchyTree(new QTreeWidget)
+    , mModelPropertyBrowser(new ObjectPropertyBrowser)
+    , mSkeletonPropertyBrowser(new ObjectPropertyBrowser)
     , mSelectedGD(-1)
     , mMatStringsProp{}
+    , mIsInSkeletonView(false)
 {
     ui->setupUi(this);
 
+    // ribbon
+    connect(ui->ribbon, &MainRibbon::SignalCurrentTabChanged, this, &MainWindow::OnRibbonTabChanged);
+    //
     connect(ui->ribbon, &MainRibbon::SignalFileImportMetroModel, this, &MainWindow::OnImportMetroModel);
     connect(ui->ribbon, &MainRibbon::SignalFileImportOBJModel, this, &MainWindow::OnImportOBJModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportMetroModel, this, &MainWindow::OnExportMetroModel);
@@ -53,10 +61,28 @@ MainWindow::MainWindow(QWidget *parent)
     mRenderPanel->setGeometry(QRect(0, 0, ui->renderContainer->width(), ui->renderContainer->height()));
     ui->renderContainer->layout()->addWidget(mRenderPanel);
 
-    mPropertyBrowser->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    ui->pnlProperties->layout()->addWidget(mPropertyBrowser);
-    connect(mPropertyBrowser, &ObjectPropertyBrowser::objectPropertyChanged, this, &MainWindow::OnPropertyBrowserObjectPropertyChanged);
+    // trees
+    mModelHierarchyTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mModelHierarchyTree->setHeaderHidden(true);
+    mSkeletonHierarchyTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mSkeletonHierarchyTree->setHeaderHidden(true);
+    ui->pnlTreeView->layout()->addWidget(mModelHierarchyTree);
+    ui->pnlTreeView->layout()->addWidget(mSkeletonHierarchyTree);
+    mModelHierarchyTree->show();
+    mSkeletonHierarchyTree->hide();
+    connect(mModelHierarchyTree, &QTreeWidget::currentItemChanged, this, &MainWindow::OnModelHierarchyTreeCurrentItemChanged);
+    connect(mSkeletonHierarchyTree, &QTreeWidget::currentItemChanged, this, &MainWindow::OnSkeletonHierarchyTreeCurrentItemChanged);
 
+    // property views
+    mModelPropertyBrowser->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    mSkeletonPropertyBrowser->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->pnlProperties->layout()->addWidget(mModelPropertyBrowser);
+    ui->pnlProperties->layout()->addWidget(mSkeletonPropertyBrowser);
+    mModelPropertyBrowser->show();
+    mSkeletonPropertyBrowser->hide();
+    connect(mModelPropertyBrowser, &ObjectPropertyBrowser::objectPropertyChanged, this, &MainWindow::OnPropertyBrowserObjectPropertyChanged);
+
+    // renderer
     bool deviceIsOk = u4a::Renderer::Get().CreateDevice(u4a::Renderer::IF_D2D_Support);
     if (!deviceIsOk) {
         QMessageBox::critical(this, this->windowTitle(), tr("Failed to create DirectX 11 graphics!\n3D viewer will be unavailable."));
@@ -87,25 +113,14 @@ MainWindow::~MainWindow() {
 void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
     mSelectedGD = -1;
 
-    const MetroModelType mtype = model->GetModelType();
-    RefPtr<MetroSkeleton> skeleton;
-
-    if (mtype == MetroModelType::Skeleton ||
-        mtype == MetroModelType::Skeleton2 ||
-        mtype == MetroModelType::Skeleton3) {
-        skeleton = scast<MetroModelSkeleton*>(model)->GetSkeleton();
-    }
-
-    ui->ribbon->EnableSkeletonTab(skeleton != nullptr);
-
     MyArray<MetroModelGeomData> gds;
     model->CollectGeomData(gds);
 
     if (!gds.empty()) {
-        ui->treeModelHierarchy->clear();
-        QTreeWidgetItem* top = new QTreeWidgetItem({ QLatin1String("Model") });
-        top->setData(0, Qt::UserRole, QVariant(int(-1)));
-        ui->treeModelHierarchy->addTopLevelItem(top);
+        mModelHierarchyTree->clear();
+        QTreeWidgetItem* topNode = new QTreeWidgetItem({ QLatin1String("Model") });
+        topNode->setData(0, Qt::UserRole, QVariant(int(-1)));
+        mModelHierarchyTree->addTopLevelItem(topNode);
 
         int idx = 0;
         for (const auto& gd : gds) {
@@ -113,14 +128,55 @@ void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
             QTreeWidgetItem* child = new QTreeWidgetItem({ childText });
             child->setData(0, Qt::UserRole, QVariant(idx));
 
-            top->addChild(child);
+            topNode->addChild(child);
 
             ++idx;
         }
 
-        ui->treeModelHierarchy->expandAll();
+        mModelHierarchyTree->expandAll();
 
-        mPropertyBrowser->setActiveObject(nullptr);
+        mModelPropertyBrowser->setActiveObject(nullptr);
+    }
+
+    RefPtr<MetroSkeleton> skeleton = model->IsSkeleton() ? scast<MetroModelSkeleton*>(model)->GetSkeleton() : nullptr;
+    if (skeleton) {
+        ui->ribbon->EnableTab(MainRibbon::TabType::Skeleton, true);
+
+        mSkeletonHierarchyTree->clear();
+        QTreeWidgetItem* topBonesNode = new QTreeWidgetItem({ QLatin1String("Bones") });
+        topBonesNode->setData(0, Qt::UserRole, QVariant(int(-1)));
+        mSkeletonHierarchyTree->addTopLevelItem(topBonesNode);
+
+        QTreeWidgetItem* topLocatorsNode = new QTreeWidgetItem({ QLatin1String("Locators") });
+        topLocatorsNode->setData(0, Qt::UserRole, QVariant(int(-1)));
+        mSkeletonHierarchyTree->addTopLevelItem(topLocatorsNode);
+
+        const size_t numBones = skeleton->GetNumBones();
+        MyArray<QTreeWidgetItem*> boneNodes(numBones);
+        // 1st pass - create all nodes
+        for (size_t i = 0; i < numBones; ++i) {
+            QString boneName = QString::fromStdString(skeleton->GetBoneName(i));
+            boneNodes[i] = new QTreeWidgetItem({ boneName });
+            boneNodes[i]->setData(0, Qt::UserRole, QVariant(scast<int>(i)));
+        }
+        // 2nd pass - make the hierarchy
+        for (size_t i = 0; i < numBones; ++i) {
+            const size_t parentIdx = skeleton->GetBoneParentIdx(i);
+            if (kInvalidValue == parentIdx) {
+                topBonesNode->addChild(boneNodes[i]);
+            } else {
+                boneNodes[parentIdx]->addChild(boneNodes[i]);
+            }
+        }
+
+        const size_t numLocators = skeleton->GetNumLocators();
+        for (size_t i = 0; i < numLocators; ++i) {
+            const size_t fulIdx = i + numBones;
+            QString locatorName = QString::fromStdString(skeleton->GetBoneName(fulIdx));
+            QTreeWidgetItem* locatorNode = new QTreeWidgetItem({ locatorName });
+            locatorNode->setData(0, Qt::UserRole, QVariant(scast<int>(fulIdx)));
+            topLocatorsNode->addChild(locatorNode);
+        }
     }
 }
 
@@ -133,6 +189,26 @@ void MainWindow::OnWindowLoaded() {
     QList<int> widgetSizes;
     widgetSizes << renderSize << panelSize;
     ui->splitterMain->setSizes(widgetSizes);
+
+    ui->ribbon->EnableTab(MainRibbon::TabType::Skeleton, false);
+    ui->ribbon->EnableTab(MainRibbon::TabType::Animation, false);
+}
+
+void MainWindow::OnRibbonTabChanged(const MainRibbon::TabType tab) {
+    if (MainRibbon::TabType::Model == tab) {
+        mModelHierarchyTree->show();
+        mModelPropertyBrowser->show();
+        mSkeletonHierarchyTree->hide();
+        mSkeletonPropertyBrowser->hide();
+    } else if (MainRibbon::TabType::Skeleton == tab) {
+        mModelHierarchyTree->hide();
+        mModelPropertyBrowser->hide();
+        mSkeletonHierarchyTree->show();
+        mSkeletonPropertyBrowser->show();
+
+        this->OnSkeletonShowBones(true);
+        this->OnSkeletonShowBonesLinks(true);
+    }
 }
 
 void MainWindow::OnImportMetroModel() {
@@ -317,8 +393,8 @@ void MainWindow::OnPropertyBrowserObjectPropertyChanged() {
     }
 }
 
-void MainWindow::on_treeModelHierarchy_currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*) {
-    QTreeWidgetItem* item = ui->treeModelHierarchy->currentItem();
+void MainWindow::OnModelHierarchyTreeCurrentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*) {
+    QTreeWidgetItem* item = mModelHierarchyTree->currentItem();
     if (item) {
         const int gdIdx = item->data(0, Qt::UserRole).toInt();
 
@@ -330,7 +406,7 @@ void MainWindow::on_treeModelHierarchy_currentItemChanged(QTreeWidgetItem*, QTre
 
                 const MetroModelBase* gdModel = gds[gdIdx].model;
 
-                mPropertyBrowser->setActiveObject(nullptr);
+                mModelPropertyBrowser->setActiveObject(nullptr);
 
                 mMatStringsProp = MakeStrongPtr<MaterialStringsProp>();
                 mMatStringsProp->texture = QString::fromStdString(gdModel->GetMaterialString(0));
@@ -338,13 +414,17 @@ void MainWindow::on_treeModelHierarchy_currentItemChanged(QTreeWidgetItem*, QTre
                 mMatStringsProp->material = QString::fromStdString(gdModel->GetMaterialString(2));
                 mMatStringsProp->src_mat = QString::fromStdString(gdModel->GetMaterialString(3));
 
-                mPropertyBrowser->setActiveObject(mMatStringsProp.get());
+                mModelPropertyBrowser->setActiveObject(mMatStringsProp.get());
 
                 mSelectedGD = gdIdx;
             }
         }
     } else {
         mSelectedGD = -1;
-        mPropertyBrowser->setActiveObject(nullptr);
+        mModelPropertyBrowser->setActiveObject(nullptr);
     }
+}
+
+void MainWindow::OnSkeletonHierarchyTreeCurrentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*) {
+
 }

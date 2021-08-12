@@ -47,6 +47,7 @@ public:
     void                            SetDebugShowSubmodelsBounds(const bool show);
     void                            SetDebugBoundsType(const DebugBoundsType dbt);
     void                            SetDebugSkeletonShowBones(const bool show);
+    bool                            IsShowingSkeletonShowBones() const;
     void                            SetDebugSkeletonShowBonesLinks(const bool show);
     void                            SetDebugSkeletonShowBonesNames(const bool show);
 

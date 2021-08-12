@@ -15,8 +15,6 @@ struct ParentMapped {   // 48 bytes
 };
 
 struct MetroBone {      // 38 bytes
-    static const size_t InvalidIdx = kInvalidValue;
-
     CharString  name;
     CharString  parent;
     quat        q;

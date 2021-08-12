@@ -8,6 +8,9 @@
 
 #include "common/mycommon.h"
 
+#include "mainribbon.h"
+
+
 class SimpleRibbon;
 class MetroModelBase;
 class MaterialStringsProp;
@@ -31,6 +34,8 @@ public:
 public slots:
     void    OnWindowLoaded();
     //
+    void    OnRibbonTabChanged(const MainRibbon::TabType tab);
+    //
     void    OnImportMetroModel();
     void    OnImportOBJModel();
     void    OnExportMetroModel();
@@ -48,13 +53,18 @@ public slots:
     void    OnPropertyBrowserObjectPropertyChanged();
 
 private slots:
-    void on_treeModelHierarchy_currentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem* previous);
+    void    OnModelHierarchyTreeCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem* previous);
+    void    OnSkeletonHierarchyTreeCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem* previous);
 
 private:
     Ui::MainWindow*                 ui;
     RenderPanel*                    mRenderPanel;
-    ObjectPropertyBrowser*          mPropertyBrowser;
+    QTreeWidget*                    mModelHierarchyTree;
+    QTreeWidget*                    mSkeletonHierarchyTree;
+    ObjectPropertyBrowser*          mModelPropertyBrowser;
+    ObjectPropertyBrowser*          mSkeletonPropertyBrowser;
     int                             mSelectedGD;
     StrongPtr<MaterialStringsProp>  mMatStringsProp;
+    bool                            mIsInSkeletonView;
 };
 #endif // MAINWINDOW_H

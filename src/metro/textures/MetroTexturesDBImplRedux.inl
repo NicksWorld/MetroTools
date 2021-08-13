@@ -101,9 +101,7 @@ public:
         return std::move(result);
     }
 
-    virtual bool IsAlbedo(const MetroFSPath& file) const override {
-        bool result = false;
-
+    MetroTextureType GetTextyreType(const MetroFSPath& file) const override {
         CharString fullPath = MetroContext::Get().GetFilesystem().GetFullPath(file);
         CharString relativePath = fullPath.substr(MetroFileSystem::Paths::TexturesFolder.length());
 
@@ -114,9 +112,22 @@ public:
         }
 
         const MetroTextureInfo* mti = this->GetInfoByName(relativePath);
-        result = (mti != nullptr && mti->type == scast<uint32_t>(MetroTextureType::Diffuse));
 
-        return result;
+        if (mti != nullptr) {
+            return scast<MetroTextureType>(mti->type);
+        }
+
+        return MetroTextureType::Invalid;
+    }
+
+    virtual bool IsAlbedo(const MetroFSPath& file) const override {
+        return GetTextyreType(file) == MetroTextureType::Diffuse;
+    }
+
+    virtual bool IsCubemap(const MetroFSPath& file) const override {
+        const MetroTextureType textureType = GetTextyreType(file);
+
+        return textureType == MetroTextureType::Cubemap || textureType == MetroTextureType::Cubemap_hdr;
     }
 
     virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const override {

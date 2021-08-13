@@ -906,6 +906,11 @@ void MainWindow::ShowContextMenuTexture(QTreeWidgetItem* /*node*/, const QPoint&
     const MetroTexturesDatabase& mtxdb = MetroContext::Get().GetTexturesDB();
     QAction* saveSurfaceSet = mtxdb.IsAlbedo(mExtractionCtx.file) ? menu.addAction(tr("Save surface set...")) : nullptr;
 
+    if (mtxdb.IsCubemap(mExtractionCtx.file)) {
+        saveAsTGA->setVisible(false);
+        saveAsPNG->setVisible(false);
+    }
+
     bool shouldExtractTexture = false;
 
     const QAction* selectedAction = menu.exec(pos);

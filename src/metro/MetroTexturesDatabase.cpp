@@ -28,7 +28,7 @@ public:
     virtual const CharString&       GetDetName(const HashString& name) const = 0;
     virtual const CharString&       GetAuxName(const HashString& name, const size_t idx) const = 0;
     virtual StringArray             GetAllLevels(const HashString& name) const = 0;
-    virtual MetroTextureType        GetTextyreType(const MetroFSPath& file) const = 0;
+    virtual MetroTextureType        GetTextureType(const MetroFSPath& file) const = 0;
     virtual bool                    IsAlbedo(const MetroFSPath& file) const = 0;
     virtual bool                    IsCubemap(const MetroFSPath& file) const = 0;
     virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const = 0;

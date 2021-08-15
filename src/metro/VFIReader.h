@@ -7,6 +7,7 @@ public:
     ~VFIReader();
 
     bool                    LoadFromFile(const fs::path& filePath);
+    bool                    LoadFromUPK(const fs::path& filePath);
     void                    Close();
 
     size_t                  GetVersion() const;

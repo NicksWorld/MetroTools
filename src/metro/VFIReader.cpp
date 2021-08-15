@@ -7,6 +7,11 @@ static const size_t kVFIChunk_Header        = kInvalidValue32;
 static const size_t kVFIPackageChunk_Header = 0;
 static const size_t kVFIPackageChunk_Files  = 1;
 
+static const size_t kUPKChunk_Blob          = 0;
+static const size_t kUPKChunk_TOC           = 1;
+static const size_t kUPKChunk_Unknown2      = 2;
+static const size_t kUPKChunk_GUID          = 3;
+
 VFIReader::VFIReader()
     : mVersion(0)
     , mRootFolderIdx(0)
@@ -67,6 +72,80 @@ bool VFIReader::LoadFromFile(const fs::path& filePath) {
 
             this->BuildFileTree();
         }
+    }
+
+    return result;
+}
+
+bool VFIReader::LoadFromUPK(const fs::path& filePath) {
+    bool result = false;
+
+    this->Close();
+
+    LogPrint(LogLevel::Info, "Loading upk file...");
+
+    MemStream stream = OSReadFile(filePath);
+    if (stream.Good()) {
+        StreamChunker chunker(stream);
+        MemStream guidChunk = chunker.GetChunkStream(kUPKChunk_GUID);
+        if (guidChunk.Good()) {
+            guidChunk.ReadStruct(mGUID);
+            LogPrintF(LogLevel::Info, "UPK guid = %08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
+                mGUID.a, mGUID.b, mGUID.c, mGUID.d, mGUID.e[0], mGUID.e[1], mGUID.e[2], mGUID.e[3], mGUID.e[4], mGUID.e[5]);
+        } else {
+            LogPrint(LogLevel::Warning, "Weird, this UPK archive has no GUID!");
+        }
+
+        MemStream blobStream = chunker.GetChunkStream(kUPKChunk_Blob);
+        MemStream tocStream = chunker.GetChunkStream(kUPKChunk_TOC);
+
+        if (tocStream.Good() && blobStream.Good()) {
+            CharString justFileName = filePath.filename().string();
+            mPackages.push_back({ justFileName, stream.Length() });
+
+            while (!tocStream.Ended()) {
+                const uint32_t crc = tocStream.ReadU32();
+
+                File file = {};
+                file.offset = tocStream.ReadU32();
+                file.sizeUncompressed = tocStream.ReadU32();
+                file.sizeCompressed = tocStream.ReadU32();
+
+                const size_t nameLength = tocStream.ReadU32();
+                file.fullPath.reserve(nameLength);
+
+                const char xorValue = scast<char>(crc & 0xFF);
+                for (size_t i = 0; i < nameLength - 1; ++i) {
+                    const char ch = tocStream.ReadI8();
+                    file.fullPath.push_back(ch ^ xorValue);
+                }
+                tocStream.SkipBytes(1); // trailing null
+
+                CharString::size_type lastSlashPos = file.fullPath.find_last_of('\\');
+                if (lastSlashPos != CharString::npos) {
+                    file.name = file.fullPath.substr(lastSlashPos + 1);
+                }
+
+                mFiles.emplace_back(file);
+            }
+
+            mBasePath = filePath.parent_path();
+            mFileName = justFileName;
+            mAbsolutePath = fs::absolute(filePath);
+
+            this->BuildFileTree();
+
+            result = true;
+        } else {
+            if (!blobStream.Good()) {
+                LogPrint(LogLevel::Error, "Blob chunk is missing!");
+            }
+            if (!tocStream.Good()) {
+                LogPrint(LogLevel::Error, "TOC chunk is missing!");
+            }
+        }
+    } else {
+        LogPrint(LogLevel::Error, "Failed to open file!");
     }
 
     return result;

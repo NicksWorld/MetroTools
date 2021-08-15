@@ -75,7 +75,9 @@ void MainWindow::OnMetroPackSelected(const fs::path& archivePath) {
     if (!IsPathMetroPackFile(archivePath)) {
         QMessageBox::critical(this, this->windowTitle(), tr("Invalid Metro archive selected!"));
     } else {
-        QString name = QFileDialog::getExistingDirectory(this, tr("Choose output folder..."));
+        QString dir = QString::fromStdWString(archivePath.parent_path().wstring());
+
+        QString name = QFileDialog::getExistingDirectory(this, tr("Choose output folder..."), dir);
         if (!name.isEmpty()) {
             HRESULT hr = ::CoCreateInstance(CLSID_ProgressDialog, nullptr, CLSCTX_INPROC_SERVER, __uuidof(IProgressDialog), (void**)&mProgressDlg);
             if (SUCCEEDED(hr)) {

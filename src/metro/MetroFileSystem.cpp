@@ -134,6 +134,13 @@ bool MetroFileSystem::InitFromSingleVFI(const fs::path& vfiPath) {
     return result;
 }
 
+bool MetroFileSystem::InitFromSingleUPK(const fs::path& upkPath) {
+    this->Shutdown();
+    const bool result = this->AddUPK(upkPath);
+    mIsMetro2033FS = result;
+    return result;
+}
+
 void MetroFileSystem::Shutdown() {
     std::for_each(mLoadedVFI.begin(), mLoadedVFI.end(), [](VFIReader* v) { delete v; });
     std::for_each(mLoadedVFX.begin(), mLoadedVFX.end(), [](VFXReader* v) { delete v; });
@@ -569,7 +576,7 @@ bool MetroFileSystem::AddVFI(const fs::path& vfiPath) {
     bool result = false;
 
     LogPrint(LogLevel::Info, "Adding vfi to FS...");
-    LogPrint(LogLevel::Info, "    " + vfiPath.generic_u8string());
+    LogPrint(LogLevel::Info, "    " + vfiPath.string());
 
     std::error_code ec;
     fs::path absoluteVFIPath = fs::absolute(vfiPath, ec);
@@ -597,8 +604,36 @@ bool MetroFileSystem::AddVFI(const fs::path& vfiPath) {
     return result;
 }
 
-bool MetroFileSystem::AddUPK(const fs::path&) {
-    return false;
+bool MetroFileSystem::AddUPK(const fs::path& upkPath) {
+    bool result = false;
+
+    LogPrint(LogLevel::Info, "Adding upk to FS...");
+    LogPrint(LogLevel::Info, "    " + upkPath.string());
+
+    std::error_code ec;
+    fs::path absoluteUPKPath = fs::absolute(upkPath, ec);
+
+    auto it = std::find_if(mLoadedVFI.begin(), mLoadedVFI.end(), [&absoluteUPKPath](const VFIReader* v) {
+        return v->GetAbsolutePath() == absoluteUPKPath;
+    });
+    if (it != mLoadedVFI.end()) {
+        LogPrint(LogLevel::Warning, "Such upk was already added to FS, ignoring.");
+    } else {
+        VFIReader* vfiReader = new VFIReader();
+        if (vfiReader->LoadFromUPK(absoluteUPKPath)) {
+            mCurrentArchIdx = mLoadedVFI.size();
+
+            const size_t rootDir = vfiReader->GetRootFolderIdx();
+            this->MergeFolderRecursive(this->GetRootFolder().fileHandle, rootDir, *vfiReader);
+
+            mLoadedVFI.push_back(vfiReader);
+            result = true;
+        } else {
+            delete vfiReader;
+        }
+    }
+
+    return result;
 }
 
 void MetroFileSystem::MergeFolderRecursive(MyHandle parentEntry, const MetroFile& folder, const VFXReader& vfxReader) {

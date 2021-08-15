@@ -456,7 +456,7 @@ public:
     }
 
     inline bool Ended() const {
-        return this->cursor == this->length;
+        return this->cursor >= this->length;
     }
 
     inline size_t Length() const {

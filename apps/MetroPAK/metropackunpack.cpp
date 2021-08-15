@@ -52,7 +52,9 @@ void MetroPackUnpack::UnpackArchive(const fs::path& archivePath, const fs::path&
     WideString extension = archivePath.extension().wstring();
 
     bool ok = false;
-    if (WStrStartsWith(extension, L".vfi")) {
+    if (WStrStartsWith(extension, L".upk")) {
+        ok = mfs.InitFromSingleUPK(archivePath);
+    } else if (WStrStartsWith(extension, L".vfi")) {
         ok = mfs.InitFromSingleVFI(archivePath);
     } else {
         ok = mfs.InitFromSingleVFX(archivePath);

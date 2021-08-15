@@ -38,6 +38,7 @@ public:
     bool                    InitFromContentFolder(const fs::path& gameFolder);
     bool                    InitFromSingleVFX(const fs::path& vfxPath);
     bool                    InitFromSingleVFI(const fs::path& vfiPath);
+    bool                    InitFromSingleUPK(const fs::path& upkPath);
     void                    Shutdown();
     bool                    Empty() const;
     bool                    IsSingleArchive() const;

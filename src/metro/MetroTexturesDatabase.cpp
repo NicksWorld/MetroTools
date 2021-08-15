@@ -13,6 +13,8 @@
 #include <windows.h>
 #include <process.h>
 
+enum class MetroTextureType : uint8_t;
+
 class MetroTexturesDBImpl {
 public:
     MetroTexturesDBImpl() {}
@@ -26,7 +28,9 @@ public:
     virtual const CharString&       GetDetName(const HashString& name) const = 0;
     virtual const CharString&       GetAuxName(const HashString& name, const size_t idx) const = 0;
     virtual StringArray             GetAllLevels(const HashString& name) const = 0;
+    virtual MetroTextureType        GetTextureType(const MetroFSPath& file) const = 0;
     virtual bool                    IsAlbedo(const MetroFSPath& file) const = 0;
+    virtual bool                    IsCubemap(const MetroFSPath& file) const = 0;
     virtual MetroSurfaceDescription GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const = 0;
     virtual MetroSurfaceDescription GetSurfaceSetFromName(const HashString& textureName, const bool allMips) const = 0;
 
@@ -53,7 +57,8 @@ enum class MetroTextureType : uint8_t {
     Normalmap_detail    = 10,
     Unknown_01          = 11,
     Unknown_has_lum     = 12,       //#NOTE_SK: has lum (u8_array)
-    Instance            = 64
+    Instance            = 64,
+    Invalid             = 255
 };
 
 enum class MetroTextureDisplType : uint8_t {
@@ -161,6 +166,10 @@ StringArray MetroTexturesDatabase::GetAllLevels(const HashString& name) const {
 
 bool MetroTexturesDatabase::IsAlbedo(const MetroFSPath& file) const {
     return this->Good() ? mImpl->IsAlbedo(file) : false;
+}
+
+bool MetroTexturesDatabase::IsCubemap(const MetroFSPath& file) const {
+    return this->Good() ? mImpl->IsCubemap(file) : false;
 }
 
 MetroSurfaceDescription MetroTexturesDatabase::GetSurfaceSetFromFile(const MetroFSPath& file, const bool allMips) const {

@@ -898,13 +898,19 @@ void MainWindow::ShowContextMenuTexture(QTreeWidgetItem* /*node*/, const QPoint&
 
     QAction* saveAsDDS = menu.addAction(tr("Save as DDS..."));
     QAction* saveAsLegacyDDS = menu.addAction(tr("Save as legacy DDS..."));
-    QAction* saveAsTGA = menu.addAction(tr("Save as TGA..."));
-    QAction* saveAsPNG = menu.addAction(tr("Save as PNG..."));
+    QAction* saveAsTGA = nullptr;
+    QAction* saveAsPNG = nullptr;
     menu.addSeparator();
 
     //#NOTE_SK: if this is an albedo texture - enable whole set extraction option
     const MetroTexturesDatabase& mtxdb = MetroContext::Get().GetTexturesDB();
     QAction* saveSurfaceSet = mtxdb.IsAlbedo(mExtractionCtx.file) ? menu.addAction(tr("Save surface set...")) : nullptr;
+
+    const bool isCubemap = mtxdb.IsCubemap(mExtractionCtx.file);
+    if (!isCubemap) {
+        saveAsTGA = menu.addAction(tr("Save as TGA..."));
+        saveAsPNG = menu.addAction(tr("Save as PNG..."));
+    }
 
     bool shouldExtractTexture = false;
 
@@ -923,10 +929,10 @@ void MainWindow::ShowContextMenuTexture(QTreeWidgetItem* /*node*/, const QPoint&
         mExtractionCtx.txSaveAsDds = true;
         mExtractionCtx.txUseBC3 = true;
         shouldExtractTexture = true;
-    } else if (selectedAction == saveAsTGA) {
+    } else if (!isCubemap && selectedAction == saveAsTGA) {
         mExtractionCtx.txSaveAsTga = true;
         shouldExtractTexture = true;
-    } else if (selectedAction == saveAsPNG) {
+    } else if (!isCubemap && selectedAction == saveAsPNG) {
         mExtractionCtx.txSaveAsPng = true;
         shouldExtractTexture = true;
     } else if (selectedAction == saveSurfaceSet) {

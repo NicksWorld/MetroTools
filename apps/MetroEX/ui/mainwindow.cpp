@@ -915,36 +915,37 @@ void MainWindow::ShowContextMenuTexture(QTreeWidgetItem* /*node*/, const QPoint&
     bool shouldExtractTexture = false;
 
     const QAction* selectedAction = menu.exec(pos);
-
-    mExtractionCtx.txUseBC3 = false;
-    mExtractionCtx.txSaveAsDds = false;
-    mExtractionCtx.txSaveAsTga = false;
-    mExtractionCtx.txSaveAsPng = false;
-
-    if (selectedAction == saveAsDDS) {
-        mExtractionCtx.txSaveAsDds = true;
+    if (selectedAction) {
         mExtractionCtx.txUseBC3 = false;
-        shouldExtractTexture = true;
-    } else if (selectedAction == saveAsLegacyDDS) {
-        mExtractionCtx.txSaveAsDds = true;
-        mExtractionCtx.txUseBC3 = true;
-        shouldExtractTexture = true;
-    } else if (!isCubemap && selectedAction == saveAsTGA) {
-        mExtractionCtx.txSaveAsTga = true;
-        shouldExtractTexture = true;
-    } else if (!isCubemap && selectedAction == saveAsPNG) {
-        mExtractionCtx.txSaveAsPng = true;
-        shouldExtractTexture = true;
-    } else if (selectedAction == saveSurfaceSet) {
-        MetroSurfaceDescription surface = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromFile(mExtractionCtx.file, false);
+        mExtractionCtx.txSaveAsDds = false;
+        mExtractionCtx.txSaveAsTga = false;
+        mExtractionCtx.txSaveAsPng = false;
 
-        this->EnsureExtractionOptions();
-        mExtractionCtx.batch = false;
-        mExtractionCtx.raw = false;
+        if (selectedAction == saveAsDDS) {
+            mExtractionCtx.txSaveAsDds = true;
+            mExtractionCtx.txUseBC3 = false;
+            shouldExtractTexture = true;
+        } else if (selectedAction == saveAsLegacyDDS) {
+            mExtractionCtx.txSaveAsDds = true;
+            mExtractionCtx.txUseBC3 = true;
+            shouldExtractTexture = true;
+        } else if (selectedAction == saveAsTGA) {
+            mExtractionCtx.txSaveAsTga = true;
+            shouldExtractTexture = true;
+        } else if (selectedAction == saveAsPNG) {
+            mExtractionCtx.txSaveAsPng = true;
+            shouldExtractTexture = true;
+        } else if (selectedAction == saveSurfaceSet) {
+            MetroSurfaceDescription surface = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromFile(mExtractionCtx.file, false);
 
-        shouldExtractTexture = false;
+            this->EnsureExtractionOptions();
+            mExtractionCtx.batch = false;
+            mExtractionCtx.raw = false;
 
-        this->ExtractSurfaceSet(mExtractionCtx, surface, fs::path());
+            shouldExtractTexture = false;
+
+            this->ExtractSurfaceSet(mExtractionCtx, surface, fs::path());
+        }
     }
 
     if (shouldExtractTexture) {
@@ -963,17 +964,18 @@ void MainWindow::ShowContextMenuModel(QTreeWidgetItem* /*node*/, const QPoint& p
     bool shouldExtractModel = false;
 
     const QAction* selectedAction = menu.exec(pos);
-
-    if (selectedAction == saveAsOBJ) {
-        this->EnsureExtractionOptions();
-        mExtractionCtx.mdlSaveAsObj = true;
-        mExtractionCtx.mdlSaveAsFbx = false;
-        shouldExtractModel = true;
-    } else if (selectedAction == saveAsFBX) {
-        this->EnsureExtractionOptions();
-        mExtractionCtx.mdlSaveAsObj = false;
-        mExtractionCtx.mdlSaveAsFbx = true;
-        shouldExtractModel = true;
+    if (selectedAction) {
+        if (selectedAction == saveAsOBJ) {
+            this->EnsureExtractionOptions();
+            mExtractionCtx.mdlSaveAsObj = true;
+            mExtractionCtx.mdlSaveAsFbx = false;
+            shouldExtractModel = true;
+        } else if (selectedAction == saveAsFBX) {
+            this->EnsureExtractionOptions();
+            mExtractionCtx.mdlSaveAsObj = false;
+            mExtractionCtx.mdlSaveAsFbx = true;
+            shouldExtractModel = true;
+        }
     }
 
     if (shouldExtractModel) {
@@ -993,15 +995,16 @@ void MainWindow::ShowContextMenuSound(QTreeWidgetItem* /*node*/, const QPoint& p
     bool shouldExtractSound = false;
 
     const QAction* selectedAction = menu.exec(pos);
-
-    if (selectedAction == saveAsOGG) {
-        mExtractionCtx.sndSaveAsOgg = true;
-        mExtractionCtx.sndSaveAsWav = false;
-        shouldExtractSound = true;
-    } else if (selectedAction == saveAsWAV) {
-        mExtractionCtx.sndSaveAsOgg = false;
-        mExtractionCtx.sndSaveAsWav = true;
-        shouldExtractSound = true;
+    if (selectedAction) {
+        if (selectedAction == saveAsOGG) {
+            mExtractionCtx.sndSaveAsOgg = true;
+            mExtractionCtx.sndSaveAsWav = false;
+            shouldExtractSound = true;
+        } else if (selectedAction == saveAsWAV) {
+            mExtractionCtx.sndSaveAsOgg = false;
+            mExtractionCtx.sndSaveAsWav = true;
+            shouldExtractSound = true;
+        }
     }
 
     if (shouldExtractSound) {
@@ -1031,14 +1034,15 @@ void MainWindow::ShowContextMenuBin(QTreeWidgetItem* /*node*/, const QPoint& pos
     bool shouldExtractFile = false;
 
     const QAction* selectedAction = menu.exec(pos);
-
-    if (selectedAction == extractRootFile) {
-        mExtractionCtx.customOffset = kInvalidValue;
-        mExtractionCtx.customLength = kInvalidValue;
-        mExtractionCtx.customFileName = "";
-        shouldExtractFile = true;
-    } else if (selectedAction == extractThisFile) {
-        shouldExtractFile = true;
+    if (selectedAction) {
+        if (selectedAction == extractRootFile) {
+            mExtractionCtx.customOffset = kInvalidValue;
+            mExtractionCtx.customLength = kInvalidValue;
+            mExtractionCtx.customFileName = "";
+            shouldExtractFile = true;
+        } else if (selectedAction == extractThisFile) {
+            shouldExtractFile = true;
+        }
     }
 
     if (shouldExtractFile) {
@@ -1057,29 +1061,30 @@ void MainWindow::ShowContextMenuConfigBin(QTreeWidgetItem* /*node*/, const QPoin
     saveModified->setEnabled(enableModified);
 
     const QAction* selectedAction = menu.exec(pos);
+    if (selectedAction) {
+        if (selectedAction == extract) {
+            mExtractionCtx.customOffset = kInvalidValue;
+            mExtractionCtx.customLength = kInvalidValue;
+            mExtractionCtx.customFileName = "";
 
-    if (selectedAction == extract) {
-        mExtractionCtx.customOffset = kInvalidValue;
-        mExtractionCtx.customLength = kInvalidValue;
-        mExtractionCtx.customFileName = "";
+            if (!this->ExtractFile(mExtractionCtx, fs::path())) {
+                QMessageBox::critical(this, this->windowTitle(), tr("Failed to extract file!"));
+            }
+        } else if (selectedAction == saveModified) {
+            const MemStream& stream = MetroContext::Get().GetConfigsDB().GetDataStream();
+            if (stream.Good()) {
+                fs::path resultPath;
 
-        if (!this->ExtractFile(mExtractionCtx, fs::path())) {
-            QMessageBox::critical(this, this->windowTitle(), tr("Failed to extract file!"));
-        }
-    } else if (selectedAction == saveModified) {
-        const MemStream& stream = MetroContext::Get().GetConfigsDB().GetDataStream();
-        if (stream.Good()) {
-            fs::path resultPath;
+                QString saveName = QFileDialog::getSaveFileName(this, tr("Save Configs database..."), QString("config.bin"), tr("Bin file (*.bin)"));
 
-            QString saveName = QFileDialog::getSaveFileName(this, tr("Save Configs database..."), QString("config.bin"), tr("Bin file (*.bin)"));
+                if (saveName.length() > 3) {
+                    const bool result = OSWriteFile(saveName.toStdWString(), stream.Data(), stream.Length()) == stream.Length();
 
-            if (saveName.length() > 3) {
-                const bool result = OSWriteFile(saveName.toStdWString(), stream.Data(), stream.Length()) == stream.Length();
-
-                if (!result) {
-                    QMessageBox::critical(this, this->windowTitle(), tr("Failed to save Configs Database!"));
-                } else {
-                    QMessageBox::information(this, this->windowTitle(), tr("Configs Database was successfully saved!"));
+                    if (!result) {
+                        QMessageBox::critical(this, this->windowTitle(), tr("Failed to save Configs Database!"));
+                    } else {
+                        QMessageBox::information(this, this->windowTitle(), tr("Configs Database was successfully saved!"));
+                    }
                 }
             }
         }

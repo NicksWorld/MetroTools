@@ -127,6 +127,9 @@ public:
     bool                        LoadFromData(MemStream& stream);
     bool                        LoadFromData_2033(MemStream& stream);
 
+    void                        Save(MemWriteStream& stream);
+    void                        Save_2033(MemWriteStream& stream);
+
     void                        Clone(const MetroSkeleton* other);
 
     size_t                      GetBonesCRC() const;
@@ -163,7 +166,8 @@ public:
     RefPtr<MetroMotion>         GetMotion(const size_t idx);
 
 private:
-    void                        DeserializeSelf(MetroReflectionStream& reader);
+    void                        Serialize(MetroReflectionStream& reflection);
+    void                        SwizzleBones();
     void                        MergeParentSkeleton();
     void                        CacheMatrices();
     void                        LoadMotions();

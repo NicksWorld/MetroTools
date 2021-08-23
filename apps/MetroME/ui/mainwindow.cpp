@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 
 #include "renderpanel.h"
+#include "sessionsdlg.h"
 
 #include <QToolButton>
 #include <QMenu>
@@ -23,6 +24,8 @@
 #include "exporters/ExporterOBJ.h"
 #include "exporters/ExporterFBX.h"
 #include "exporters/ExporterGLTF.h"
+
+#include "../MetroSessions.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -48,6 +51,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::SignalFileExportOBJModel, this, &MainWindow::OnExportOBJModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportFBXModel, this, &MainWindow::OnExportFBXModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportGLTFModel, this, &MainWindow::OnExportGLTFModel);
+    //
+    connect(ui->ribbon, &MainRibbon::SignalFileImportMetroSkeleton, this, &MainWindow::OnImportMetroSkeleton);
+    connect(ui->ribbon, &MainRibbon::SignalFileImportFBXSkeleton, this, &MainWindow::OnImportFBXSkeleton);
+    connect(ui->ribbon, &MainRibbon::SignalFileExportMetroSkeleton, this, &MainWindow::OnExportMetroSkeleton);
+    connect(ui->ribbon, &MainRibbon::SignalFileExportFBXSkeleton, this, &MainWindow::OnExportFBXSkeleton);
     //
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBoundsChecked, this, &MainWindow::OnShowBounds);
     connect(ui->ribbon, &MainRibbon::Signal3DViewBoundsTypeChanged, this, &MainWindow::OnBoundsTypeChanged);
@@ -99,8 +107,6 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
-    MetroContext::Get().InitFromContentFolder(R"(e:\Games\SteamLibrary\steamapps\common\Metro Last Light Redux\!!\extracted\content)");
-
     QTimer::singleShot(0, this, SLOT(OnWindowLoaded()));
 }
 
@@ -140,8 +146,6 @@ void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
 
     RefPtr<MetroSkeleton> skeleton = model->IsSkeleton() ? scast<MetroModelSkeleton*>(model)->GetSkeleton() : nullptr;
     if (skeleton) {
-        ui->ribbon->EnableTab(MainRibbon::TabType::Skeleton, true);
-
         mSkeletonHierarchyTree->clear();
         QTreeWidgetItem* topBonesNode = new QTreeWidgetItem({ QLatin1String("Bones") });
         topBonesNode->setData(0, Qt::UserRole, QVariant(int(-1)));
@@ -190,8 +194,32 @@ void MainWindow::OnWindowLoaded() {
     widgetSizes << renderSize << panelSize;
     ui->splitterMain->setSizes(widgetSizes);
 
-    ui->ribbon->EnableTab(MainRibbon::TabType::Skeleton, false);
-    ui->ribbon->EnableTab(MainRibbon::TabType::Animation, false);
+    fs::path sessionsPath = fs::path(qApp->applicationDirPath().toStdWString()) / "sessions.met";
+
+    MetroSessionsList sessionsList;
+    sessionsList.LoadFromFile(sessionsPath);
+
+    SessionsDlg sessionsDlg(this);
+    sessionsDlg.SetSessionsList(&sessionsList);
+    if (QDialog::Accepted == sessionsDlg.exec()) {
+        if (sessionsDlg.IsUseExistingSession()) {
+            const MetroSession& session = sessionsList.GetSession(sessionsDlg.GetExistingSessionIdx());
+
+            MetroContext::Get().InitFromContentFolder(session.GetGameVersion(), session.GetContentFolder());
+        } else {
+            MetroSession newSession;
+            newSession.SetGameVersion(scast<MetroGameVersion>(sessionsDlg.GetNewSessionGameVersion()));
+            newSession.SetContentFolder(sessionsDlg.GetNewSessionContentFolder());
+            sessionsList.AddSession(newSession);
+
+            sessionsList.SaveToFile(sessionsPath);
+
+            MetroContext::Get().InitFromContentFolder(newSession.GetGameVersion(), newSession.GetContentFolder());
+        }
+    } else {
+        //NOTE_SK: can't proceed w/o session
+        this->close();
+    }
 }
 
 void MainWindow::OnRibbonTabChanged(const MainRibbon::TabType tab) {
@@ -252,10 +280,10 @@ void MainWindow::OnImportOBJModel() {
 }
 
 void MainWindow::OnExportMetroModel() {
-    QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro model..."), QString(), tr("Metro Model file (*.model);;All files (*.*)"));
-    if (!name.isEmpty()) {
-        RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
-        if (model) {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro model..."), QString(), tr("Metro Model file (*.model);;All files (*.*)"));
+        if (!name.isEmpty()) {
             MemWriteStream stream;
             if (model->Save(stream)) {
                 fs::path fullPath = name.toStdWString();
@@ -266,10 +294,10 @@ void MainWindow::OnExportMetroModel() {
 }
 
 void MainWindow::OnExportOBJModel() {
-    QString name = QFileDialog::getSaveFileName(this, tr("Where to export OBJ model..."), QString(), tr("OBJ model file (*.obj);;All files (*.*)"));
-    if (!name.isEmpty()) {
-        RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
-        if (model) {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        QString name = QFileDialog::getSaveFileName(this, tr("Where to export OBJ model..."), QString(), tr("OBJ model file (*.obj);;All files (*.*)"));
+        if (!name.isEmpty()) {
             fs::path fullPath = name.toStdWString();
 
             ExporterOBJ expObj;
@@ -282,10 +310,10 @@ void MainWindow::OnExportOBJModel() {
 }
 
 void MainWindow::OnExportFBXModel() {
-    QString name = QFileDialog::getSaveFileName(this, tr("Where to export FBX model..."), QString(), tr("FBX model file (*.fbx);;All files (*.*)"));
-    if (!name.isEmpty()) {
-        RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
-        if (model) {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        QString name = QFileDialog::getSaveFileName(this, tr("Where to export FBX model..."), QString(), tr("FBX model file (*.fbx);;All files (*.*)"));
+        if (!name.isEmpty()) {
             fs::path fullPath = name.toStdWString();
 
             ExporterFBX expFbx;
@@ -302,10 +330,10 @@ void MainWindow::OnExportFBXModel() {
 }
 
 void MainWindow::OnExportGLTFModel() {
-    QString name = QFileDialog::getSaveFileName(this, tr("Where to export GLTF model..."), QString(), tr("FBX model file (*.gltf);;All files (*.*)"));
-    if (!name.isEmpty()) {
-        RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
-        if (model) {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        QString name = QFileDialog::getSaveFileName(this, tr("Where to export GLTF model..."), QString(), tr("FBX model file (*.gltf);;All files (*.*)"));
+        if (!name.isEmpty()) {
             fs::path fullPath = name.toStdWString();
 
             ExporterGLTF expGltf;
@@ -319,6 +347,37 @@ void MainWindow::OnExportGLTFModel() {
             expGltf.ExportModel(*model, fullPath);
         }
     }
+}
+
+//
+void MainWindow::OnImportMetroSkeleton() {
+
+}
+
+void MainWindow::OnImportFBXSkeleton() {
+
+}
+
+void MainWindow::OnExportMetroSkeleton() {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model && model->IsSkeleton()) {
+        RefPtr<MetroModelSkeleton> skelModel = SCastRefPtr<MetroModelSkeleton>(model);
+        RefPtr<MetroSkeleton> skeleton = skelModel->GetSkeleton();
+        if (skeleton) {
+            QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro skeleton..."), QString(), tr("Metro skeleton file (*.skeleton);;All files (*.*)"));
+            if (!name.isEmpty()) {
+                fs::path fullPath = name.toStdWString();
+
+                MemWriteStream stream;
+                skeleton->Save(stream);
+                OSWriteFile(fullPath, stream.Data(), stream.GetWrittenBytesCount());
+            }
+        }
+    }
+}
+
+void MainWindow::OnExportFBXSkeleton() {
+
 }
 
 //

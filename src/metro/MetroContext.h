@@ -16,7 +16,7 @@ protected:
 
 public:
     bool                    InitFromGameFolder(const fs::path& folderPath);
-    bool                    InitFromContentFolder(const fs::path& folderPath);
+    bool                    InitFromContentFolder(const MetroGameVersion gameVersion, const fs::path& folderPath);
     bool                    InitFromSingleArchive(const fs::path& archivePath);
     void                    Shutdown();
 

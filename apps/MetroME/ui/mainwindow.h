@@ -21,8 +21,7 @@ QT_END_NAMESPACE
 
 class RenderPanel;
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
@@ -42,6 +41,11 @@ public slots:
     void    OnExportOBJModel();
     void    OnExportFBXModel();
     void    OnExportGLTFModel();
+    //
+    void    OnImportMetroSkeleton();
+    void    OnImportFBXSkeleton();
+    void    OnExportMetroSkeleton();
+    void    OnExportFBXSkeleton();
     //
     void    OnShowBounds(bool checked);
     void    OnBoundsTypeChanged(int index);

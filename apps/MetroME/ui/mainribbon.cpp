@@ -22,6 +22,8 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mTab3DView(nullptr)
     // model groups
     , mGroupModelFile(nullptr)
+    // skeleton groups
+    , mGroupSkeletonFile(nullptr)
     // 3d view groups
     , mGroup3DViewBounds(nullptr)
     , mGroup3DViewSkeleton(nullptr)
@@ -67,6 +69,7 @@ void MainRibbon::OnCurrentTabChanged(int index) {
 void MainRibbon::OnFileImportMetroModelCommand(bool) {
     emit SignalFileImportMetroModel();
 }
+
 void MainRibbon::OnFileImportOBJModelCommand(bool) {
     emit SignalFileImportOBJModel();
 }
@@ -85,6 +88,23 @@ void MainRibbon::OnFileExportFBXModelCommand(bool) {
 
 void MainRibbon::OnFileExportGLTFModelCommand(bool) {
     emit SignalFileExportGLTFModel();
+}
+
+//
+void MainRibbon::OnFileImportMetroSkeletonCommand(bool) {
+    emit SignalFileImportMetroSkeleton();
+}
+
+void MainRibbon::OnFileImportFBXSkeletonCommand(bool) {
+    emit SignalFileImportFBXSkeleton();
+}
+
+void MainRibbon::OnFileExportMetroSkeletonCommand(bool) {
+    emit SignalFileExportMetroSkeleton();
+}
+
+void MainRibbon::OnFileExportFBXSkeletonCommand(bool) {
+    emit SignalFileExportFBXSkeleton();
 }
 
 //
@@ -188,6 +208,40 @@ void MainRibbon::BuildModelTab() {
 }
 
 void MainRibbon::BuildSkeletonTab() {
+    mGroupSkeletonFile = mTabSkeleton->AddRibbonGroup(tr("File"));
+
+    SimpleRibbonButton* importSkeletonButton = new SimpleRibbonButton;
+    importSkeletonButton->SetText(tr("Import..."));
+    importSkeletonButton->SetTooltip(tr("Import skeleton from file"));
+    importSkeletonButton->SetIcon(QIcon(":/imgs/ImportFile.png"));
+    {
+        QMenu* menu = new QMenu("");
+        QAction* importFromSkeletonAction = menu->addAction("Import from Metro skeleton...");
+        menu->addSeparator();
+        QAction* importFromFbxAction = menu->addAction("Import from FBX skeleton...");
+        importSkeletonButton->SetMenu(menu);
+
+        connect(importFromSkeletonAction, &QAction::triggered, this, &MainRibbon::OnFileImportMetroSkeletonCommand);
+        connect(importFromFbxAction, &QAction::triggered, this, &MainRibbon::OnFileImportFBXSkeletonCommand);
+    }
+    mGroupSkeletonFile->AddWidget(importSkeletonButton);
+
+    // Add 'Export' button
+    SimpleRibbonButton* exportSkeletonButton = new SimpleRibbonButton;
+    exportSkeletonButton->SetText(tr("Export..."));
+    exportSkeletonButton->SetTooltip(tr("Export skeleton to file"));
+    exportSkeletonButton->SetIcon(QIcon(":/imgs/ExportFile.png"));
+    {
+        QMenu* menu = new QMenu("");
+        QAction* exportToSkeletonAction = menu->addAction("Export to Metro skeleton...");
+        menu->addSeparator();
+        QAction* exportToFBXAction = menu->addAction("Export to FBX skeleton...");
+        exportSkeletonButton->SetMenu(menu);
+
+        connect(exportToSkeletonAction, &QAction::triggered, this, &MainRibbon::OnFileExportMetroSkeletonCommand);
+        connect(exportToFBXAction, &QAction::triggered, this, &MainRibbon::OnFileExportFBXSkeletonCommand);
+    }
+    mGroupSkeletonFile->AddWidget(exportSkeletonButton);
 }
 
 void MainRibbon::BuildAnimationTab() {

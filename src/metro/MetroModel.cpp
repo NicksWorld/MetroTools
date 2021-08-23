@@ -885,6 +885,8 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
     }
 
     if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadSkeleton)) {
+        const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
+
         MemStream skeletonLinkStream = chunker.GetChunkStream(MC_SkeletonLink);
         if (skeletonLinkStream) {
             CharString skeletonRef = skeletonLinkStream.ReadStringZ();
@@ -892,7 +894,8 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
             MemStream skeletonStream = MetroContext::Get().GetFilesystem().OpenFileFromPath(fullSkelPath);
             if (skeletonStream) {
                 mSkeleton = MakeRefPtr<MetroSkeleton>();
-                if (!mSkeleton->LoadFromData(skeletonStream)) {
+                const bool success = is2033 ? mSkeleton->LoadFromData_2033(skeletonStream) : mSkeleton->LoadFromData(skeletonStream);
+                if (!success) {
                     mSkeleton = nullptr;
                 }
             }
@@ -900,7 +903,8 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
             MemStream skeletonStream = chunker.GetChunkStream(MC_SkeletonInline);
             if (skeletonStream) {
                 mSkeleton = MakeRefPtr<MetroSkeleton>();
-                if (!mSkeleton->LoadFromData(skeletonStream)) {
+                const bool success = is2033 ? mSkeleton->LoadFromData_2033(skeletonStream) : mSkeleton->LoadFromData(skeletonStream);
+                if (!success) {
                     mSkeleton = nullptr;
                 }
             }

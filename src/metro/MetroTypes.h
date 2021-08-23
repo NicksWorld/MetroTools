@@ -8,6 +8,8 @@ enum class MetroGameVersion {
     Redux,          // Metro 2033/Last Ligt (Redux 2014, Switch 2020)
     Arktika1,       // Arktika.1 (2017) [engine is very close to that used in Exodus]
     Exodus,         // Metro Exodus (2019)
+
+    NumVersions,
     Unknown
 };
 

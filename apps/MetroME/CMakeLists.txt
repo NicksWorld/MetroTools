@@ -12,6 +12,8 @@ set_target_properties(MetroME PROPERTIES CXX_STANDARD 17)
 target_sources(MetroME PRIVATE
     res/resources.qrc
     main.cpp
+    MetroSessions.h
+    MetroSessions.cpp
     ui/mainwindow.cpp
     ui/mainwindow.h
     ui/mainwindow.ui
@@ -19,6 +21,9 @@ target_sources(MetroME PRIVATE
     ui/mainribbon.h
     ui/renderpanel.h
     ui/renderpanel.cpp
+    ui/sessionsdlg.cpp
+    ui/sessionsdlg.h
+    ui/sessionsdlg.ui
     ui/props/materialstringsprop.h
     ui/props/objectpropertybrowser.cpp
     ui/props/objectpropertybrowser.h

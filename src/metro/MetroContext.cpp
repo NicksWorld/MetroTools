@@ -26,14 +26,14 @@ bool MetroContext::InitFromGameFolder(const fs::path& folderPath) {
     return result;
 }
 
-bool MetroContext::InitFromContentFolder(const fs::path& folderPath) {
+bool MetroContext::InitFromContentFolder(const MetroGameVersion gameVersion, const fs::path& folderPath) {
     bool result = false;
 
     this->Shutdown();
 
     MetroFileSystem& mfs = this->GetFilesystem();
     if (mfs.InitFromContentFolder(folderPath)) {
-        mGameVersion = MetroGameVersion::Redux;
+        mGameVersion = gameVersion;
         mGameFolder = folderPath.parent_path();
         this->InitPrivate();
     }

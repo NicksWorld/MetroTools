@@ -37,6 +37,11 @@ signals:
     void    SignalFileExportFBXModel();
     void    SignalFileExportGLTFModel();
     //
+    void    SignalFileImportMetroSkeleton();
+    void    SignalFileImportFBXSkeleton();
+    void    SignalFileExportMetroSkeleton();
+    void    SignalFileExportFBXSkeleton();
+    //
     void    Signal3DViewShowBoundsChecked(bool checked);
     void    Signal3DViewBoundsTypeChanged(int index);
     void    Signal3DViewSubmodelsBoundsChecked(bool checked);
@@ -53,6 +58,11 @@ private slots:
     void    OnFileExportOBJModelCommand(bool checked);
     void    OnFileExportFBXModelCommand(bool checked);
     void    OnFileExportGLTFModelCommand(bool checked);
+    //
+    void    OnFileImportMetroSkeletonCommand(bool checked);
+    void    OnFileImportFBXSkeletonCommand(bool checked);
+    void    OnFileExportMetroSkeletonCommand(bool checked);
+    void    OnFileExportFBXSkeletonCommand(bool checked);
     //
     void    On3DViewShowBoundsChecked(int state);
     void    On3DViewBoundsTypeChanged(int index);
@@ -77,6 +87,8 @@ private:
     SimpleRibbonTab*    mTab3DView;
     // model groups
     SimpleRibbonGroup*  mGroupModelFile;
+    // skeleton groups
+    SimpleRibbonGroup*  mGroupSkeletonFile;
     // 3d view groups
     SimpleRibbonGroup*  mGroup3DViewBounds;
     SimpleRibbonGroup*  mGroup3DViewSkeleton;

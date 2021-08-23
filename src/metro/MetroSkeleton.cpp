@@ -10,6 +10,7 @@ static const size_t kSkeletonVersionRedux       = 8;    // Latest Steam Redux ar
 enum SkeletonChunks2033 : size_t {
     SC2033_Version      = 1,
     SC2033_Bones        = 13,
+    SC2033_Locators     = 14,
     SC2033_Motions      = 19,
 };
 
@@ -131,7 +132,7 @@ bool MetroSkeleton::LoadFromData(MemStream& stream) {
     MetroBinArchive bin(kEmptyString, stream, MetroBinArchive::kHeaderNotExist);
     StrongPtr<MetroReflectionStream> reader = bin.ReflectionReader();
     if (reader) {
-        this->DeserializeSelf(*reader);
+        this->Serialize(*reader);
         result = !this->bones.empty();
     }
 
@@ -168,6 +169,20 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
                 }
             } break;
 
+            case SC2033_Locators: {
+                const size_t numLocators = stream.ReadU16();
+                this->locators.resize(numLocators);
+                for (MetroLocator& l : this->locators) {
+                    l.name = stream.ReadStringZ();
+                    l.parent = stream.ReadStringZ();
+                    vec3 orientationEuler;
+                    stream.ReadStruct(orientationEuler);
+                    l.q = QuatFromEuler(vec3(-orientationEuler.z, -orientationEuler.y, -orientationEuler.x));
+                    stream.ReadStruct(l.t);
+                    l.t = MetroSwizzle(l.t);
+                }
+            } break;
+
             case SC2033_Motions: {
                 mMotionsStr = this->motions = stream.ReadStringZ();
             } break;
@@ -181,6 +196,15 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
     this->LoadMotions();
 
     return result;
+}
+
+void MetroSkeleton::Save(MemWriteStream& stream) {
+    MetroReflectionBinaryWriteStream reflection(stream, MetroReflectionFlags::NoSections);
+    this->Serialize(reflection);
+}
+
+void MetroSkeleton::Save_2033(MemWriteStream& stream) {
+    //#TODO_SK: Implement me!
 }
 
 void MetroSkeleton::Clone(const MetroSkeleton* other) {
@@ -419,8 +443,13 @@ RefPtr<MetroMotion> MetroSkeleton::GetMotion(const size_t idx) {
 }
 
 
-void MetroSkeleton::DeserializeSelf(MetroReflectionStream& reader) {
-    MetroReflectionStream* skeletonReader = reader.OpenSection("skeleton");
+void MetroSkeleton::Serialize(MetroReflectionStream& reflection) {
+    if (reflection.IsOut()) {
+        // swizzle back to Metro layout before serializing
+        this->SwizzleBones();
+    }
+
+    MetroReflectionStream* skeletonReader = reflection.OpenSection("skeleton");
     if (skeletonReader) {
         METRO_SERIALIZE_MEMBER(*skeletonReader, ver);
         METRO_SERIALIZE_MEMBER(*skeletonReader, crc);
@@ -484,7 +513,7 @@ void MetroSkeleton::DeserializeSelf(MetroReflectionStream& reader) {
             //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, mcolls);
         }
 
-        reader.CloseSection(skeletonReader);
+        reflection.CloseSection(skeletonReader);
     }
 
     mMotionsStr = this->motions;
@@ -492,6 +521,14 @@ void MetroSkeleton::DeserializeSelf(MetroReflectionStream& reader) {
     //this->MergeParentSkeleton();
 
     //#NOTE_SK: fix-up bones transforms by swizzling them back
+    this->SwizzleBones();
+
+    this->CacheMatrices();
+
+    this->LoadMotions();
+}
+
+void MetroSkeleton::SwizzleBones() {
     for (auto& b : bones) {
         b.q = MetroSwizzle(b.q);
         b.t = MetroSwizzle(b.t);
@@ -506,10 +543,6 @@ void MetroSkeleton::DeserializeSelf(MetroReflectionStream& reader) {
         a.q = MetroSwizzle(a.q);
         a.t = MetroSwizzle(a.t);
     }
-
-    this->CacheMatrices();
-
-    this->LoadMotions();
 }
 
 void MetroSkeleton::MergeParentSkeleton() {

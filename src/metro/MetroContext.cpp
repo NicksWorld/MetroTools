@@ -79,6 +79,10 @@ void MetroContext::SetGameVersion(const MetroGameVersion version) {
     mGameVersion = version;
 }
 
+const fs::path& MetroContext::GetGameFolderPath() const {
+    return mGameFolder;
+}
+
 MetroTypedStrings& MetroContext::GetTypedStrings() {
     return MetroTypedStrings::Get();
 }

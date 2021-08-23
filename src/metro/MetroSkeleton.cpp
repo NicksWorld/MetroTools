@@ -9,9 +9,14 @@ static const size_t kSkeletonVersionRedux       = 8;    // Latest Steam Redux ar
 
 enum SkeletonChunks2033 : size_t {
     SC2033_Version      = 1,
-    SC2033_Bones        = 13,
-    SC2033_Locators     = 14,
-    SC2033_Motions      = 19,
+    SC2033_Bones        = 13,   // MetroBone
+    SC2033_Locators     = 14,   // MetroLocator
+    SC2033_Partitions   = 17,   // MetroPartition
+    SC2033_Motions      = 19,   // StringZ
+    SC2033_IKLocks      = 23,   // MetroIkLock
+    SC2033_FaceFX       = 26,   // StringZ
+    SC2033_Params       = 27,   // MetroSkelParam
+    SC2033_IKChains     = 28,   // MetroIkChain
 };
 
 struct ReduxBoneBodyPartHelper {
@@ -143,18 +148,18 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
     bool result = false;
 
     while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
+        const size_t chunkId = stream.ReadU32();
+        const size_t chunkSize = stream.ReadU32();
         const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
         switch (chunkId) {
             case SC2033_Version: {
-                this->ver = stream.ReadTyped<uint32_t>();
+                this->ver = stream.ReadU32();
             } break;
 
             case SC2033_Bones: {
-                this->crc = stream.ReadTyped<uint32_t>();
-                const size_t numBones = stream.ReadTyped<uint16_t>();
+                this->crc = stream.ReadU32();
+                const size_t numBones = stream.ReadU16();
                 this->bones.resize(numBones);
                 for (MetroBone& b : this->bones) {
                     b.name = stream.ReadStringZ();
@@ -183,8 +188,59 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
                 }
             } break;
 
+            case SC2033_Partitions: {
+                const size_t numBones = this->bones.size();
+                assert(numBones > 0);
+
+                const size_t numPartitions = stream.ReadU16();
+                this->partitions.resize(numPartitions);
+                for (MetroPartition& p : this->partitions) {
+                    p.name = stream.ReadStringZ();
+                    p.infl.resize(numBones);
+                    stream.ReadToBuffer(p.infl.data(), numBones);
+                }
+            } break;
+
             case SC2033_Motions: {
                 mMotionsStr = this->motions = stream.ReadStringZ();
+            } break;
+
+            case SC2033_IKLocks: {
+                const size_t numIkLocks = stream.ReadU16();
+                this->ik_locks.resize(numIkLocks);
+                for (MetroIkLock& lock : this->ik_locks) {
+                    lock.chain_idx = stream.ReadU16();
+                    lock.pos_weight = scast<float>(stream.ReadU8()) / 255.0f;
+                    lock.quat_weight = scast<float>(stream.ReadU8()) / 255.0f;
+                }
+            } break;
+
+            case SC2033_FaceFX: {
+                this->facefx = stream.ReadStringZ();
+            } break;
+
+            case SC2033_Params: {
+                const size_t numParams = stream.ReadU16();
+                this->params.resize(numParams);
+                for (MetroSkelParam& p : this->params) {
+                    p.name = stream.ReadStringZ();
+                    p.b = stream.ReadF32();
+                    p.e = stream.ReadF32();
+                    p.loop = stream.ReadF32();
+                }
+            } break;
+
+            case SC2033_IKChains: {
+                const size_t numIkChains = stream.ReadU16();
+                this->ik_chains.resize(numIkChains);
+                for (MetroIkChain& chain : this->ik_chains) {
+                    chain.name = stream.ReadStringZ();
+                    chain.b0 = stream.ReadU16();
+                    chain.b1 = stream.ReadU16();
+                    chain.b2 = stream.ReadU16();
+                    stream.ReadStruct(chain.knee_dir);
+                    chain.knee_lim = stream.ReadF32();
+                }
             } break;
         }
 
@@ -204,7 +260,118 @@ void MetroSkeleton::Save(MemWriteStream& stream) {
 }
 
 void MetroSkeleton::Save_2033(MemWriteStream& stream) {
-    //#TODO_SK: Implement me!
+    //#NOTE_SK: keep the original chunks order they are in the game files
+    const size_t chunksInOrder[] = {
+        SC2033_Version,
+        SC2033_Bones,
+        SC2033_Locators,
+        SC2033_Partitions,
+        SC2033_FaceFX,
+        SC2033_Motions,
+        SC2033_IKChains,
+        SC2033_IKLocks,
+        SC2033_Params
+    };
+
+#define START_CHUNK ChunkWriteHelper chunkHelper(stream, chunkId)
+
+    for (const size_t chunkId : chunksInOrder) {
+        switch (chunkId) {
+            case SC2033_Version: {
+                START_CHUNK;
+                stream.WriteU32(this->ver);
+            } break;
+
+            case SC2033_Bones: {
+                START_CHUNK;
+                stream.WriteU32(this->crc);
+                stream.WriteU16(scast<uint16_t>(this->bones.size()));
+                for (const MetroBone& b : this->bones) {
+                    stream.WriteStringZ(b.name);
+                    stream.WriteStringZ(b.parent);
+
+                    vec3 rot = QuatToEuler(b.q);
+                    stream.Write(rot);
+                    stream.Write(b.t);
+                    stream.WriteU16(scast<uint16_t>(b.bp));
+                }
+            } break;
+
+            case SC2033_Locators: {
+                START_CHUNK;
+                stream.WriteU16(scast<uint16_t>(this->locators.size()));
+                for (const MetroLocator& l : this->locators) {
+                    stream.WriteStringZ(l.name);
+                    stream.WriteStringZ(l.parent);
+
+                    vec3 rot = QuatToEuler(l.q);
+                    stream.Write(rot);
+                    stream.Write(l.t);
+                }
+            } break;
+
+            case SC2033_Partitions: {
+                if (!this->partitions.empty()) {
+                    START_CHUNK;
+                    stream.WriteU16(scast<uint16_t>(this->partitions.size()));
+                    for (const MetroPartition& p : this->partitions) {
+                        stream.WriteStringZ(p.name);
+                        stream.Write(p.infl.data(), p.infl.size());
+                    }
+                }
+            } break;
+
+            case SC2033_Motions: {
+                START_CHUNK;
+                stream.WriteStringZ(mMotionsStr);
+            } break;
+
+            case SC2033_IKLocks: {
+                if (!this->ik_locks.empty()) {
+                    START_CHUNK;
+                    stream.WriteU16(scast<uint16_t>(this->ik_locks.size()));
+                    for (const MetroIkLock& lock : this->ik_locks) {
+                        stream.WriteU16(lock.chain_idx);
+                        stream.WriteU8(scast<uint8_t>(Clamp(lock.pos_weight * 255.0f, 0.0f, 255.0f)));
+                        stream.WriteU8(scast<uint8_t>(Clamp(lock.quat_weight * 255.0f, 0.0f, 255.0f)));
+                    }
+                }
+            } break;
+
+            case SC2033_FaceFX: {
+                START_CHUNK;
+                stream.WriteStringZ(this->facefx);
+            } break;
+
+            case SC2033_Params: {
+                if (!this->params.empty()) {
+                    START_CHUNK;
+                    stream.WriteU16(scast<uint16_t>(this->params.size()));
+                    for (const MetroSkelParam& p : this->params) {
+                        stream.WriteStringZ(p.name);
+                        stream.WriteF32(p.b);
+                        stream.WriteF32(p.e);
+                        stream.WriteF32(p.loop);
+                    }
+                }
+            } break;
+
+            case SC2033_IKChains: {
+                if (!this->ik_chains.empty()) {
+                    START_CHUNK;
+                    stream.WriteU16(scast<uint16_t>(this->ik_chains.size()));
+                    for (const MetroIkChain& chain : this->ik_chains) {
+                        stream.WriteStringZ(chain.name);
+                        stream.WriteU16(chain.b0);
+                        stream.WriteU16(chain.b1);
+                        stream.WriteU16(chain.b2);
+                        stream.Write(chain.knee_dir);
+                        stream.WriteF32(chain.knee_lim);
+                    }
+                }
+            } break;
+        }
+    }
 }
 
 void MetroSkeleton::Clone(const MetroSkeleton* other) {

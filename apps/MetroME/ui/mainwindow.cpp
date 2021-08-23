@@ -240,7 +240,10 @@ void MainWindow::OnRibbonTabChanged(const MainRibbon::TabType tab) {
 }
 
 void MainWindow::OnImportMetroModel() {
-    QString name = QFileDialog::getOpenFileName(this, tr("Choose Metro model/mesh file..."), QString(), tr("Metro model files (*.model);;Metro mesh files (*.mesh);;All files (*.*)"));
+    const fs::path& gameFolder = MetroContext::Get().GetGameFolderPath();
+    fs::path meshesFolder = gameFolder / MetroFileSystem::Paths::MeshesFolder;
+
+    QString name = QFileDialog::getOpenFileName(this, tr("Choose Metro model/mesh file..."), QString::fromStdWString(meshesFolder.wstring()), tr("Metro model files (*.model);;Metro mesh files (*.mesh);;All files (*.*)"));
     if (!name.isEmpty()) {
         fs::path fullPath = name.toStdWString();
 
@@ -364,12 +367,20 @@ void MainWindow::OnExportMetroSkeleton() {
         RefPtr<MetroModelSkeleton> skelModel = SCastRefPtr<MetroModelSkeleton>(model);
         RefPtr<MetroSkeleton> skeleton = skelModel->GetSkeleton();
         if (skeleton) {
-            QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro skeleton..."), QString(), tr("Metro skeleton file (*.skeleton);;All files (*.*)"));
+            const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
+            const CharString& skelExt = MetroContext::Get().GetSkeletonExtension();
+            QString filter = QString("Metro skeleton file (*%1);;All files (*.*)").arg(QString::fromStdString(skelExt));
+
+            QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro skeleton..."), QString(), filter);
             if (!name.isEmpty()) {
                 fs::path fullPath = name.toStdWString();
 
                 MemWriteStream stream;
-                skeleton->Save(stream);
+                if (is2033) {
+                    skeleton->Save_2033(stream);
+                } else {
+                    skeleton->Save(stream);
+                }
                 OSWriteFile(fullPath, stream.Data(), stream.GetWrittenBytesCount());
             }
         }

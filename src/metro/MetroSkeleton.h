@@ -14,7 +14,7 @@ struct ParentMapped {   // 48 bytes
     void Serialize(MetroReflectionStream& reader);
 };
 
-struct MetroBone {      // 38 bytes
+struct MetroBone {
     CharString  name;
     CharString  parent;
     quat        q;
@@ -78,6 +78,12 @@ struct MetroPartition {
     BytesArray  infl;
 
     void Serialize(MetroReflectionStream& reader);
+};
+
+struct MetroIkLock {
+    uint16_t    chain_idx;
+    float       pos_weight;
+    float       quat_weight;
 };
 
 struct MetroIkChain {
@@ -188,6 +194,7 @@ private:
     MyArray<MetroDrivenBone>    driven_bones;
     MyArray<MetroDynamicBone>   dynamic_bones;
     MyArray<MetroPartition>     partitions;
+    MyArray<MetroIkLock>        ik_locks;
     MyArray<MetroIkChain>       ik_chains;
     MyArray<MetroFixedBone>     fixed_bones;
     MyArray<MetroSkelParam>     params;

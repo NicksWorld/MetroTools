@@ -23,6 +23,8 @@ public:
     MetroGameVersion        GetGameVersion() const;
     void                    SetGameVersion(const MetroGameVersion version);
 
+    const fs::path&         GetGameFolderPath() const;
+
     MetroTypedStrings&      GetTypedStrings();
     MetroFileSystem&        GetFilesystem();
     MetroTexturesDatabase&  GetTexturesDB();

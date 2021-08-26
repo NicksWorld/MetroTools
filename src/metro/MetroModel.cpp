@@ -691,6 +691,9 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
 bool MetroModelHierarchy::Save(MemWriteStream& stream) {
     Base::Save(stream);
 
+    // tpresets
+    this->SaveTPresets(stream);
+
     // children
     {
         ChunkWriteHelper childrenChunk(stream, MC_ChildrenChunk);
@@ -807,6 +810,33 @@ void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {
     }
 }
 
+void MetroModelHierarchy::SaveTPresets(MemWriteStream& stream) {
+    if (!mTPresets.empty()) {
+        ChunkWriteHelper tpresetsChunk(stream, MC_TexturesPresets);
+
+        stream.WriteU16(scast<uint16_t>(mTPresets.size()));
+        for (auto& preset : mTPresets) {
+            stream.WriteStringZ(preset.name);
+            if (mVersion >= 12) {
+                stream.WriteStringZ(preset.hit_preset);
+            }
+            if (mVersion >= 21) {
+                stream.WriteStringZ(preset.voice);
+            }
+            if (mVersion >= 23) {
+                stream.WriteU32(preset.flags);
+            }
+
+            stream.WriteU16(scast<uint16_t>(preset.items.size()));
+            for (auto& item : preset.items) {
+                stream.WriteStringZ(item.mtl_name);
+                stream.WriteStringZ(item.t_dst);
+                stream.WriteStringZ(item.s_dst);
+            }
+        }
+    }
+}
+
 void MetroModelHierarchy::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
     for (auto& child : mChildren) {
         child->ApplyTPresetInternal(tpreset);
@@ -918,6 +948,9 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream) {
     // !!! Here we don't want to run Save function from Hierarchy class, just BaseModel class to write the header
     MetroModelBase::Save(stream);
 
+    // tpresets
+    this->SaveTPresets(stream);
+
     // meshes
     {
         ChunkWriteHelper meshesChunk(stream, MC_MeshesInline);
@@ -940,8 +973,14 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream) {
 
     // skeleton
     if (mSkeleton) {
-        //#TODO_SK: implement skeleton saving!
-        //mSkeleton->
+        ChunkWriteHelper skeletonChunk(stream, MC_SkeletonInline);
+
+        const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
+        if (is2033) {
+            mSkeleton->Save_2033(stream);
+        } else {
+            mSkeleton->Save(stream);
+        }
     }
 
     return true;

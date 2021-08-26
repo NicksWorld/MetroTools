@@ -253,6 +253,7 @@ public:
 
 protected:
     void                        LoadTPresets(const StreamChunker& chunker);
+    void                        SaveTPresets(MemWriteStream& stream);
     virtual void                ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
 
 protected:

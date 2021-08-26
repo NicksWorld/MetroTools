@@ -291,8 +291,10 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
                     stream.WriteStringZ(b.parent);
 
                     vec3 rot = QuatToEuler(b.q);
+                    rot = vec3(-rot.z, -rot.y, -rot.x);
+                    vec3 t = MetroSwizzle(b.t);
                     stream.Write(rot);
-                    stream.Write(b.t);
+                    stream.Write(t);
                     stream.WriteU16(scast<uint16_t>(b.bp));
                 }
             } break;
@@ -305,8 +307,10 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
                     stream.WriteStringZ(l.parent);
 
                     vec3 rot = QuatToEuler(l.q);
+                    rot = vec3(-rot.z, -rot.y, -rot.x);
+                    vec3 t = MetroSwizzle(l.t);
                     stream.Write(rot);
-                    stream.Write(l.t);
+                    stream.Write(t);
                 }
             } break;
 
@@ -372,21 +376,6 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
             } break;
         }
     }
-}
-
-void MetroSkeleton::Clone(const MetroSkeleton* other) {
-    this->ver = other->ver;
-    this->crc = other->crc;
-    this->facefx = other->facefx;
-    this->pfnn = other->pfnn;
-    this->has_as = other->has_as;
-    this->motions = other->motions;
-    this->source_info = other->source_info;
-    this->parent_skeleton = other->parent_skeleton;
-    this->parent_bone_maps = other->parent_bone_maps;
-    this->bones = other->bones;
-    this->mMotionsStr = other->mMotionsStr;
-    this->mInvBindPose = other->mInvBindPose;
 }
 
 size_t MetroSkeleton::GetBonesCRC() const {

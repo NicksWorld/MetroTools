@@ -136,8 +136,6 @@ public:
     void                        Save(MemWriteStream& stream);
     void                        Save_2033(MemWriteStream& stream);
 
-    void                        Clone(const MetroSkeleton* other);
-
     size_t                      GetBonesCRC() const;
 
     size_t                      GetNumBones() const;

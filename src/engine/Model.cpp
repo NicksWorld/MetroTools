@@ -81,12 +81,15 @@ bool Model::Create(const MetroModelBase* mdl) {
 
     uint32_t vtype = MetroVertexType::Static;
 
+    bool emptyModel = false;
+
     for (size_t i = 0; i < numLodsTotal; ++i) {
         MyArray<MetroModelGeomData> gds;
         mdl->CollectGeomData(gds, (i == 0) ? kInvalidValue : (i - 1));
 
         if (!i && gds.empty()) {
-            return false;
+            emptyModel = true;
+            break;
         }
 
         RenderLod& lod = mRenderLods[i];
@@ -127,49 +130,55 @@ bool Model::Create(const MetroModelBase* mdl) {
         }
     }
 
+    if (emptyModel) {
+        mBBox = mdl->GetBBox();
+    }
+
     mBSphere.center = mBBox.Center();
     mBSphere.radius = Max3(mBBox.Extent());
 
-    BytesArray allVertices(vertexSize * totalVertices);
-    MyArray<uint16_t> allIndices(totalIndices);
+    if (!emptyModel) {
+        BytesArray allVertices(vertexSize * totalVertices);
+        MyArray<uint16_t> allIndices(totalIndices);
 
-    size_t vbOffset = 0, ibOffset = 0;
-    for (size_t i = 0; i < numLodsTotal; ++i) {
-        MyArray<MetroModelGeomData> gds;
-        mdl->CollectGeomData(gds, (i == 0) ? kInvalidValue : (i - 1));
+        size_t vbOffset = 0, ibOffset = 0;
+        for (size_t i = 0; i < numLodsTotal; ++i) {
+            MyArray<MetroModelGeomData> gds;
+            mdl->CollectGeomData(gds, (i == 0) ? kInvalidValue : (i - 1));
 
-        for (const MetroModelGeomData& gd : gds) {
-            memcpy(allVertices.data() + vbOffset, gd.vertices, gd.mesh->verticesCount * vertexSize);
-            memcpy(allIndices.data() + ibOffset, gd.faces, gd.mesh->facesCount * sizeof(MetroFace));
+            for (const MetroModelGeomData& gd : gds) {
+                memcpy(allVertices.data() + vbOffset, gd.vertices, gd.mesh->verticesCount * vertexSize);
+                memcpy(allIndices.data() + ibOffset, gd.faces, gd.mesh->facesCount * sizeof(MetroFace));
 
-            vbOffset += gd.mesh->verticesCount * vertexSize;
-            ibOffset += scast<size_t>(gd.mesh->facesCount) * 3;
+                vbOffset += gd.mesh->verticesCount * vertexSize;
+                ibOffset += scast<size_t>(gd.mesh->facesCount) * 3;
+            }
         }
-    }
 
-    D3D11_BUFFER_DESC desc = {};
-    D3D11_SUBRESOURCE_DATA subData = {};
-    HRESULT hr;
+        D3D11_BUFFER_DESC desc = {};
+        D3D11_SUBRESOURCE_DATA subData = {};
+        HRESULT hr;
 
-    ID3D11Device* device = Renderer::Get().GetDevice();
+        ID3D11Device* device = Renderer::Get().GetDevice();
 
-    //vb
-    desc.ByteWidth = scast<UINT>(allVertices.size());
-    desc.Usage = D3D11_USAGE_IMMUTABLE;
-    desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    subData.pSysMem = allVertices.data();
-    hr = device->CreateBuffer(&desc, &subData, &mVertexBuffer);
-    if (FAILED(hr)) {
-        return false;
-    }
+        //vb
+        desc.ByteWidth = scast<UINT>(allVertices.size());
+        desc.Usage = D3D11_USAGE_IMMUTABLE;
+        desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        subData.pSysMem = allVertices.data();
+        hr = device->CreateBuffer(&desc, &subData, &mVertexBuffer);
+        if (FAILED(hr)) {
+            return false;
+        }
 
-    //ib
-    desc.ByteWidth = totalIndices * sizeof(uint16_t);
-    desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    subData.pSysMem = allIndices.data();
-    hr = device->CreateBuffer(&desc, &subData, &mIndexBuffer);
-    if (FAILED(hr)) {
-        return false;
+        //ib
+        desc.ByteWidth = totalIndices * sizeof(uint16_t);
+        desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        subData.pSysMem = allIndices.data();
+        hr = device->CreateBuffer(&desc, &subData, &mIndexBuffer);
+        if (FAILED(hr)) {
+            return false;
+        }
     }
 
     if (MetroVertexType::Skin == vtype) {

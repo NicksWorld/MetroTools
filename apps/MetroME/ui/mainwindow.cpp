@@ -21,6 +21,7 @@
 #include "engine/ResourcesManager.h"
 
 #include "importers/ImporterOBJ.h"
+#include "importers/ImporterFBX.h"
 #include "exporters/ExporterOBJ.h"
 #include "exporters/ExporterFBX.h"
 #include "exporters/ExporterGLTF.h"
@@ -47,6 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     //
     connect(ui->ribbon, &MainRibbon::SignalFileImportMetroModel, this, &MainWindow::OnImportMetroModel);
     connect(ui->ribbon, &MainRibbon::SignalFileImportOBJModel, this, &MainWindow::OnImportOBJModel);
+    connect(ui->ribbon, &MainRibbon::SignalFileImportFBXModel, this, &MainWindow::OnImportFBXModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportMetroModel, this, &MainWindow::OnExportMetroModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportOBJModel, this, &MainWindow::OnExportOBJModel);
     connect(ui->ribbon, &MainRibbon::SignalFileExportFBXModel, this, &MainWindow::OnExportFBXModel);
@@ -282,6 +284,21 @@ void MainWindow::OnImportOBJModel() {
     }
 }
 
+void MainWindow::OnImportFBXModel() {
+    QString name = QFileDialog::getOpenFileName(this, tr("Choose FBX model file..."), QString(), tr("FBX model files (*.fbx);;All files (*.*)"));
+    if (!name.isEmpty()) {
+        fs::path fullPath = name.toStdWString();
+
+        ImporterFBX importer;
+        RefPtr<MetroModelBase> model = importer.ImportModel(fullPath);
+        if (model && mRenderPanel) {
+            mRenderPanel->SetModel(model);
+
+            this->UpdateUIForTheModel(model.get());
+        }
+    }
+}
+
 void MainWindow::OnExportMetroModel() {
     RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
     if (model) {
@@ -323,7 +340,7 @@ void MainWindow::OnExportFBXModel() {
             expFbx.SetExportMesh(true);
             expFbx.SetExportSkeleton(true);
             expFbx.SetExcludeCollision(true);
-            expFbx.SetExportAnimation(true);
+            expFbx.SetExportAnimation(false);
 
             expFbx.SetExporterName("MetroME");
             expFbx.SetTexturesExtension(".tga");
@@ -354,7 +371,43 @@ void MainWindow::OnExportGLTFModel() {
 
 //
 void MainWindow::OnImportMetroSkeleton() {
+    const CharString& skelExt = MetroContext::Get().GetSkeletonExtension();
+    QString filter = QString("Metro skeleton file (*%1);;All files (*.*)").arg(QString::fromStdString(skelExt));
+    QString name = QFileDialog::getOpenFileName(this, tr("Select Metro skeleton to import..."), QString(), filter);
+    if (!name.isEmpty()) {
+        MemStream stream = OSReadFile(name.toStdWString());
 
+        const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
+        bool loaded = false;
+        RefPtr<MetroSkeleton> skeleton = MakeRefPtr<MetroSkeleton>();
+        if (is2033) {
+            loaded = skeleton->LoadFromData_2033(stream);
+        } else {
+            loaded = skeleton->LoadFromData(stream);
+        }
+
+        if (loaded) {
+            RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+            const bool newModel = (model == nullptr);
+            if (newModel) {
+                model = MakeRefPtr<MetroModelSkeleton>();
+            }
+
+            SCastRefPtr<MetroModelSkeleton>(model)->SetSkeleton(skeleton);
+
+            if (newModel) {
+                AABBox bbox = skeleton->CalcBBox();
+                BSphere bsphere = { bbox.Center(), Max3(bbox.Extent()) };
+                model->SetBBox(bbox);
+                model->SetBSphere(bsphere);
+                mRenderPanel->SetModel(model);
+            }
+
+            this->UpdateUIForTheModel(model.get());
+        } else {
+            QMessageBox::critical(this, this->windowTitle(), tr("Failed to load skeleton file!"));
+        }
+    }
 }
 
 void MainWindow::OnImportFBXSkeleton() {
@@ -388,7 +441,27 @@ void MainWindow::OnExportMetroSkeleton() {
 }
 
 void MainWindow::OnExportFBXSkeleton() {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model && model->IsSkeleton()) {
+        RefPtr<MetroModelSkeleton> skelModel = SCastRefPtr<MetroModelSkeleton>(model);
+        RefPtr<MetroSkeleton> skeleton = skelModel->GetSkeleton();
+        if (skeleton) {
+            QString name = QFileDialog::getSaveFileName(this, tr("Where to export FBX file..."), QString(), tr("FBX model file (*.fbx);;All files (*.*)"));
+            if (!name.isEmpty()) {
+                fs::path fullPath = name.toStdWString();
 
+                ExporterFBX expFbx;
+                expFbx.SetExportMesh(false);
+                expFbx.SetExportSkeleton(true);
+                expFbx.SetExcludeCollision(true);
+                expFbx.SetExportAnimation(false);
+
+                expFbx.SetExporterName("MetroME");
+                expFbx.SetTexturesExtension(".tga");
+                expFbx.ExportModel(*model, fullPath);
+            }
+        }
+    }
 }
 
 //

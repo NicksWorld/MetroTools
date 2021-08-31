@@ -226,8 +226,16 @@ const AABBox& MetroModelBase::GetBBox() const {
     return mBBox;
 }
 
+void MetroModelBase::SetBBox(const AABBox& bbox) {
+    mBBox = bbox;
+}
+
 const BSphere& MetroModelBase::GetBSphere() const {
     return mBSphere;
+}
+
+void MetroModelBase::SetBSphere(const BSphere& bsphere) {
+    mBSphere = bsphere;
 }
 
 const CharString& MetroModelBase::GetMaterialString(const size_t idx) const {
@@ -992,6 +1000,10 @@ size_t MetroModelSkeleton::GetLodCount() const {
 
 const RefPtr<MetroSkeleton>& MetroModelSkeleton::GetSkeleton() const {
     return mSkeleton;
+}
+
+void MetroModelSkeleton::SetSkeleton(RefPtr<MetroSkeleton> skeleton) {
+    mSkeleton = skeleton;
 }
 
 bool MetroModelSkeleton::LoadLodMeshes(MetroModelHierarchy* target, CharString& meshesNames, MetroModelLoadParams& params, const size_t lodIdx) {

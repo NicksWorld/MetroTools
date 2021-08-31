@@ -74,6 +74,10 @@ void MainRibbon::OnFileImportOBJModelCommand(bool) {
     emit SignalFileImportOBJModel();
 }
 
+void MainRibbon::OnFileImportFBXModelCommand(bool checked) {
+    emit SignalFileImportFBXModel();
+}
+
 void MainRibbon::OnFileExportMetroModelCommand(bool) {
     emit SignalFileExportMetroModel();
 }
@@ -176,10 +180,13 @@ void MainRibbon::BuildModelTab() {
         QAction* importFromModelAction = menu->addAction("Import from Metro model...");
         menu->addSeparator();
         QAction* importFromObjAction = menu->addAction("Import from OBJ model...");
+        menu->addSeparator();
+        QAction* importFromFbxAction = menu->addAction("Import from FBX model...");
         importModelButton->SetMenu(menu);
 
         connect(importFromModelAction, &QAction::triggered, this, &MainRibbon::OnFileImportMetroModelCommand);
         connect(importFromObjAction, &QAction::triggered, this, &MainRibbon::OnFileImportOBJModelCommand);
+        connect(importFromFbxAction, &QAction::triggered, this, &MainRibbon::OnFileImportFBXModelCommand);
     }
     mGroupModelFile->AddWidget(importModelButton);
 

@@ -2,10 +2,13 @@
 
 #include "metro/MetroSkeleton.h"
 #include "metro/MetroMotion.h"
+#include "metro/MetroModel.h"
 
 #define FBXSDK_NEW_API
 #define FBXSDK_SHARED
 #include "fbxsdk.h"
+
+#pragma comment(lib, "libfbxsdk.lib")
 
 //
 //static bool IsNodeABone(FbxNode* node) {
@@ -56,6 +59,28 @@ static FbxVector4 MetroRotToFbxRot(const quat& q) {
     vec3 euler = QuatToEuler(q);
     return FbxVector4(Rad2Deg(euler.x), Rad2Deg(euler.y), Rad2Deg(euler.z));
 }
+
+
+struct VerticesCollector {
+    MyArray<VertexStatic>   vertices;
+    MyArray<uint16_t>       indices;
+
+    void AddVertex(const VertexStatic& v) {
+        const auto begin = this->vertices.begin();
+        const auto end = this->vertices.end();
+        const auto it = std::find_if(begin, end, [&v](const VertexStatic& vertex)->bool {
+            return (v.pos == vertex.pos && v.normal == vertex.normal && v.aux0 == vertex.aux0 && v.aux1 == vertex.aux1 && v.uv == vertex.uv);
+        });
+
+        if (it == end) {
+            indices.push_back(scast<uint16_t>(this->vertices.size()));
+            this->vertices.push_back(v);
+        } else {
+            const size_t idx = std::distance(begin, it);
+            this->indices.push_back(scast<uint16_t>(idx));
+        }
+    }
+};
 
 
 ImporterFBX::ImporterFBX() {
@@ -259,6 +284,192 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
     fbxMgr->Destroy();
 
     return result;
+}
+
+RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
+    RefPtr<MetroModelBase> result = nullptr;
+
+    FbxManager* fbxMgr = FbxManager::Create();
+    if (!fbxMgr) {
+        return result;
+    }
+
+    FbxIOSettings* ios = FbxIOSettings::Create(fbxMgr, IOSROOT);
+    fbxMgr->SetIOSettings(ios);
+
+    FbxScene* fbxScene = FbxScene::Create(fbxMgr, "");
+    if (fbxScene) {
+        FbxImporter* fbxImporter = FbxImporter::Create(fbxMgr, "");
+
+        ios->SetBoolProp(IMP_FBX_TEXTURE, false);
+        ios->SetBoolProp(IMP_FBX_ANIMATION, true);
+        ios->SetBoolProp(IMP_FBX_MODEL, true);
+        ios->SetBoolProp(IMP_META_DATA, true); //we want the meta data so we can get run-time expressions stored in the notes
+
+        const bool success = fbxImporter->Initialize(filePath.u8string().c_str(), -1, ios);
+        if (success && fbxImporter->IsFBX()) {
+            if (fbxImporter->Import(fbxScene)) {
+                const FbxAxisSystem ourAxis = FbxAxisSystem::MayaYUp;
+
+                FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
+                if (fileAxis != ourAxis) {
+                    ourAxis.ConvertScene(fbxScene);
+                }
+
+                MyArray<FbxMesh*> fbxMeshesList;
+
+                FbxNode* rootNode = fbxScene->GetRootNode();
+                for (int i = 0; i < rootNode->GetChildCount(); ++i) {
+                    FbxNode* node = rootNode->GetChild(i);
+                    if (node && node->GetNodeAttribute() && node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
+                        fbxMeshesList.push_back(scast<FbxMesh*>(node->GetNodeAttribute()));
+                    }
+                }
+
+                result = MakeRefPtr<MetroModelHierarchy>();
+                result->SetModelVersion(22); //! Redux
+                for (FbxMesh* fbxMesh : fbxMeshesList) {
+                    this->AddMeshToTheModel(result, fbxMesh);
+                }
+            }
+        }
+    }
+
+    fbxMgr->Destroy();
+
+    return result;
+}
+
+void ImporterFBX::AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh) {
+    VerticesCollector collector;
+
+    const int numControlPoints = fbxMesh->GetControlPointsCount();
+    const FbxVector4* controlPoints = fbxMesh->GetControlPoints();
+
+    FbxGeometryElementNormal* fbxNormals = fbxMesh->GetElementNormal();
+    assert(fbxNormals);
+
+    FbxGeometryElementUV* fbxUV = fbxMesh->GetElementUV();
+    assert(fbxUV);
+
+    const int polygonCount = fbxMesh->GetPolygonCount();
+
+    AABBox bbox;
+    bbox.Reset();
+    int vertexIdx = 0;
+    for (int i = 0; i < polygonCount; ++i) {
+        assert(fbxMesh->GetPolygonSize(i) == 3);
+
+        for (int j = 0; j < 3; ++j) {
+            const int idx = fbxMesh->GetPolygonVertex(i, j);
+            vec3 pos = FbxVecToVec3(controlPoints[idx]);
+
+            VertexStatic vertex;
+            vertex.pos = MetroSwizzle(pos);
+
+            FbxVector4 normal;
+            switch (fbxNormals->GetMappingMode()) {
+                case FbxGeometryElement::eByControlPoint: {
+                    switch (fbxNormals->GetReferenceMode()) {
+                        case FbxGeometryElement::eDirect: {
+                            normal = fbxNormals->GetDirectArray().GetAt(idx);
+                        } break;
+
+                        case FbxGeometryElement::eIndexToDirect: {
+                            const int normalIdx = fbxNormals->GetIndexArray().GetAt(idx);
+                            normal = fbxNormals->GetDirectArray().GetAt(normalIdx);
+                        } break;
+
+                        default:
+                            assert(false);
+                    }
+                } break;
+
+                case FbxGeometryElement::eByPolygonVertex: {
+                    switch (fbxNormals->GetReferenceMode()) {
+                        case FbxGeometryElement::eDirect: {
+                            normal = fbxNormals->GetDirectArray().GetAt(vertexIdx);
+                        } break;
+
+                        case FbxGeometryElement::eIndexToDirect: {
+                            const int normalIdx = fbxNormals->GetIndexArray().GetAt(vertexIdx);
+                            normal = fbxNormals->GetDirectArray().GetAt(normalIdx);
+                        } break;
+
+                        default:
+                            assert(false);
+                    }
+                } break;
+
+                default:
+                    assert(false);
+            }
+            vertex.normal = EncodeNormal(MetroSwizzle(FbxVecToVec3(normal)), 1.0f);
+
+
+            FbxVector2 uv;
+            switch (fbxUV->GetMappingMode()) {
+                case FbxGeometryElement::eByControlPoint: {
+                    switch (fbxUV->GetReferenceMode()) {
+                        case FbxGeometryElement::eDirect: {
+                            uv = fbxUV->GetDirectArray().GetAt(idx);
+                        } break;
+
+                        case FbxGeometryElement::eIndexToDirect: {
+                            const int uvIdx = fbxUV->GetIndexArray().GetAt(idx);
+                            uv = fbxUV->GetDirectArray().GetAt(uvIdx);
+                        } break;
+
+                        default:
+                            assert(false);
+                    }
+                } break;
+
+                case FbxGeometryElement::eByPolygonVertex: {
+                    const int uvIdx = fbxMesh->GetTextureUVIndex(i, j);
+
+                    switch (fbxUV->GetReferenceMode()) {
+                        case FbxGeometryElement::eDirect:
+                        case FbxGeometryElement::eIndexToDirect: {
+                            uv = fbxUV->GetDirectArray().GetAt(uvIdx);
+                        } break;
+
+                        default:
+                            assert(false);
+                    }
+                } break;
+
+                default:
+                    assert(false);
+            }
+            vertex.uv.x = scast<float>(uv[0]);
+            vertex.uv.y = scast<float>(1.0 - uv[1]);
+
+            collector.AddVertex(vertex);
+
+            bbox.Absorb(pos);
+
+            ++vertexIdx;
+        }
+    }
+
+    const size_t numVertices = collector.vertices.size();
+    const size_t numFaces = collector.indices.size() / 3;
+
+    RefPtr<MetroModelStd> mesh = MakeRefPtr<MetroModelStd>();
+    mesh->CreateMesh(numVertices, numFaces);
+    mesh->CopyVerticesData(collector.vertices.data());
+    mesh->CopyFacesData(collector.indices.data());
+    mesh->SetMaterialString(kEmptyString, 0); // force-create material strings array
+
+    BSphere bsphere;
+    bsphere.center = bbox.Center();
+    bsphere.radius = Length(bbox.Extent());
+
+    mesh->SetBounds(bbox, bsphere);
+    mesh->SetModelVersion(22); //! Redux
+
+    SCastRefPtr<MetroModelHierarchy>(model)->AddChild(mesh);
 }
 
 void ImporterFBX::CollectFbxBones(fbxsdk::FbxNode* node) {

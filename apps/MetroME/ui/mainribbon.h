@@ -32,6 +32,7 @@ signals:
     //
     void    SignalFileImportMetroModel();
     void    SignalFileImportOBJModel();
+    void    SignalFileImportFBXModel();
     void    SignalFileExportMetroModel();
     void    SignalFileExportOBJModel();
     void    SignalFileExportFBXModel();
@@ -54,6 +55,7 @@ private slots:
     //
     void    OnFileImportMetroModelCommand(bool checked);
     void    OnFileImportOBJModelCommand(bool checked);
+    void    OnFileImportFBXModelCommand(bool checked);
     void    OnFileExportMetroModelCommand(bool checked);
     void    OnFileExportOBJModelCommand(bool checked);
     void    OnFileExportFBXModelCommand(bool checked);

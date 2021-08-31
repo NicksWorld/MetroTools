@@ -166,11 +166,9 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
                     b.parent = stream.ReadStringZ();
                     vec3 orientationEuler;
                     stream.ReadStruct(orientationEuler);
-                    b.q = QuatFromEuler(vec3(-orientationEuler.z, -orientationEuler.y, -orientationEuler.x));
+                    b.q = QuatFromEuler(-orientationEuler);
                     stream.ReadStruct(b.t);
                     b.bp = scast<uint8_t>(stream.ReadTyped<uint16_t>() & 0xFF);
-
-                    b.t = MetroSwizzle(b.t);
                 }
             } break;
 
@@ -182,9 +180,8 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
                     l.parent = stream.ReadStringZ();
                     vec3 orientationEuler;
                     stream.ReadStruct(orientationEuler);
-                    l.q = QuatFromEuler(vec3(-orientationEuler.z, -orientationEuler.y, -orientationEuler.x));
+                    l.q = QuatFromEuler(-orientationEuler);
                     stream.ReadStruct(l.t);
-                    l.t = MetroSwizzle(l.t);
                 }
             } break;
 
@@ -248,8 +245,10 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
     }
 
     result = !this->bones.empty();
-
-    this->LoadMotions();
+    if (result) {
+        this->SwizzleBones();
+        this->LoadMotions();
+    }
 
     return result;
 }
@@ -273,6 +272,8 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
         SC2033_Params
     };
 
+    this->SwizzleBones();
+
 #define START_CHUNK ChunkWriteHelper chunkHelper(stream, chunkId)
 
     for (const size_t chunkId : chunksInOrder) {
@@ -290,11 +291,9 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
                     stream.WriteStringZ(b.name);
                     stream.WriteStringZ(b.parent);
 
-                    vec3 rot = QuatToEuler(b.q);
-                    rot = vec3(-rot.z, -rot.y, -rot.x);
-                    vec3 t = MetroSwizzle(b.t);
+                    vec3 rot = -QuatToEuler(b.q);
                     stream.Write(rot);
-                    stream.Write(t);
+                    stream.Write(b.t);
                     stream.WriteU16(scast<uint16_t>(b.bp));
                 }
             } break;
@@ -306,11 +305,9 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
                     stream.WriteStringZ(l.name);
                     stream.WriteStringZ(l.parent);
 
-                    vec3 rot = QuatToEuler(l.q);
-                    rot = vec3(-rot.z, -rot.y, -rot.x);
-                    vec3 t = MetroSwizzle(l.t);
+                    vec3 rot = -QuatToEuler(l.q);
                     stream.Write(rot);
-                    stream.Write(t);
+                    stream.Write(l.t);
                 }
             } break;
 
@@ -376,6 +373,10 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
             } break;
         }
     }
+
+#undef START_CHUNK
+
+    this->SwizzleBones();
 }
 
 size_t MetroSkeleton::GetBonesCRC() const {
@@ -598,6 +599,19 @@ RefPtr<MetroMotion> MetroSkeleton::GetMotion(const size_t idx) {
     return std::move(motion);
 }
 
+AABBox MetroSkeleton::CalcBBox() const {
+    AABBox result;
+    result.Reset();
+
+    const size_t numBones = this->GetNumBones();
+    for (size_t i = 0; i < numBones; ++i) {
+        mat4 m = this->GetBoneFullTransform(i);
+        result.Absorb(vec3(m[3]));
+    }
+
+    return result;
+}
+
 
 void MetroSkeleton::Serialize(MetroReflectionStream& reflection) {
     if (reflection.IsOut()) {
@@ -685,17 +699,17 @@ void MetroSkeleton::Serialize(MetroReflectionStream& reflection) {
 }
 
 void MetroSkeleton::SwizzleBones() {
-    for (auto& b : bones) {
+    for (auto& b : this->bones) {
         b.q = MetroSwizzle(b.q);
         b.t = MetroSwizzle(b.t);
     }
 
-    for (auto& l : locators) {
+    for (auto& l : this->locators) {
         l.q = MetroSwizzle(l.q);
         l.t = MetroSwizzle(l.t);
     }
 
-    for (auto& a : aux_bones) {
+    for (auto& a : this->aux_bones) {
         a.q = MetroSwizzle(a.q);
         a.t = MetroSwizzle(a.t);
     }

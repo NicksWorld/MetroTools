@@ -4,9 +4,11 @@
 
 class MetroMotion;
 class MetroSkeleton;
+class MetroModelBase;
 
 namespace fbxsdk {
     class FbxNode;
+    class FbxMesh;
     class FbxAnimLayer;
     class FbxTime;
 } // namespace fbxsdk
@@ -45,13 +47,16 @@ public:
     ImporterFBX();
     ~ImporterFBX();
 
-    void    SetSkeleton(const fs::path& path);
-    bool    ImportAnimation(const fs::path& path, MetroMotion& motion);
+    void                    SetSkeleton(const fs::path& path);
+    bool                    ImportAnimation(const fs::path& path, MetroMotion& motion);
+
+    RefPtr<MetroModelBase>  ImportModel(const fs::path& filePath);
 
 private:
-    void    CollectFbxBones(fbxsdk::FbxNode* node);
-    void    GatherRotCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::RotCurve& rotCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
-    void    GatherPosCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::PosCurve& posCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
+    void                    AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh);
+    void                    CollectFbxBones(fbxsdk::FbxNode* node);
+    void                    GatherRotCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::RotCurve& rotCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
+    void                    GatherPosCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::PosCurve& posCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
 
 private:
     StrongPtr<MetroSkeleton>    mSkeleton;

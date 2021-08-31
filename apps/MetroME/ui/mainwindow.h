@@ -37,6 +37,7 @@ public slots:
     //
     void    OnImportMetroModel();
     void    OnImportOBJModel();
+    void    OnImportFBXModel();
     void    OnExportMetroModel();
     void    OnExportOBJModel();
     void    OnExportFBXModel();

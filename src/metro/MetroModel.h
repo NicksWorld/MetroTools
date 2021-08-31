@@ -121,7 +121,9 @@ public:
     virtual size_t                  GetLodCount() const;
 
     const AABBox&                   GetBBox() const;
+    void                            SetBBox(const AABBox& bbox);
     const BSphere&                  GetBSphere() const;
+    void                            SetBSphere(const BSphere& bsphere);
 
     const CharString&               GetMaterialString(const size_t idx) const;
     void                            SetMaterialString(const CharString& str, const size_t idx);
@@ -280,6 +282,7 @@ public:
     virtual bool            IsSkeleton() const override { return true; }
 
     const RefPtr<MetroSkeleton>& GetSkeleton() const;
+    void                    SetSkeleton(RefPtr<MetroSkeleton> skeleton);
 
 protected:
     bool                    LoadLodMeshes(MetroModelHierarchy* target, CharString& meshesNames, MetroModelLoadParams& params, const size_t lodIdx);

@@ -1,7 +1,6 @@
 #pragma once
 #include "mycommon.h"
 
-class MetroModel;
 class MetroModelBase;
 
 class ExporterOBJ {

@@ -169,6 +169,8 @@ public:
     float                       GetMotionDuration(const size_t idx) const;
     RefPtr<MetroMotion>         GetMotion(const size_t idx);
 
+    AABBox                      CalcBBox() const;
+
 private:
     void                        Serialize(MetroReflectionStream& reflection);
     void                        SwizzleBones();

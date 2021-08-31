@@ -559,42 +559,42 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
                 bindPose->Add(node, node->EvaluateGlobalTransform());
             }
 
-            MyArray<MetroModelGeomData> gds;
-            skelModel.CollectGeomData(gds);
+            if (mExportMesh) {
+                MyArray<MetroModelGeomData> gds;
+                skelModel.CollectGeomData(gds);
 
-            size_t meshIdx = 0;
-            for (auto& gd : gds) {
-                MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
+                size_t meshIdx = 0;
+                for (auto& gd : gds) {
+                    MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
 
-                MyArray<ClusterInfo> clusters;
-                FBXE_CollectClusters(vertices, skeleton.get(), clusters);
+                    MyArray<ClusterInfo> clusters;
+                    FBXE_CollectClusters(vertices, skeleton.get(), clusters);
 
-                FbxSkin* skin = FbxSkin::Create(scene, "");
-                for (size_t i = 0; i < clusters.size(); ++i) {
-                    const ClusterInfo& cluster = clusters[i];
-                    if (!cluster.vertexIdxs.empty()) {
-                        FbxCluster* fbxCluster = FbxCluster::Create(scene, "");
-                        FbxNode* linkNode = boneNodes[i];
-                        fbxCluster->SetLink(linkNode);
-                        fbxCluster->SetLinkMode(FbxCluster::eTotalOne);
-                        for (size_t j = 0; j < cluster.vertexIdxs.size(); ++j) {
-                            fbxCluster->AddControlPointIndex(cluster.vertexIdxs[j], cluster.weigths[j]);
+                    FbxSkin* skin = FbxSkin::Create(scene, "");
+                    for (size_t i = 0; i < clusters.size(); ++i) {
+                        const ClusterInfo& cluster = clusters[i];
+                        if (!cluster.vertexIdxs.empty()) {
+                            FbxCluster* fbxCluster = FbxCluster::Create(scene, "");
+                            FbxNode* linkNode = boneNodes[i];
+                            fbxCluster->SetLink(linkNode);
+                            fbxCluster->SetLinkMode(FbxCluster::eTotalOne);
+                            for (size_t j = 0; j < cluster.vertexIdxs.size(); ++j) {
+                                fbxCluster->AddControlPointIndex(cluster.vertexIdxs[j], cluster.weigths[j]);
+                            }
+                            //fbxCluster->SetTransformMatrix(meshXMatrix);
+                            fbxCluster->SetTransformLinkMatrix(linkNode->EvaluateGlobalTransform());
+                            skin->AddCluster(fbxCluster);
                         }
-                        //fbxCluster->SetTransformMatrix(meshXMatrix);
-                        fbxCluster->SetTransformLinkMatrix(linkNode->EvaluateGlobalTransform());
-                        skin->AddCluster(fbxCluster);
                     }
-                }
 
-                if (mExportMesh) {
                     FbxMesh* fbxMesh = fbxMeshModel.meshes[meshIdx];
                     FbxNode* meshNode = fbxMeshModel.nodes[meshIdx];
                     FbxAMatrix meshXMatrix = meshNode->EvaluateGlobalTransform();
                     fbxMesh->AddDeformer(skin);
                     bindPose->Add(meshNode, meshXMatrix);
-                }
 
-                ++meshIdx;
+                    ++meshIdx;
+                }
             }
 
             scene->AddPose(bindPose);

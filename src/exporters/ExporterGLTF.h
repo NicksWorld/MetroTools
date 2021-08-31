@@ -2,7 +2,6 @@
 #include "mycommon.h"
 #include "metro/MetroTypes.h"
 
-class MetroModel;
 class MetroModelBase;
 class MetroSkeleton;
 class MetroMotion;

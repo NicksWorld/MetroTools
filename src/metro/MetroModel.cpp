@@ -17,8 +17,14 @@ enum ModelChunks {
     MC_Lod_1_Chunk          = 0x0000000B,   // 11
     MC_Lod_2_Chunk          = 0x0000000C,   // 12
 
+    MC_SkeletonBonesCRC     = 0x0000000D,   // 13
+
     MC_MeshesInline         = 0x0000000F,   // 15
     MC_MeshesLinks          = 0x00000010,   // 16
+
+    MC_HitPresetAndMtls     = 0x00000012,   // 18
+
+    MC_Folders              = 0x00000013,   // 19
 
     MC_SkeletonLink         = 0x00000014,   // 20
 
@@ -26,20 +32,31 @@ enum ModelChunks {
 
     MC_SkeletonInline       = 0x00000018,   // 24
 
+    MC_PhysXLinks           = 0x00000019,   // 25
+
     MC_TexturesReplacements = 0x0000001D,   // 29
+
+    MC_Voice                = 0x0000001F,   // 31
 
     MC_TexturesPresets      = 0x00000020,   // 32
 
     MC_Comment              = 0x00000024,   // 36
+
+    //#TODO_SK:
+    //      34 - motion substs
+    //      38 - fur desk
 };
 
 
+static const size_t kModelVersion2033_Old           =  7; // seems to be old 2033 models, recent Steam version still have some of these
+static const size_t kModelVersion2033               =  8; // highest model version supported by the 2033
 static const size_t kModelVersionLastLight          = 17; // 18 spotted in early XBox builds
 static const size_t kModelVersionLastLightRelease   = 20; // 20/21 seems release version
-static const size_t kModelVersionRedux              = 22;
+static const size_t kModelVersionRedux              = 23;
 static const size_t kModelVersionEarlyArktika1      = 30;
 static const size_t kModelVersionArktika1           = 31;
 static const size_t kModelVersionExodus             = 42;
+
 
 static const size_t kMetroModelMaxMaterials = 4;
 
@@ -73,6 +90,35 @@ static_assert(sizeof(VertexSoftLegacy) == 36);
 
 
 // Base class for all Metro models
+
+uint8_t MetroModelBase::GetModelVersionFromGameVersion(const MetroGameVersion gameVersion) {
+    if (gameVersion == MetroGameVersion::OG2033) {
+        return scast<uint8_t>(kModelVersion2033);
+    } else if (gameVersion == MetroGameVersion::OGLastLight) {
+        return scast<uint8_t>(kModelVersionLastLightRelease);
+    } else if (gameVersion == MetroGameVersion::Redux) {
+        return scast<uint8_t>(kModelVersionRedux);
+    } else if (gameVersion == MetroGameVersion::Arktika1) {
+        return scast<uint8_t>(kModelVersionArktika1);
+    } else {
+        return scast<uint8_t>(kModelVersionExodus);
+    }
+}
+
+MetroGameVersion MetroModelBase::GetGameVersionFromModelVersion(const size_t modelVersion) {
+    if (modelVersion <= kModelVersion2033) {
+        return MetroGameVersion::OG2033;
+    } else if (modelVersion <= kModelVersionLastLightRelease) {
+        return MetroGameVersion::OGLastLight;
+    } else if (modelVersion <= kModelVersionRedux) {
+        return MetroGameVersion::Redux;
+    } else if (modelVersion <= kModelVersionArktika1) {
+        return MetroGameVersion::Arktika1;
+    } else {
+        return MetroGameVersion::Exodus;
+    }
+}
+
 MetroModelBase::MetroModelBase()
     : mVersion(0)
     , mType(0)
@@ -107,9 +153,9 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
         mEngineMtl = hdr.shaderId;
         mChecksum = hdr.checkSum;
 
-        mBBox.minimum = MetroSwizzle(hdr.bbox.minimum);
-        mBBox.maximum = MetroSwizzle(hdr.bbox.maximum);
-        mBSphere.center = MetroSwizzle(hdr.bsphere.center);
+        mBBox.minimum = hdr.bbox.minimum;
+        mBBox.maximum = hdr.bbox.maximum;
+        mBSphere.center = hdr.bsphere.center;
         mBSphere.radius = hdr.bsphere.radius;
 
         if (headerStream.Remains() >= sizeof(float)) {
@@ -160,18 +206,21 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
     return headerFound;
 }
 
-bool MetroModelBase::Save(MemWriteStream& stream) {
+bool MetroModelBase::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
+    const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
+
     // header
     {
         ChunkWriteHelper headerChunk(stream, MC_HeaderChunk);
         MdlHeader hdr = {};
-        hdr.version = scast<uint8_t>(mVersion);
+        hdr.version = scast<uint8_t>(version);
         hdr.type = scast<uint8_t>(mType);
         hdr.shaderId = scast<uint16_t>(mEngineMtl);
-        hdr.bbox.minimum = MetroSwizzle(mBBox.minimum);
-        hdr.bbox.maximum = MetroSwizzle(mBBox.maximum);
-        hdr.bsphere.center = MetroSwizzle(mBSphere.center);
+        hdr.bbox.minimum = mBBox.minimum;
+        hdr.bbox.maximum = mBBox.maximum;
+        hdr.bsphere.center = mBSphere.center;
         hdr.bsphere.radius = mBSphere.radius;
+        hdr.checkSum = mChecksum;
         stream.Write(hdr);
     }
 
@@ -183,7 +232,7 @@ bool MetroModelBase::Save(MemWriteStream& stream) {
         stream.WriteStringZ(mMaterialStrings[1]);
         stream.WriteStringZ(mMaterialStrings[2]);
 
-        if (mVersion >= kModelVersionLastLight) {
+        if (version >= kModelVersionLastLight) {
             stream.WriteStringZ(mMaterialStrings[3]);
 
             stream.WriteU16(mMaterialFlags0);
@@ -206,12 +255,40 @@ MetroModelType MetroModelBase::GetModelType() const {
     return scast<MetroModelType>(mType);
 }
 
+void MetroModelBase::SetModelType(const MetroModelType type) {
+    mType = scast<uint16_t>(type);
+}
+
 size_t MetroModelBase::GetModelVersion() const {
     return mVersion;
 }
 
 void MetroModelBase::SetModelVersion(const size_t version) {
     mVersion = scast<uint16_t>(version);
+}
+
+void MetroModelBase::SetModelVersionBasedOnGameVersion(const MetroGameVersion gameVersion) {
+    size_t version = 0;
+
+    switch (gameVersion) {
+        case MetroGameVersion::OG2033: {
+            version = kModelVersion2033;
+        } break;
+        case MetroGameVersion::OGLastLight: {
+            version = kModelVersionLastLightRelease;
+        } break;
+        case MetroGameVersion::Redux: {
+            version = kModelVersionRedux;
+        } break;
+        case MetroGameVersion::Arktika1: {
+            version = kModelVersionArktika1;
+        } break;
+        case MetroGameVersion::Exodus: {
+            version = kModelVersionExodus;
+        } break;
+    }
+
+    this->SetModelVersion(version);
 }
 
 uint32_t MetroModelBase::GetCheckSum() const {
@@ -392,11 +469,13 @@ bool MetroModelStd::Load(MemStream& stream, MetroModelLoadParams& params) {
     return mMesh && baseLoaded;
 }
 
-bool MetroModelStd::Save(MemWriteStream& stream) {
+bool MetroModelStd::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
     bool result = false;
 
     if (this->MeshValid()) {
-        Base::Save(stream);
+        Base::Save(stream, params);
+
+        const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
 
         // vertices
         {
@@ -404,7 +483,7 @@ bool MetroModelStd::Save(MemWriteStream& stream) {
 
             stream.WriteU32(mMesh->vertexType);
             stream.WriteU32(mMesh->verticesCount);
-            if (mVersion >= kModelVersionEarlyArktika1) {
+            if (version >= kModelVersionEarlyArktika1) {
                 stream.WriteU16(scast<uint16_t>(mMesh->shadowVerticesCount));
             }
 
@@ -415,7 +494,7 @@ bool MetroModelStd::Save(MemWriteStream& stream) {
         {
             ChunkWriteHelper facesChunk(stream, MC_FacesChunk);
 
-            if (mVersion < kModelVersionEarlyArktika1) {
+            if (version < kModelVersionEarlyArktika1) {
                 stream.WriteU32(mMesh->facesCount * 3);
             } else {
                 stream.WriteU32(mMesh->facesCount);
@@ -473,10 +552,6 @@ void MetroModelStd::CopyFacesData(const void* faces) {
     memcpy(mFacesData.data(), faces, mFacesData.size());
 }
 
-void MetroModelStd::SetBounds(const AABBox& bbox, const BSphere& bsphere) {
-    mBBox = bbox;
-    mBSphere = bsphere;
-}
 
 
 // Simple skinned model, could be just a *.mesh file
@@ -543,11 +618,13 @@ bool MetroModelSkin::Load(MemStream& stream, MetroModelLoadParams& params) {
     return mMesh && baseLoaded;
 }
 
-bool MetroModelSkin::Save(MemWriteStream& stream) {
+bool MetroModelSkin::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
     bool result = false;
 
     if (this->MeshValid()) {
-        Base::Save(stream);
+        Base::Save(stream, params);
+
+        const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
 
         // vertices
         {
@@ -558,7 +635,7 @@ bool MetroModelSkin::Save(MemWriteStream& stream) {
             stream.Write(mBonesOBB.data(), mBonesOBB.size() * sizeof(MetroOBB));
 
             stream.WriteU32(mMesh->verticesCount);
-            if (mVersion >= kModelVersionEarlyArktika1) {
+            if (version >= kModelVersionEarlyArktika1) {
                 stream.WriteU16(scast<uint16_t>(mMesh->shadowVerticesCount));
             }
 
@@ -569,7 +646,7 @@ bool MetroModelSkin::Save(MemWriteStream& stream) {
         {
             ChunkWriteHelper facesChunk(stream, MC_FacesChunk);
 
-            if (mVersion < kModelVersionLastLight) {
+            if (version < kModelVersionLastLight) {
                 stream.WriteU32(mMesh->facesCount * 3);
             } else {
                 stream.WriteU16(scast<uint16_t>(mMesh->facesCount));
@@ -612,11 +689,43 @@ void MetroModelSkin::SetParent(MetroModelSkeleton* parent) {
     mParent = parent;
 }
 
+// model creation
+void MetroModelSkin::CreateMesh(const size_t numVertices, const size_t numFaces, const float vscale) {
+    mMesh = MakeRefPtr<MetroModelMesh>();
+    memset(mMesh.get(), 0, sizeof(MetroModelMesh));
+
+    mMesh->verticesCount = scast<uint32_t>(numVertices);
+    mMesh->facesCount = scast<uint32_t>(numFaces);
+    mMesh->vertexType = MetroVertexType::Skin;
+    mMesh->verticesScale = vscale;
+
+    mVerticesData.resize(numVertices * sizeof(VertexSkinned));
+    mFacesData.resize(numFaces * sizeof(MetroFace));
+}
+
+void MetroModelSkin::CopyVerticesData(const void* vertices) {
+    memcpy(mVerticesData.data(), vertices, mVerticesData.size());
+}
+
+void MetroModelSkin::CopyFacesData(const void* faces) {
+    memcpy(mFacesData.data(), faces, mFacesData.size());
+}
+
+void MetroModelSkin::SetBonesRemapTable(const BytesArray& bonesRemapTable) {
+    assert(mMesh != nullptr);
+    mMesh->bonesRemap = bonesRemapTable;
+}
+
+void MetroModelSkin::SetBonesOBB(const MyArray<MetroOBB>& bonesOBB) {
+    mBonesOBB = bonesOBB;
+}
+
 
 
 // Complete static model, can consist of multiple Std models (inline or external *.mesh files)
 MetroModelHierarchy::MetroModelHierarchy()
     : Base()
+    , mSkeletonCRC(0)
 {
     mType = scast<uint16_t>(MetroModelType::Hierarchy);
 
@@ -696,11 +805,18 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
     return result;
 }
 
-bool MetroModelHierarchy::Save(MemWriteStream& stream) {
-    Base::Save(stream);
+bool MetroModelHierarchy::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
+    Base::Save(stream, params);
+
+    const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
+
+    if (this->IsSkinnedHierarchy() && mSkeletonCRC) {
+        ChunkWriteHelper skeletonCRCChunk(stream, MC_SkeletonBonesCRC);
+        stream.WriteU32(mSkeletonCRC);
+    }
 
     // tpresets
-    this->SaveTPresets(stream);
+    this->SaveTPresets(stream, version);
 
     // children
     {
@@ -709,20 +825,20 @@ bool MetroModelHierarchy::Save(MemWriteStream& stream) {
         const size_t numChildren = mChildren.size();
         for (size_t i = 0; i < numChildren; ++i) {
             ChunkWriteHelper childChunk(stream, i);
-            mChildren[i]->Save(stream);
+            mChildren[i]->Save(stream, params);
         }
     }
 
     // LOD 1
     if (mLods.size() > 0) {
         ChunkWriteHelper lod1Chunk(stream, MC_Lod_1_Chunk);
-        mLods[0]->Save(stream);
+        mLods[0]->Save(stream, params);
     }
 
     // LOD 2
     if (mLods.size() > 1) {
         ChunkWriteHelper lod2Chunk(stream, MC_Lod_2_Chunk);
-        mLods[1]->Save(stream);
+        mLods[1]->Save(stream, params);
     }
 
     return true;
@@ -778,6 +894,14 @@ uint32_t MetroModelHierarchy::GetChildRef(const size_t idx) const {
     return mChildrenRefs[idx];
 }
 
+uint32_t MetroModelHierarchy::GetSkeletonCRC() const {
+    return mSkeletonCRC;
+}
+
+void MetroModelHierarchy::SetSkeletonCRC(const uint32_t v) {
+    mSkeletonCRC = v;
+}
+
 void MetroModelHierarchy::AddChild(const RefPtr<MetroModelBase>& child) {
     mChildren.emplace_back(child);
 
@@ -818,20 +942,20 @@ void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {
     }
 }
 
-void MetroModelHierarchy::SaveTPresets(MemWriteStream& stream) {
+void MetroModelHierarchy::SaveTPresets(MemWriteStream& stream, const uint16_t version) {
     if (!mTPresets.empty()) {
         ChunkWriteHelper tpresetsChunk(stream, MC_TexturesPresets);
 
         stream.WriteU16(scast<uint16_t>(mTPresets.size()));
         for (auto& preset : mTPresets) {
             stream.WriteStringZ(preset.name);
-            if (mVersion >= 12) {
+            if (version >= 12) {
                 stream.WriteStringZ(preset.hit_preset);
             }
-            if (mVersion >= 21) {
+            if (version >= 21) {
                 stream.WriteStringZ(preset.voice);
             }
-            if (mVersion >= 23) {
+            if (version >= 23) {
                 stream.WriteU32(preset.flags);
             }
 
@@ -876,6 +1000,33 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
         this->LoadTPresets(chunker);
     }
 
+    if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadSkeleton)) {
+        const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
+
+        MemStream skeletonLinkStream = chunker.GetChunkStream(MC_SkeletonLink);
+        if (skeletonLinkStream) {
+            CharString skeletonRef = skeletonLinkStream.ReadStringZ();
+            CharString fullSkelPath = MetroFileSystem::Paths::MeshesFolder + skeletonRef + MetroContext::Get().GetSkeletonExtension();
+            MemStream skeletonStream = MetroContext::Get().GetFilesystem().OpenFileFromPath(fullSkelPath);
+            if (skeletonStream) {
+                mSkeleton = MakeRefPtr<MetroSkeleton>();
+                const bool success = is2033 ? mSkeleton->LoadFromData_2033(skeletonStream) : mSkeleton->LoadFromData(skeletonStream);
+                if (!success) {
+                    mSkeleton = nullptr;
+                }
+            }
+        } else {
+            MemStream skeletonStream = chunker.GetChunkStream(MC_SkeletonInline);
+            if (skeletonStream) {
+                mSkeleton = MakeRefPtr<MetroSkeleton>();
+                const bool success = is2033 ? mSkeleton->LoadFromData_2033(skeletonStream) : mSkeleton->LoadFromData(skeletonStream);
+                if (!success) {
+                    mSkeleton = nullptr;
+                }
+            }
+        }
+    }
+
     MemStream meshesLinksStream = chunker.GetChunkStream(MC_MeshesLinks);
     if (meshesLinksStream) {
         const size_t numStrings = meshesLinksStream.ReadU32();  // not used ???
@@ -918,77 +1069,216 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
         }
     }
 
-    if (!params.tpresetName.empty()) {
-        this->ApplyTPreset(params.tpresetName);
+    MemStream hitpmtlsStream = chunker.GetChunkStream(MC_HitPresetAndMtls);
+    if (hitpmtlsStream) {
+        if (mVersion >= kModelVersion2033) {
+            mHitPreset = hitpmtlsStream.ReadStringZ();
+        }
+
+        auto readBoneMtls = [&hitpmtlsStream](MyArray<BoneMaterial>& arr) {
+            const size_t numMtls = hitpmtlsStream.ReadU32();
+            if (numMtls > 0) {
+                arr.resize(numMtls);
+                for (BoneMaterial& bm : arr) {
+                    bm.boneId = hitpmtlsStream.ReadU16();
+                    bm.material = hitpmtlsStream.ReadStringZ();
+                }
+            }
+
+            //#TODO_SK: if mVersion > 8 -> also read presets
+        };
+
+        readBoneMtls(mGameMaterials);
+        readBoneMtls(mMeleeMaterials);
+        readBoneMtls(mStepMaterials);
+
+        assert(hitpmtlsStream.Ended());
     }
 
-    if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadSkeleton)) {
-        const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
-
-        MemStream skeletonLinkStream = chunker.GetChunkStream(MC_SkeletonLink);
-        if (skeletonLinkStream) {
-            CharString skeletonRef = skeletonLinkStream.ReadStringZ();
-            CharString fullSkelPath = MetroFileSystem::Paths::MeshesFolder + skeletonRef + MetroContext::Get().GetSkeletonExtension();
-            MemStream skeletonStream = MetroContext::Get().GetFilesystem().OpenFileFromPath(fullSkelPath);
-            if (skeletonStream) {
-                mSkeleton = MakeRefPtr<MetroSkeleton>();
-                const bool success = is2033 ? mSkeleton->LoadFromData_2033(skeletonStream) : mSkeleton->LoadFromData(skeletonStream);
-                if (!success) {
-                    mSkeleton = nullptr;
-                }
-            }
-        } else {
-            MemStream skeletonStream = chunker.GetChunkStream(MC_SkeletonInline);
-            if (skeletonStream) {
-                mSkeleton = MakeRefPtr<MetroSkeleton>();
-                const bool success = is2033 ? mSkeleton->LoadFromData_2033(skeletonStream) : mSkeleton->LoadFromData(skeletonStream);
-                if (!success) {
-                    mSkeleton = nullptr;
-                }
-            }
+    MemStream foldersStream = chunker.GetChunkStream(MC_Folders);
+    if (foldersStream) {
+        const size_t numFolders = foldersStream.ReadU32();
+        mFolders.resize(numFolders);
+        for (CharString& s : mFolders) {
+            s = foldersStream.ReadStringZ();
         }
+
+        assert(foldersStream.Ended());
+    }
+
+    MemStream physxLinksStream = chunker.GetChunkStream(MC_PhysXLinks);
+    if (physxLinksStream) {
+        const size_t numPhysXLinks = physxLinksStream.ReadU32();
+        mPhysXLinks.resize(numPhysXLinks);
+        for (CharString& s : mPhysXLinks) {
+            s = physxLinksStream.ReadStringZ();
+        }
+
+        assert(physxLinksStream.Ended());
+    }
+
+    MemStream voiceStream = chunker.GetChunkStream(MC_Voice);
+    if (voiceStream) {
+        mVoice = voiceStream.ReadStringZ();
+
+        assert(voiceStream.Ended());
+    }
+
+    if (!params.tpresetName.empty()) {
+        this->ApplyTPreset(params.tpresetName);
     }
 
     return result;
 }
 
-bool MetroModelSkeleton::Save(MemWriteStream& stream) {
+static CharString MakeModelLink(fs::path dstPath) {
+    dstPath.replace_extension("");
+    WideString linkWide = dstPath.wstring();
+    for (wchar_t& ch : linkWide) {
+        if (ch == L'/') {
+            ch = '\\';
+        }
+    }
+    WideString::size_type meshesFolderPos = linkWide.find(L"content\\meshes\\");
+    if (meshesFolderPos != WideString::npos) {
+        linkWide = linkWide.substr(meshesFolderPos + 15);
+    }
+    return StrWideToUtf8(linkWide);
+}
+
+bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
     // !!! Here we don't want to run Save function from Hierarchy class, just BaseModel class to write the header
-    MetroModelBase::Save(stream);
+    MetroModelBase::Save(stream, params);
+
+    const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
 
     // tpresets
-    this->SaveTPresets(stream);
+    this->SaveTPresets(stream, version);
+
+    //#NOTE_SK: 2033 only supports external skeletons and meshes
+    const bool is2033 = (version <= kModelVersion2033);
+
+    // skeleton
+    if (mSkeleton) {
+        const bool isExternalSkeleton = is2033 || !params.IsInlineSkeleton();
+
+        ChunkWriteHelper skeletonChunk(stream, isExternalSkeleton ? MC_SkeletonLink : MC_SkeletonInline);
+
+        if (isExternalSkeleton) {
+            fs::path skeletonPath = params.dstFile;
+            skeletonPath.replace_extension(MetroContext::Get().GetSkeletonExtension(GetGameVersionFromModelVersion(version)));
+            MemWriteStream skeletonStream;
+            if (is2033) {
+                mSkeleton->Save_2033(skeletonStream);
+            } else {
+                mSkeleton->Save(skeletonStream);
+            }
+            OSWriteFile(skeletonPath, skeletonStream.Data(), skeletonStream.GetWrittenBytesCount());
+
+            CharString skelLink = MakeModelLink(skeletonPath);
+            stream.WriteStringZ(skelLink);
+        } else {
+            mSkeleton->Save(stream);
+        }
+    }
 
     // meshes
     {
-        ChunkWriteHelper meshesChunk(stream, MC_MeshesInline);
+        const bool isExternalMeshes = is2033 || !params.IsInlineMeshes();
 
-        const size_t numLods = mLods.size() + 1;
-        for (size_t i = 0; i < numLods; ++i) {
-            ChunkWriteHelper lodChunk(stream, i);
+        if (isExternalMeshes) {
+            ChunkWriteHelper meshesChunk(stream, MC_MeshesLinks);
 
-            const size_t numLodMeshes = mLodMeshes[i].size();
-            if (numLodMeshes) {
-                for (size_t j = 0; j < numLodMeshes; ++j) {
-                    ChunkWriteHelper lodMeshChunk(stream, j);
+            const uint32_t skeletonCRC = mSkeleton->GetBonesCRC();
 
-                    ModelPtr& lodMeshPtr = mLodMeshes[i][j];
-                    lodMeshPtr->Save(stream);
+            stream.WriteU32(3);
+            for (size_t i = 0; i < 3; ++i) {
+                if (!mLodMeshes[i].empty()) {
+                    fs::path lodMeshPath = params.dstFile;
+                    lodMeshPath.replace_extension(".mesh");
+                    MemWriteStream lodMeshStream;
+                    RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mLodMeshes[i][0]);
+                    hm->SetSkeletonCRC(skeletonCRC);
+                    hm->Save(lodMeshStream, params);
+                    OSWriteFile(lodMeshPath, lodMeshStream.Data(), lodMeshStream.GetWrittenBytesCount());
+
+                    CharString lodMeshLink = MakeModelLink(lodMeshPath);
+                    stream.WriteStringZ(lodMeshLink);
+                } else {
+                    stream.WriteU8(0); // empty string
+                }
+            }
+        } else {
+            ChunkWriteHelper meshesChunk(stream, MC_MeshesInline);
+
+            // no lods for now
+            const uint32_t skeletonCRC = mSkeleton->GetBonesCRC();
+            for (size_t i = 0; i < 3; ++i) {
+                ChunkWriteHelper lodChunk(stream, i);
+                const LodMeshesArr& lodMeshes = mLodMeshes[i];
+                const size_t numLodMeshes = lodMeshes.size();
+                if (numLodMeshes) {
+                    for (size_t j = 0; j < numLodMeshes; ++j) {
+                        ChunkWriteHelper lodMeshChunk(stream, j);
+                        RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(lodMeshes[j]);
+                        hm->SetSkeletonCRC(skeletonCRC);
+                        hm->Save(stream, params);
+                    }
                 }
             }
         }
     }
 
-    // skeleton
-    if (mSkeleton) {
-        ChunkWriteHelper skeletonChunk(stream, MC_SkeletonInline);
+    // hit preset and materials
+    {
+        ChunkWriteHelper hitpmtlsChunk(stream, MC_HitPresetAndMtls);
 
-        const bool is2033 = MetroContext::Get().GetGameVersion() == MetroGameVersion::OG2033;
-        if (is2033) {
-            mSkeleton->Save_2033(stream);
-        } else {
-            mSkeleton->Save(stream);
+        if (version >= kModelVersion2033) {
+            stream.WriteStringZ(mHitPreset);
         }
+
+        auto writeBoneMtls = [&stream](const MyArray<BoneMaterial>& arr) {
+            stream.WriteU32(scast<uint32_t>(arr.size()));
+            if (!arr.empty()) {
+                for (const BoneMaterial& bm : arr) {
+                    stream.WriteU16(bm.boneId);
+                    stream.WriteStringZ(bm.material);
+                }
+            }
+
+            //#TODO_SK: if mVersion > 8 -> also write presets
+        };
+
+        writeBoneMtls(mGameMaterials);
+        writeBoneMtls(mMeleeMaterials);
+        writeBoneMtls(mStepMaterials);
+    }
+
+    // folders
+    if (!mFolders.empty()) {
+        ChunkWriteHelper foldersChunk(stream, MC_Folders);
+
+        stream.WriteU32(scast<uint32_t>(mFolders.size()));
+        for (CharString& s : mFolders) {
+            stream.WriteStringZ(s);
+        }
+    }
+
+    // physx links
+    if (!mPhysXLinks.empty()) {
+        ChunkWriteHelper physxChunk(stream, MC_PhysXLinks);
+
+        stream.WriteU32(scast<uint32_t>(mPhysXLinks.size()));
+        for (CharString& s : mPhysXLinks) {
+            stream.WriteStringZ(s);
+        }
+    }
+
+    // voice
+    {
+        ChunkWriteHelper voiceChunk(stream, MC_Voice);
+
+        stream.WriteStringZ(mVoice);
     }
 
     return true;
@@ -1004,6 +1294,19 @@ const RefPtr<MetroSkeleton>& MetroModelSkeleton::GetSkeleton() const {
 
 void MetroModelSkeleton::SetSkeleton(RefPtr<MetroSkeleton> skeleton) {
     mSkeleton = skeleton;
+}
+
+void MetroModelSkeleton::AddChildEx(const RefPtr<MetroModelBase>& child) {
+    if (mLodMeshes[0].empty()) {
+        RefPtr<MetroModelHierarchy> lodMesh = MakeRefPtr<MetroModelHierarchy>();
+        lodMesh->SetModelType(MetroModelType::Hierarchy2);
+        mLodMeshes.push_back({ lodMesh });
+    }
+
+    RefPtr<MetroModelHierarchy> lodMesh = SCastRefPtr<MetroModelHierarchy>(mLodMeshes[0][0]);
+    lodMesh->AddChild(child);
+
+    MetroModelHierarchy::AddChild(child);
 }
 
 bool MetroModelSkeleton::LoadLodMeshes(MetroModelHierarchy* target, CharString& meshesNames, MetroModelLoadParams& params, const size_t lodIdx) {
@@ -1071,25 +1374,33 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
     bool result = false;
 
     if (stream) {
-        MetroModelLoadParams loadParams = params;
-        //#NOTE_SK: for some weird reason some of the child meshes have empty header (all nulls, still 64 bytes)
-        //          so we detect it as static mesh and fail miserably, so now we enforce skin mesh type
-        loadParams.loadFlags |= MetroModelLoadParams::LoadForceSkin;
-        RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, loadParams);
-        if (mesh) {
-            //#NOTE_SK: are we sure it's always hierarchy/skeleton ?
-            RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mesh);
-            const size_t childrenCount = hm->GetChildrenCount();
-            for (size_t i = 0; i < childrenCount; ++i) {
-                //#NOTE_SK: are we sure it's always skin mesh ?
-                RefPtr<MetroModelSkin> child = SCastRefPtr<MetroModelSkin>(hm->GetChild(i));
-                target->AddChild(child);
-                child->SetParent(this);
+        //#NOTE_SK: 4A Engine is actually checking it at this moment, and so do I
+        StreamChunker chunker(stream);
+        MemStream bonesCRCStream = chunker.GetChunkStream(MC_SkeletonBonesCRC);
+        const uint32_t meshBonesCRC = bonesCRCStream.ReadU32();
+        if (meshBonesCRC == this->GetSkeleton()->GetBonesCRC()) {
+            MetroModelLoadParams loadParams = params;
+            //#NOTE_SK: for some weird reason some of the child meshes have empty header (all nulls, still 64 bytes)
+            //          so we detect it as static mesh and fail miserably, so now we enforce skinned hierarchy mesh type
+            loadParams.loadFlags |= MetroModelLoadParams::LoadForceSkinH;
+            RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, loadParams);
+            if (mesh) {
+                //#NOTE_SK: are we sure it's always hierarchy/skeleton ?
+                RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mesh);
+                const size_t childrenCount = hm->GetChildrenCount();
+                for (size_t i = 0; i < childrenCount; ++i) {
+                    //#NOTE_SK: are we sure it's always skin mesh ?
+                    RefPtr<MetroModelSkin> child = SCastRefPtr<MetroModelSkin>(hm->GetChild(i));
+                    target->AddChild(child);
+                    child->SetParent(this);
+                }
+
+                mLodMeshes[lodIdx].push_back(mesh);
+
+                result = true;
             }
-
-            mLodMeshes[lodIdx].push_back(mesh);
-
-            result = true;
+        } else {
+            LogPrint(LogLevel::Error, "Can't load skinned lod mesh, invalid mesh bones!");
         }
     }
 
@@ -1141,7 +1452,7 @@ bool MetroModelSoft::Load(MemStream& stream, MetroModelLoadParams& params) {
     return result;
 }
 
-bool MetroModelSoft::Save(MemWriteStream& stream) {
+bool MetroModelSoft::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
     return false;
 }
 
@@ -1311,8 +1622,8 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
         MdlHeader hdr;
         headerStream.ReadStruct(hdr);
 
-        if (!hdr.type && TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkin)) {
-            hdr.type = scast<uint8_t>(MetroModelType::Skin);
+        if (!hdr.type && TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkinH)) {
+            hdr.type = scast<uint8_t>(MetroModelType::Hierarchy2);
         }
 
         result = MetroModelFactory::CreateModelFromType(scast<MetroModelType>(hdr.type));

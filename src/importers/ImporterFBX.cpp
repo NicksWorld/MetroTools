@@ -39,6 +39,19 @@
 //    }
 //}
 
+struct ControlPoint {
+    FbxVector4 pos;
+    MyArray<ImporterFBX::UniversalVertex::BoneInfluence> influences;
+};
+
+static FbxAMatrix GetGeometryTransformation(FbxNode* fbxNode) {
+    const FbxVector4 t = fbxNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+    const FbxVector4 r = fbxNode->GetGeometricRotation(FbxNode::eSourcePivot);
+    const FbxVector4 s = fbxNode->GetGeometricScaling(FbxNode::eSourcePivot);
+
+    return FbxAMatrix(r, r, s);
+}
+
 
 vec3 FbxVecToVec3(const FbxVector4& v) {
     return vec3(scast<float>(v[0]), scast<float>(v[1]), scast<float>(v[2]));
@@ -48,6 +61,18 @@ vec3 FbxDbl3ToVec3(const FbxDouble3& v) {
 }
 quat FbxQuatToQuat(const FbxQuaternion& v) {
     return quat(scast<float>(v[3]), scast<float>(v[0]), scast<float>(v[1]), scast<float>(v[2]));
+}
+mat4 FbxMatToMat(const FbxAMatrix& m) {
+    mat4 result;
+
+    const double* ptrD = m;
+    float* ptrF = MatToPtrMutable(result);
+
+    for (size_t i = 0; i < 16; ++i) {
+        ptrF[i] = scast<float>(ptrD[i]);
+    }
+
+    return result;
 }
 
 
@@ -61,16 +86,58 @@ static FbxVector4 MetroRotToFbxRot(const quat& q) {
 }
 
 
-struct VerticesCollector {
-    MyArray<VertexStatic>   vertices;
-    MyArray<uint16_t>       indices;
+template <typename T>
+static FbxVector4 GetNormalFromElement(T* element, const int controlPointIdx, const int rawVertexIdx) {
+    FbxVector4 normal;
 
-    void AddVertex(const VertexStatic& v) {
+    switch (element->GetMappingMode()) {
+        case FbxGeometryElement::eByControlPoint: {
+            switch (element->GetReferenceMode()) {
+                case FbxGeometryElement::eDirect: {
+                    normal = element->GetDirectArray().GetAt(controlPointIdx);
+                } break;
+
+                case FbxGeometryElement::eIndexToDirect: {
+                    const int normalIdx = element->GetIndexArray().GetAt(controlPointIdx);
+                    normal = element->GetDirectArray().GetAt(normalIdx);
+                } break;
+
+                default:
+                    assert(false);
+            }
+        } break;
+
+        case FbxGeometryElement::eByPolygonVertex: {
+            switch (element->GetReferenceMode()) {
+                case FbxGeometryElement::eDirect: {
+                    normal = element->GetDirectArray().GetAt(rawVertexIdx);
+                } break;
+
+                case FbxGeometryElement::eIndexToDirect: {
+                    const int normalIdx = element->GetIndexArray().GetAt(rawVertexIdx);
+                    normal = element->GetDirectArray().GetAt(normalIdx);
+                } break;
+
+                default:
+                    assert(false);
+            }
+        } break;
+
+        default:
+            assert(false);
+    }
+
+    return normal;
+}
+
+struct VerticesCollector {
+    MyArray<ImporterFBX::UniversalVertex> vertices;
+    MyArray<uint16_t> indices;
+
+    void AddVertex(const ImporterFBX::UniversalVertex& v) {
         const auto begin = this->vertices.begin();
         const auto end = this->vertices.end();
-        const auto it = std::find_if(begin, end, [&v](const VertexStatic& vertex)->bool {
-            return (v.pos == vertex.pos && v.normal == vertex.normal && v.aux0 == vertex.aux0 && v.aux1 == vertex.aux1 && v.uv == vertex.uv);
-        });
+        const auto it = std::find(begin, end, v);
 
         if (it == end) {
             indices.push_back(scast<uint16_t>(this->vertices.size()));
@@ -83,18 +150,25 @@ struct VerticesCollector {
 };
 
 
-ImporterFBX::ImporterFBX() {
-
+ImporterFBX::ImporterFBX()
+    : mGameVersion(MetroGameVersion::Redux)
+    , mAnimStartTime(0.0)
+    , mAnimEndTime(0.0)
+{
 }
 ImporterFBX::~ImporterFBX() {
 
 }
 
 
+void ImporterFBX::SetGameVersion(const MetroGameVersion gameVersion) {
+    mGameVersion = gameVersion;
+}
+
 void ImporterFBX::SetSkeleton(const fs::path& path) {
     MemStream stream = OSReadFile(path);
     if (stream) {
-        mSkeleton.reset(new MetroSkeleton());
+        mSkeleton = MakeRefPtr<MetroSkeleton>();
         if (!mSkeleton->LoadFromData(stream)) {
             mSkeleton = nullptr;
         }
@@ -123,7 +197,7 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
         ios->SetBoolProp(IMP_FBX_TEXTURE, false);
         ios->SetBoolProp(IMP_FBX_ANIMATION, true);
         ios->SetBoolProp(IMP_FBX_MODEL, false);
-        ios->SetBoolProp(IMP_META_DATA, true); //we want the meta data so we can get run-time expressions stored in the notes
+        ios->SetBoolProp(IMP_META_DATA, true);
 
         const bool success = fbxImporter->Initialize(path.u8string().data(), -1, ios);
         if (success && fbxImporter->IsFBX()) {
@@ -286,6 +360,10 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
     return result;
 }
 
+// https://yejunny.wordpress.com/2020/02/24/import-fbx-animation-using-c/
+// https://github.com/lang1991/FBXExporter/tree/master/FBXExporter
+// IMPORTANT !!!! - https://blender.stackexchange.com/questions/89975/blender-adds-extra-bones-to-ends-of-armature-when-i-export-as-fbx-or-obj
+// https://ozz-animation.docsforge.com/0.12.1/framework/tools/fbx2mesh.cc/
 RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
     RefPtr<MetroModelBase> result = nullptr;
 
@@ -304,7 +382,7 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
         ios->SetBoolProp(IMP_FBX_TEXTURE, false);
         ios->SetBoolProp(IMP_FBX_ANIMATION, true);
         ios->SetBoolProp(IMP_FBX_MODEL, true);
-        ios->SetBoolProp(IMP_META_DATA, true); //we want the meta data so we can get run-time expressions stored in the notes
+        ios->SetBoolProp(IMP_META_DATA, true);
 
         const bool success = fbxImporter->Initialize(filePath.u8string().c_str(), -1, ios);
         if (success && fbxImporter->IsFBX()) {
@@ -326,13 +404,35 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
                     }
                 }
 
-                result = MakeRefPtr<MetroModelHierarchy>();
-                result->SetModelVersion(22); //! Redux
+                //// try to find the bind pose
+                //FbxPose* fbxBindPose = nullptr;
+                //for (int i = 0; i < fbxScene->GetPoseCount(); ++i) {
+                //    FbxPose* fbxPose = fbxScene->GetPose(i);
+                //    if (fbxPose->IsBindPose()) {
+                //        fbxBindPose = fbxPose;
+                //        break;
+                //    }
+                //}
+
+                mSkeleton = this->TryToImportSkeleton(rootNode);
+                if (mSkeleton != nullptr) {
+                    RefPtr<MetroModelSkeleton> modelSkeleton = MakeRefPtr<MetroModelSkeleton>();
+                    modelSkeleton->SetSkeleton(mSkeleton);
+                    result = modelSkeleton;
+                } else {
+                    result = MakeRefPtr<MetroModelHierarchy>();
+                }
+
+                result->SetModelVersionBasedOnGameVersion(mGameVersion); //! Redux
+
                 for (FbxMesh* fbxMesh : fbxMeshesList) {
-                    this->AddMeshToTheModel(result, fbxMesh);
+                    this->AddMeshToModel(result, fbxMesh);
                 }
             }
         }
+
+        fbxImporter->Destroy();
+        fbxScene->Destroy();
     }
 
     fbxMgr->Destroy();
@@ -340,19 +440,72 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
     return result;
 }
 
-void ImporterFBX::AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh) {
-    VerticesCollector collector;
-
+void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh) {
     const int numControlPoints = fbxMesh->GetControlPointsCount();
     const FbxVector4* controlPoints = fbxMesh->GetControlPoints();
 
-    FbxGeometryElementNormal* fbxNormals = fbxMesh->GetElementNormal();
-    assert(fbxNormals);
+    // collect control points (yes, FBX is weird)
+    MyArray<ControlPoint> myControlPoints(numControlPoints);
+    for (int i = 0; i < numControlPoints; ++i) {
+        ControlPoint& ctrlPt = myControlPoints[i];
+        ctrlPt.pos = controlPoints[i];
+    }
 
-    FbxGeometryElementUV* fbxUV = fbxMesh->GetElementUV();
+    // if we have skeleton - collect control points influences
+    if (mSkeleton) {
+        const int numDeformers = fbxMesh->GetDeformerCount();
+        for (int i = 0; i < numDeformers; ++i) {
+            FbxDeformer* fbxDeformer = fbxMesh->GetDeformer(i);
+            if (fbxDeformer->GetDeformerType() == FbxDeformer::eSkin) {
+                FbxSkin* fbxSkin = scast<FbxSkin*>(fbxDeformer);
+
+                const int numClusters = fbxSkin->GetClusterCount();
+                for (int j = 0; j < numClusters; ++j) {
+                    FbxCluster* fbxCluster = fbxSkin->GetCluster(j);
+                    FbxNode* fbxClusterLink = fbxCluster->GetLink();
+                    if (fbxClusterLink) {
+                        CharString linkName = fbxClusterLink->GetNameOnly().Buffer();
+                        const size_t actualBoneIdx = mSkeleton->FindBone(linkName);
+                        assert(actualBoneIdx != kInvalidValue);
+
+                        const int numClusterVertices = fbxCluster->GetControlPointIndicesCount();
+                        if (numClusterVertices > 0) {
+                            const int* indices = fbxCluster->GetControlPointIndices();
+                            const double* weights = fbxCluster->GetControlPointWeights();
+
+                            for (int k = 0; k < numClusterVertices; ++k) {
+                                if (weights[k] > 0.0) {
+                                    UniversalVertex::BoneInfluence influence;
+                                    influence.idx = scast<uint32_t>(actualBoneIdx);
+                                    influence.weight = scast<float>(weights[k]);
+
+                                    myControlPoints[indices[k]].influences.push_back(influence);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fbxsdk::FbxGeometryElementNormal* fbxNormals = fbxMesh->GetElementNormal();
+    fbxsdk::FbxGeometryElementTangent* fbxTangents = fbxMesh->GetElementTangent();
+    fbxsdk::FbxGeometryElementBinormal* fbxBitangents = fbxMesh->GetElementBinormal();
+    fbxsdk::FbxGeometryElementUV* fbxUV = fbxMesh->GetElementUV();
+
+    assert(fbxNormals);
     assert(fbxUV);
 
+    if (!fbxTangents) {
+        fbxMesh->GenerateTangentsData(nullptr, false);
+        fbxTangents = fbxMesh->GetElementTangent();
+        fbxBitangents = fbxMesh->GetElementBinormal();
+    }
+
     const int polygonCount = fbxMesh->GetPolygonCount();
+
+    MyArray<UniversalVertex> vertices;
 
     AABBox bbox;
     bbox.Reset();
@@ -362,50 +515,23 @@ void ImporterFBX::AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMe
 
         for (int j = 0; j < 3; ++j) {
             const int idx = fbxMesh->GetPolygonVertex(i, j);
-            vec3 pos = FbxVecToVec3(controlPoints[idx]);
+            vec3 pos = FbxVecToVec3(myControlPoints[idx].pos);
 
-            VertexStatic vertex;
+            UniversalVertex vertex;
             vertex.pos = MetroSwizzle(pos);
 
-            FbxVector4 normal;
-            switch (fbxNormals->GetMappingMode()) {
-                case FbxGeometryElement::eByControlPoint: {
-                    switch (fbxNormals->GetReferenceMode()) {
-                        case FbxGeometryElement::eDirect: {
-                            normal = fbxNormals->GetDirectArray().GetAt(idx);
-                        } break;
+            FbxVector4 normal = GetNormalFromElement(fbxNormals, idx, vertexIdx);
+            vertex.normal = MetroSwizzle(FbxVecToVec3(normal));
 
-                        case FbxGeometryElement::eIndexToDirect: {
-                            const int normalIdx = fbxNormals->GetIndexArray().GetAt(idx);
-                            normal = fbxNormals->GetDirectArray().GetAt(normalIdx);
-                        } break;
-
-                        default:
-                            assert(false);
-                    }
-                } break;
-
-                case FbxGeometryElement::eByPolygonVertex: {
-                    switch (fbxNormals->GetReferenceMode()) {
-                        case FbxGeometryElement::eDirect: {
-                            normal = fbxNormals->GetDirectArray().GetAt(vertexIdx);
-                        } break;
-
-                        case FbxGeometryElement::eIndexToDirect: {
-                            const int normalIdx = fbxNormals->GetIndexArray().GetAt(vertexIdx);
-                            normal = fbxNormals->GetDirectArray().GetAt(normalIdx);
-                        } break;
-
-                        default:
-                            assert(false);
-                    }
-                } break;
-
-                default:
-                    assert(false);
+            if (fbxTangents) {
+                FbxVector4 tangent = GetNormalFromElement(fbxTangents, idx, vertexIdx);
+                vertex.tangent = MetroSwizzle(FbxVecToVec3(tangent));
             }
-            vertex.normal = EncodeNormal(MetroSwizzle(FbxVecToVec3(normal)), 1.0f);
 
+            if (fbxBitangents) {
+                FbxVector4 bitangent = GetNormalFromElement(fbxBitangents, idx, vertexIdx);
+                vertex.bitangent = MetroSwizzle(FbxVecToVec3(bitangent));
+            }
 
             FbxVector2 uv;
             switch (fbxUV->GetMappingMode()) {
@@ -445,7 +571,9 @@ void ImporterFBX::AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMe
             vertex.uv.x = scast<float>(uv[0]);
             vertex.uv.y = scast<float>(1.0 - uv[1]);
 
-            collector.AddVertex(vertex);
+            vertex.boneInfluences = myControlPoints[idx].influences;
+
+            vertices.push_back(vertex);
 
             bbox.Absorb(pos);
 
@@ -453,23 +581,248 @@ void ImporterFBX::AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMe
         }
     }
 
+    myControlPoints.clear();
+
+    VerticesCollector collector;
+    for (const UniversalVertex& v : vertices) {
+        collector.AddVertex(v);
+    }
+
     const size_t numVertices = collector.vertices.size();
     const size_t numFaces = collector.indices.size() / 3;
 
-    RefPtr<MetroModelStd> mesh = MakeRefPtr<MetroModelStd>();
-    mesh->CreateMesh(numVertices, numFaces);
-    mesh->CopyVerticesData(collector.vertices.data());
-    mesh->CopyFacesData(collector.indices.data());
+    RefPtr<MetroModelBase> mesh;
+
+    if (mSkeleton) {
+        this->FixUpSkinnedVertices(collector.vertices);
+        BytesArray bonesRemapTable =  this->BuildBonesRemapTable(collector.vertices);
+
+        const float vscale = bbox.MaximumValue();
+        const float invVScale = 1.0f / vscale;
+
+        MyArray<VertexSkinned> skinnedVertices(numVertices);
+        for (size_t i = 0; i < numVertices; ++i) {
+            VertexSkinned& dst = skinnedVertices[i];
+            const UniversalVertex& src = collector.vertices[i];
+
+            EncodeSkinnedPosition(src.pos * invVScale, dst.pos);
+            dst.normal = EncodeNormal(src.normal, 1.0f);
+            dst.aux0 = EncodeNormal(src.tangent, 1.0f);
+            dst.aux1 = EncodeNormal(src.bitangent, 1.0f);
+            for (size_t i = 0; i < 4; ++i) {
+                dst.bones[i] = scast<uint8_t>(Clamp(src.boneInfluences[i].idx * 3, 0u, 255u));
+                dst.weights[i] = scast<uint8_t>(Clamp(src.boneInfluences[i].weight * 255.0f, 0.0f, 255.0f));
+            }
+            MetroSwizzle(dst.bones);
+            MetroSwizzle(dst.weights);
+            EncodeSkinnedUV(src.uv, dst.uv);
+        }
+
+
+        RefPtr<MetroModelSkin> skinnedMesh = MakeRefPtr<MetroModelSkin>();
+        skinnedMesh->CreateMesh(numVertices, numFaces, vscale);
+        skinnedMesh->CopyVerticesData(skinnedVertices.data());
+        skinnedMesh->CopyFacesData(collector.indices.data());
+        skinnedMesh->SetBonesRemapTable(bonesRemapTable);
+
+        mesh = skinnedMesh;
+    } else {
+        MyArray<VertexStatic> staticVertices(numVertices);
+        for (size_t i = 0; i < numVertices; ++i) {
+            VertexStatic& dst = staticVertices[i];
+            const UniversalVertex& src = collector.vertices[i];
+
+            dst.pos = src.pos;
+            dst.normal = EncodeNormal(src.normal, 1.0f);
+            dst.aux0 = EncodeNormal(src.tangent, 1.0f);
+            dst.aux1 = EncodeNormal(src.bitangent, 1.0f);
+            dst.uv = src.uv;
+        }
+
+        RefPtr<MetroModelStd> staticMesh = MakeRefPtr<MetroModelStd>();
+        staticMesh->CreateMesh(numVertices, numFaces);
+        staticMesh->CopyVerticesData(staticVertices.data());
+        staticMesh->CopyFacesData(collector.indices.data());
+
+        mesh = staticMesh;
+    }
+
     mesh->SetMaterialString(kEmptyString, 0); // force-create material strings array
 
     BSphere bsphere;
     bsphere.center = bbox.Center();
     bsphere.radius = Length(bbox.Extent());
 
-    mesh->SetBounds(bbox, bsphere);
-    mesh->SetModelVersion(22); //! Redux
+    mesh->SetBBox(bbox);
+    mesh->SetBSphere(bsphere);
+    mesh->SetModelVersionBasedOnGameVersion(mGameVersion);
 
-    SCastRefPtr<MetroModelHierarchy>(model)->AddChild(mesh);
+    if (mSkeleton) {
+        SCastRefPtr<MetroModelSkeleton>(model)->AddChildEx(mesh);
+    } else {
+        SCastRefPtr<MetroModelHierarchy>(model)->AddChild(mesh);
+    }
+}
+
+RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootNode) {
+    mJointsBones.clear();
+    mJointsLocators.clear();
+
+    for (int i = 0; i < fbxRootNode->GetChildCount(); ++i) {
+        this->AddJointRecursive(fbxRootNode->GetChild(i), nullptr);
+    }
+
+    const size_t numBonesJoints = mJointsBones.size();
+    if (!numBonesJoints) {
+        return nullptr;
+    }
+
+    RefPtr<MetroSkeleton> skeleton = MakeRefPtr<MetroSkeleton>();
+
+    MyArray<MetroBone> metroBones(numBonesJoints);
+    for (size_t i = 0; i < numBonesJoints; ++i) {
+        const JointFromFbx& joint = mJointsBones[i];
+        MetroBone& metroBone = metroBones[i];
+
+        metroBone.bp = 0;
+        metroBone.bpf = 0;
+        metroBone.name = joint.fbxNode->GetNameOnly().Buffer();
+        metroBone.parent = joint.fbxParentNode ? joint.fbxParentNode->GetNameOnly().Buffer() : kEmptyString;
+
+        FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
+        metroBone.q = FbxQuatToQuat(transform.GetQ());
+        metroBone.t = FbxVecToVec3(transform.GetT());
+    }
+    skeleton->SetBones(metroBones);
+
+    const size_t numLocatorsJoints = mJointsLocators.size();
+    if (numLocatorsJoints > 0) {
+        MyArray<MetroLocator> metroLocators(numLocatorsJoints);
+        for (size_t i = 0; i < numLocatorsJoints; ++i) {
+            const JointFromFbx& joint = mJointsLocators[i];
+            MetroLocator& metroLocator = metroLocators[i];
+
+            metroLocator.fl = 0;
+            metroLocator.name = joint.fbxNode->GetNameOnly().Buffer();
+            metroLocator.parent = joint.fbxParentNode ? joint.fbxParentNode->GetNameOnly().Buffer() : kEmptyString;
+
+            FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
+            metroLocator.q = FbxQuatToQuat(transform.GetQ());
+            metroLocator.t = FbxVecToVec3(transform.GetT());
+        }
+        skeleton->SetLocators(metroLocators);
+    }
+
+    return skeleton;
+
+    //const int numPoseNodes = fbxPose->GetCount();
+    //MyArray<FbxNode*> fbxBones;
+    //FbxNode* fbxRootBone = nullptr;
+    //MyArray<FbxNode*> fbxLocators;
+    //for (int i = 0; i < numPoseNodes; ++i) {
+    //    FbxNode* fbxNode = fbxPose->GetNode(i);
+    //    if (fbxNode->GetNodeAttribute() && fbxNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+    //        CharString fbxNodeName = fbxNode->GetNameOnly().Buffer();
+    //        if (StrStartsWith(fbxNodeName, "loc_")) {
+    //            fbxLocators.push_back(fbxNode);
+    //        } else {
+    //            fbxBones.push_back(fbxNode);
+
+    //            FbxSkeleton* fbxSkelAttrib = scast<FbxSkeleton*>(fbxNode->GetNodeAttribute());
+    //            if (fbxSkelAttrib->GetSkeletonType() == FbxSkeleton::eRoot) {
+    //                fbxRootBone = fbxNode;
+    //            }
+    //        }
+    //    }
+    //}
+
+    //if (!fbxBones.empty()) {
+    //    MyArray<MetroBone> bones; bones.reserve(fbxBones.size());
+    //    
+    //}
+}
+
+void ImporterFBX::AddJointRecursive(fbxsdk::FbxNode* fbxNode, fbxsdk::FbxNode* fbxParentNode) {
+    if (fbxNode->GetNodeAttribute() && fbxNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+        CharString fbxNodeName = fbxNode->GetNameOnly().Buffer();
+
+        //#NOTE_SK: fucking Blender's armature >:(
+        if (!StrEndsWith(fbxNodeName, "_end")) {
+            JointFromFbx joint;
+            if (fbxParentNode->GetNodeAttribute() && fbxParentNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+                joint.fbxParentNode = fbxParentNode;
+            } else {
+                joint.fbxParentNode = nullptr;
+            }
+            joint.fbxNode = fbxNode;
+
+
+            if (StrStartsWith(fbxNodeName, "loc_")) {
+                mJointsLocators.push_back(joint);
+            } else {
+                mJointsBones.push_back(joint);
+            }
+        }
+    }
+
+    for (int i = 0; i < fbxNode->GetChildCount(); ++i) {
+        this->AddJointRecursive(fbxNode->GetChild(i), fbxNode);
+    }
+}
+
+void ImporterFBX::FixUpSkinnedVertices(MyArray<UniversalVertex>& vertices) {
+    // cap vertex influences at 4 and re-normalize
+    for (UniversalVertex& v : vertices) {
+        // sort highest weight first
+        std::sort(v.boneInfluences.begin(), v.boneInfluences.end(), [](const UniversalVertex::BoneInfluence& a, const UniversalVertex::BoneInfluence& b)->bool {
+            return a.weight > b.weight;
+        });
+        if (v.boneInfluences.size() > 4) {
+            v.boneInfluences.resize(4);
+        }
+
+        float sum = 0.0f;
+        for (auto& infl : v.boneInfluences) {
+            sum += infl.weight;
+        }
+        if (sum > 0.0f) {
+            for (auto& infl : v.boneInfluences) {
+                infl.weight /= sum;
+            }
+        }
+
+        // if bones # is less than 4, add zero weights to keep other code simpler (always assumes we have 4)
+        while (v.boneInfluences.size() < 4) {
+            v.boneInfluences.push_back({ 0, 0.0f });
+        }
+    }
+}
+
+BytesArray ImporterFBX::BuildBonesRemapTable(MyArray<UniversalVertex>& vertices) {
+    BytesArray remapTable;
+
+    auto addToRemapTable = [&remapTable](const uint8_t v)->uint8_t {
+        auto beg = remapTable.begin();
+        auto end = remapTable.end();
+        auto it = std::find(beg, end, v);
+        if (it != end) {
+            return scast<uint8_t>(std::distance(beg, it));
+        } else {
+            const uint8_t result = scast<uint8_t>(remapTable.size());
+            remapTable.push_back(v);
+            return result;
+        }
+    };
+
+    for (UniversalVertex& v : vertices) {
+        for (auto& infl : v.boneInfluences) {
+            if (infl.weight > 0.0f) {
+                infl.idx = addToRemapTable(scast<uint8_t>(infl.idx));
+            }
+        }
+    }
+
+    return remapTable;
 }
 
 void ImporterFBX::CollectFbxBones(fbxsdk::FbxNode* node) {

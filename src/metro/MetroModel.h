@@ -11,7 +11,7 @@ struct MetroModelLoadParams {
         LoadSkeleton    = 4,
         LoadTPresets    = 8,
 
-        LoadForceSkin   = 0x10000,
+        LoadForceSkinH  = 0x10000,
 
         LoadEverything  = 0xF
     };
@@ -21,6 +21,28 @@ struct MetroModelLoadParams {
     uint32_t    formatVersion;
     uint32_t    loadFlags;
     MetroFSPath srcFile;
+};
+
+struct MetroModelSaveParams {
+    enum SaveFlags : uint32_t {
+        SaveForGameVersion  = 1,
+        InlineMeshes        = 2,
+        InlineSkeleton      = 8,
+    };
+
+    fs::path            dstFile;
+    uint32_t            saveFlags = 0;
+    MetroGameVersion    gameVersion = MetroGameVersion::Unknown;
+
+    inline bool IsSaveForGameVersion() const {
+        return TestBit<uint32_t>(saveFlags, SaveFlags::SaveForGameVersion);
+    }
+    inline bool IsInlineMeshes() const {
+        return TestBit<uint32_t>(saveFlags, SaveFlags::InlineMeshes);
+    }
+    inline bool IsInlineSkeleton() const {
+        return TestBit<uint32_t>(saveFlags, SaveFlags::InlineSkeleton);
+    }
 };
 
 
@@ -85,7 +107,7 @@ enum class MetroModelType : size_t {
     Hierarchy       = 1,
     Skeleton        = 2,
     Skeleton2       = 3,    // wtf ???
-    Hierarchy2      = 4,    // wtf ???
+    Hierarchy2      = 4,    // wtf ???  (seems to be skinned lod mesh hierarchy type)
     Skin            = 5,
     Soft            = 8,
     ParticlesEffect = 11,
@@ -104,18 +126,24 @@ class MetroModelBase {
     friend class MetroModelSoft;
 
 public:
+    static uint8_t GetModelVersionFromGameVersion(const MetroGameVersion gameVersion);
+    static MetroGameVersion GetGameVersionFromModelVersion(const size_t modelVersion);
+
+public:
     MetroModelBase();
     virtual ~MetroModelBase();
 
     virtual bool                    Load(MemStream& stream, MetroModelLoadParams& params);
-    virtual bool                    Save(MemWriteStream& stream);
+    virtual bool                    Save(MemWriteStream& stream, const MetroModelSaveParams& params);
 
     void                            SetSourceName(const CharString& srcName);
     const CharString&               GetSourceName() const;
 
     MetroModelType                  GetModelType() const;
+    void                            SetModelType(const MetroModelType type);
     size_t                          GetModelVersion() const;
     void                            SetModelVersion(const size_t version);
+    void                            SetModelVersionBasedOnGameVersion(const MetroGameVersion gameVersion);
 
     virtual uint32_t                GetCheckSum() const;
     virtual size_t                  GetLodCount() const;
@@ -148,6 +176,7 @@ public:
 
     virtual bool                    IsSkeleton() const { return false; }
     virtual bool                    IsHierarchy() const { return false; }
+    virtual bool                    IsSkinnedHierarchy() const { return false; }
     virtual bool                    IsSoft() const { return false; }
 
 protected:
@@ -178,7 +207,7 @@ public:
     virtual ~MetroModelStd();
 
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool            Save(MemWriteStream& stream) override;
+    virtual bool            Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
 
     virtual size_t          GetVerticesMemSize() const override;
     virtual const void*     GetVerticesMemData() const override;
@@ -191,7 +220,6 @@ public:
     void                    CreateMesh(const size_t numVertices, const size_t numFaces);
     void                    CopyVerticesData(const void* vertices);
     void                    CopyFacesData(const void* faces);
-    void                    SetBounds(const AABBox& bbox, const BSphere& bsphere);
 
 protected:
     BytesArray              mVerticesData;
@@ -206,7 +234,7 @@ public:
     virtual ~MetroModelSkin();
 
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool            Save(MemWriteStream& stream) override;
+    virtual bool            Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
 
     virtual size_t          GetVerticesMemSize() const override;
     virtual const void*     GetVerticesMemData() const override;
@@ -217,6 +245,13 @@ public:
 
     MetroModelSkeleton*     GetParent() const;
     void                    SetParent(MetroModelSkeleton* parent);
+
+    // model creation
+    void                    CreateMesh(const size_t numVertices, const size_t numFaces, const float vscale);
+    void                    CopyVerticesData(const void* vertices);
+    void                    CopyFacesData(const void* faces);
+    void                    SetBonesRemapTable(const BytesArray& bonesRemapTable);
+    void                    SetBonesOBB(const MyArray<MetroOBB>& bonesOBB);
 
 protected:
     MetroModelSkeleton*     mParent;
@@ -233,7 +268,7 @@ public:
     virtual ~MetroModelHierarchy();
 
     virtual bool                Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool                Save(MemWriteStream& stream) override;
+    virtual bool                Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
 
     virtual size_t              GetLodCount() const override;
 
@@ -242,6 +277,7 @@ public:
     virtual void                CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
     virtual bool                IsHierarchy() const { return true; }
+    virtual bool                IsSkinnedHierarchy() const { return mType == scast<uint16_t>(MetroModelType::Hierarchy2); }
 
     void                        ApplyTPreset(const CharString& tpresetName);
 
@@ -251,16 +287,20 @@ public:
     size_t                      GetChildrenRefsCount() const;
     uint32_t                    GetChildRef(const size_t idx) const;
 
-    void                        AddChild(const RefPtr<MetroModelBase>& child);
+    uint32_t                    GetSkeletonCRC() const;
+    void                        SetSkeletonCRC(const uint32_t v);
+
+    virtual void                AddChild(const RefPtr<MetroModelBase>& child);
 
 protected:
     void                        LoadTPresets(const StreamChunker& chunker);
-    void                        SaveTPresets(MemWriteStream& stream);
+    void                        SaveTPresets(MemWriteStream& stream, const uint16_t version);
     virtual void                ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
 
 protected:
     using ModelPtr = RefPtr<MetroModelBase>;
 
+    uint32_t                    mSkeletonCRC;   // only skinned hierarchy needs this
     MyArray<ModelPtr>           mChildren;
     MyArray<uint32_t>           mChildrenRefs;
     MyArray<ModelPtr>           mLods;
@@ -270,12 +310,19 @@ protected:
 // Complete animated model, can consist of multiple Skin models (inline or external *.mesh files)
 class MetroModelSkeleton final : public MetroModelHierarchy {
     INHERITED_CLASS(MetroModelHierarchy);
+
+public:
+    struct BoneMaterial {
+        uint16_t    boneId;
+        CharString  material;
+    };
+
 public:
     MetroModelSkeleton();
     virtual ~MetroModelSkeleton();
 
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool            Save(MemWriteStream& stream) override;
+    virtual bool            Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
 
     virtual size_t          GetLodCount() const override;
 
@@ -283,6 +330,8 @@ public:
 
     const RefPtr<MetroSkeleton>& GetSkeleton() const;
     void                    SetSkeleton(RefPtr<MetroSkeleton> skeleton);
+
+    void                    AddChildEx(const RefPtr<MetroModelBase>& child);
 
 protected:
     bool                    LoadLodMeshes(MetroModelHierarchy* target, CharString& meshesNames, MetroModelLoadParams& params, const size_t lodIdx);
@@ -295,6 +344,13 @@ protected:
 
     RefPtr<MetroSkeleton>   mSkeleton;
     MyArray<LodMeshesArr>   mLodMeshes;
+    CharString              mHitPreset;
+    MyArray<BoneMaterial>   mGameMaterials;
+    MyArray<BoneMaterial>   mMeleeMaterials;
+    MyArray<BoneMaterial>   mStepMaterials;
+    StringArray             mFolders;
+    StringArray             mPhysXLinks;
+    CharString              mVoice;
 };
 
 class MetroModelSoft final : public MetroModelBase {
@@ -304,7 +360,7 @@ public:
     virtual ~MetroModelSoft();
 
     virtual bool            Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool            Save(MemWriteStream& stream) override;
+    virtual bool            Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
 
     virtual size_t          GetVerticesMemSize() const override;
     virtual const void*     GetVerticesMemData() const override;

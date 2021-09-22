@@ -76,8 +76,10 @@ METRO_REGISTER_TYPE_ALIAS(vec4, vec4f)
 METRO_REGISTER_TYPE_ALIAS(quat, vec4f)
 METRO_REGISTER_TYPE_ALIAS(CharString, stringz)
 METRO_REGISTER_TYPE_ALIAS(Bool8, bool8)
+METRO_REGISTER_TYPE_ALIAS(flags32, flags32)
 METRO_REGISTER_TYPE_ALIAS(ivec4, vec4i);
 METRO_REGISTER_TYPE_ALIAS(vec4s16, vec4s16);
+METRO_REGISTER_TYPE_ALIAS(ang3f, ang3f);
 
 METRO_REGISTER_INHERITED_TYPE_ALIAS(color4f, vec4f, color)
 METRO_REGISTER_INHERITED_TYPE_ALIAS(color32u, u32, color)
@@ -333,6 +335,10 @@ inline void operator >>(MetroReflectionStream& s, Bool8& v) {
     s >> v.val8;
 }
 
+inline void operator >>(MetroReflectionStream& s, flags32& v) {
+    s >> v.value;
+}
+
 inline void operator >>(MetroReflectionStream& s, ivec4& v) {
     s.SerializeInts(&v.x, 4);
 }
@@ -390,6 +396,10 @@ inline void operator >>(MetroReflectionStream& s, EntityLink& v) {
 
 inline void operator >>(MetroReflectionStream& s, vec4s16& v) {
     s.SerializeRawBytes(&v, sizeof(v));
+}
+
+inline void operator >>(MetroReflectionStream& s, ang3f& v) {
+    s.SerializeFloats(&v.x, 3);
 }
 
 // Binary serialization

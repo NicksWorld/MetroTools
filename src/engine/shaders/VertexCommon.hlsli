@@ -44,8 +44,8 @@ struct VertexCommon {
 };
 
 
-#define FromMetroV3(v)  ((v).zyx)
-#define FromMetroV4(v)  ((v).zyxw)
+#define FromMetroV3(v)  ((v).xyz)
+#define FromMetroV4(v)  ((v).xyzw)
 
 #if defined(VTX_TYPE_STATIC)
 
@@ -85,8 +85,6 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     dst.pos.y = (dst.pos.y > 32767.0f) ? (dst.pos.y * kPositionDequant - 2.0f) : (dst.pos.y * kPositionDequant);
     dst.pos.z = (dst.pos.z > 32767.0f) ? (dst.pos.z * kPositionDequant - 2.0f) : (dst.pos.z * kPositionDequant);
     dst.pos *= Skinned_VScale.x;
-
-    //#NOTE_SK: maybe better  "dst.pos = (dst.pos / 65535.0f) * 2.0f - 1.0f" ??
 
     dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
 

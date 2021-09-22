@@ -16,11 +16,53 @@ namespace fbxsdk {
 
 
 class ImporterFBX {
+public:
+    struct UniversalVertex {
+        struct BoneInfluence {
+            uint32_t idx;
+            float    weight;
+        };
+
+        vec3 pos;
+        vec3 normal;
+        vec3 tangent;
+        vec3 bitangent;
+        vec2 uv;
+        MyArray<BoneInfluence> boneInfluences;
+
+        bool operator ==(const UniversalVertex& other) const {
+            if (this->pos != other.pos) {
+                return false;
+            }
+            if (this->normal != other.normal) {
+                return false;
+            }
+            if (this->tangent != other.tangent) {
+                return false;
+            }
+            if (this->bitangent != other.bitangent) {
+                return false;
+            }
+            if (this->uv != other.uv) {
+                return false;
+            }
+
+            // ignore boneInfluences for now
+
+            return true;
+        }
+    };
+
     struct BoneFbxNode {
         fbxsdk::FbxNode* fbxNode;
         CharString       name;
         size_t           skeletonAttpIdx;
         size_t           skeletonAttpParentIdx;
+    };
+
+    struct JointFromFbx {
+        fbxsdk::FbxNode* fbxNode;
+        fbxsdk::FbxNode* fbxParentNode;
     };
 
     template <typename T>
@@ -47,19 +89,27 @@ public:
     ImporterFBX();
     ~ImporterFBX();
 
-    void                    SetSkeleton(const fs::path& path);
-    bool                    ImportAnimation(const fs::path& path, MetroMotion& motion);
+    void                        SetGameVersion(const MetroGameVersion gameVersion);
+    void                        SetSkeleton(const fs::path& path);
+    bool                        ImportAnimation(const fs::path& path, MetroMotion& motion);
 
-    RefPtr<MetroModelBase>  ImportModel(const fs::path& filePath);
-
-private:
-    void                    AddMeshToTheModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh);
-    void                    CollectFbxBones(fbxsdk::FbxNode* node);
-    void                    GatherRotCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::RotCurve& rotCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
-    void                    GatherPosCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::PosCurve& posCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
+    RefPtr<MetroModelBase>      ImportModel(const fs::path& filePath);
 
 private:
-    StrongPtr<MetroSkeleton>    mSkeleton;
+    void                        AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh);
+    RefPtr<MetroSkeleton>       TryToImportSkeleton(fbxsdk::FbxNode* fbxRootNode);
+    void                        AddJointRecursive(fbxsdk::FbxNode* fbxNode, fbxsdk::FbxNode* fbxParentNode);
+    void                        FixUpSkinnedVertices(MyArray<UniversalVertex>& vertices);
+    BytesArray                  BuildBonesRemapTable(MyArray<UniversalVertex>& vertices);
+    void                        CollectFbxBones(fbxsdk::FbxNode* node);
+    void                        GatherRotCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::RotCurve& rotCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
+    void                        GatherPosCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::PosCurve& posCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames);
+
+private:
+    MetroGameVersion            mGameVersion;
+    MyArray<JointFromFbx>       mJointsBones;
+    MyArray<JointFromFbx>       mJointsLocators;
+    RefPtr<MetroSkeleton>       mSkeleton;
     MyArray<BoneFbxNode>        mFbxBones;
     MyArray<BoneFbxNode>        mFbxLocators;
     MyArray<AnimCurve>          mBonesCurves;

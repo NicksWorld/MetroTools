@@ -50,7 +50,7 @@ bool MetroContext::InitFromSingleArchive(const fs::path& archivePath) {
 
     MetroFileSystem& mfs = this->GetFilesystem();
 
-    result = (extension == ".vfi") ? mfs.InitFromSingleVFI(archivePath) : mfs.InitFromSingleVFX(archivePath);
+    result = (extension == ".vfi") ? mfs.InitFromSingleVFI(archivePath) : (StrStartsWith(extension, ".upk") ? mfs.InitFromSingleUPK(archivePath) : mfs.InitFromSingleVFX(archivePath));
 
     if (result) {
         this->GuessGameVersionFromFS();
@@ -103,36 +103,42 @@ MetroFontsDatabase& MetroContext::GetFontsDB(const MetroLanguage lng) {
     return MetroFontsDatabase::Get(lng);
 }
 
-const CharString& MetroContext::GetSkeletonExtension() const {
+const CharString& MetroContext::GetSkeletonExtension(const MetroGameVersion overrideVersion) const {
     static const CharString kSkelExt2033 = ".skeleton";
     static const CharString kSkelExt = ".skeleton.bin";
 
-    if (mGameVersion == MetroGameVersion::OG2033) {
+    const MetroGameVersion version = (overrideVersion == MetroGameVersion::Unknown) ? mGameVersion : overrideVersion;
+
+    if (version == MetroGameVersion::OG2033) {
         return kSkelExt2033;
     } else {
         return kSkelExt;
     }
 }
 
-const CharString& MetroContext::GetMotionExtension() const {
+const CharString& MetroContext::GetMotionExtension(const MetroGameVersion overrideVersion) const {
     static const CharString kMotionExt2033 = ".motion";
     static const CharString kMotionExt = ".m2"; // though in LL there's .m3 files, but seems like they're duplicating .m2 so we don't care
 
-    if (mGameVersion == MetroGameVersion::OG2033) {
+    const MetroGameVersion version = (overrideVersion == MetroGameVersion::Unknown) ? mGameVersion : overrideVersion;
+
+    if (version == MetroGameVersion::OG2033) {
         return kMotionExt2033;
     } else {
         return kMotionExt;
     }
 }
 
-const CharString& MetroContext::GetClothModelExtension() const {
+const CharString& MetroContext::GetClothModelExtension(const MetroGameVersion overrideVersion) const {
     static const CharString kLegacyClothExt = ".sftmdl_pc";
     static const CharString kReduxClothExt = ".sftmdl331";
     static const CharString kClothExt = ".sftmdl332";
 
-    if (mGameVersion == MetroGameVersion::OG2033 || mGameVersion == MetroGameVersion::OGLastLight) {
+    const MetroGameVersion version = (overrideVersion == MetroGameVersion::Unknown) ? mGameVersion : overrideVersion;
+
+    if (version == MetroGameVersion::OG2033 || version == MetroGameVersion::OGLastLight) {
         return kLegacyClothExt;
-    } else if (mGameVersion == MetroGameVersion::Redux) {
+    } else if (version == MetroGameVersion::Redux) {
         return kReduxClothExt;
     } else {
         return kClothExt;

@@ -31,9 +31,9 @@ public:
     MetroConfigsDatabase&   GetConfigsDB();
     MetroFontsDatabase&     GetFontsDB(const MetroLanguage lng);
 
-    const CharString&       GetSkeletonExtension() const;
-    const CharString&       GetMotionExtension() const;
-    const CharString&       GetClothModelExtension() const;
+    const CharString&       GetSkeletonExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
+    const CharString&       GetMotionExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
+    const CharString&       GetClothModelExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
 
 private:
     void                    GuessGameVersionFromFS();

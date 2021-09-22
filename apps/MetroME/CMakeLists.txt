@@ -24,6 +24,9 @@ target_sources(MetroME PRIVATE
     ui/sessionsdlg.cpp
     ui/sessionsdlg.h
     ui/sessionsdlg.ui
+    ui/exportmodeldlg.cpp
+    ui/exportmodeldlg.h
+    ui/exportmodeldlg.ui
     ui/props/materialstringsprop.h
     ui/props/objectpropertybrowser.cpp
     ui/props/objectpropertybrowser.h
@@ -36,6 +39,7 @@ target_link_libraries(MetroME PRIVATE
     MetroTools::Importers
     MetroTools::Engine
     MetroTools::SimpleRibbon
+    MetroTools::MultiToolbox
 
     Qt6::Gui
     Qt6::Widgets

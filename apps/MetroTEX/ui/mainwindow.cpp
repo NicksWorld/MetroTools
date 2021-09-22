@@ -275,8 +275,12 @@ void MainWindow::AddOrReplaceTexture(bool replaceCurrent) {
                             info.priority = !isDDS;
 
                             mTexturesDB->AddTexture(info);
-                            ui->lstTextures->addItem(QString::fromStdString(info.name));
-                            ui->lstTextures->setCurrentRow(ui->lstTextures->count() - 1);
+
+                            const int newIdx = ui->lstTextures->count() - 1;
+                            QListWidgetItem* newItem = new QListWidgetItem(QString::fromStdString(info.name));
+                            newItem->setData(Qt::UserRole, QVariant(newIdx));
+                            ui->lstTextures->addItem(newItem);
+                            ui->lstTextures->setCurrentRow(newIdx);
                         }
 
                         // calculate texture avg colour

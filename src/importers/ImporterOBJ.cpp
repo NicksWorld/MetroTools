@@ -115,7 +115,8 @@ RefPtr<MetroModelStd> ImporterOBJ::CreateStdModel(const tinyobj::shape_t& shape,
     bsphere.center = bbox.Center();
     bsphere.radius = Length(bbox.Extent());
 
-    result->SetBounds(bbox, bsphere);
+    result->SetBBox(bbox);
+    result->SetBSphere(bsphere);
 
     result->SetModelVersion(22); //! Redux
 

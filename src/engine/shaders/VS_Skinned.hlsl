@@ -6,6 +6,6 @@
 #include "VertexCommon.hlsli"
 
 VSOutput main(in InputVertex IN) {
-    VSOutput OUT = TransformVertex(IN);
+    VSOutput OUT = TransformVertex(IN); 
     return OUT;
 }

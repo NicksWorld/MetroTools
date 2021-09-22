@@ -1,0 +1,49 @@
+0. What's up?
+=============
+
+MultiToolBox is a toolbox a la widget box in Qt Designer. It can contain
+arbitrary widgets (no need to derive them from some weird class).
+
+1. What's wrong with QToolBox?
+==============================
+Only one (current) tool widget is visible (it's by design).
+
+2. License.
+===============
+MultiToolBox is a free software, it's distributed under the terms of
+the WTFPLv2 license. See the COPYING file for more details.
+
+3. Compilation.
+===============
+Copy the multitoolbox directory into your project and 
+
+include(multitoolbox/multitoolbox.pri)
+
+into your *.pro file.
+
+4. Usage.
+===============
+Use the
+
+void MultiToolBox::addWidget(QWidget* w, bool visible = true);
+
+method to add a widget into the toolbox. Please note: MultiToolBox takes
+the ownership of the widget, so if you need to directly use that widget
+(i.e. call methods via pointer, as opposed to signal/slot mechanism) you'd
+better wrap into QPointer and check if it's !isNull().
+
+Use the
+
+QList<QPointer<QWidget> > MultiToolBox::widgets() const;
+
+to find out which widgets are managed by the toolbox.
+
+Removing widgets from the MultiToolBox is not supported at this time.
+
+5. Author.
+===============
+MultiToolBox is written by Alexei Sheplyakov Alexei.Sheplyakov (at) gmail dot com.
+If you found a bug, or got a question, suggestion, etc feel free to email
+the author. Patches are most welcome. If possible please make them with
+git format-patch (although old good diff -Nru is OK, too).
+

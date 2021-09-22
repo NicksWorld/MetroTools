@@ -32,6 +32,7 @@ using uvec4 = glm::highp_uvec4;
 using vec4s16 = glm::highp_i16vec4;
 
 struct anglef : public glm::highp_vec1 {};
+struct ang3f : public vec3 {};
 
 struct color4f : public vec4 {
     color4f() : vec4() {}
@@ -270,6 +271,9 @@ inline void MatDecompose(const mat4& m, vec3& offset, vec3& scale, quat& rotatio
 inline const float* MatToPtr(const mat4& m) {
     return rcast<const float*>(&m);
 }
+inline float* MatToPtrMutable(mat4& m) {
+    return rcast<float*>(&m);
+}
 
 static const mat4 MatZero = mat4(0.0f);
 static const mat4 MatIdentity = mat4(1.0f);
@@ -343,6 +347,11 @@ struct AABBox {
 
     inline vec3 Extent() const {
         return (maximum - minimum) * 0.5f;
+    }
+
+    inline float MaximumValue() const {
+        return std::max(Max3(std::fabsf(minimum.x), std::fabsf(minimum.y), std::fabsf(minimum.z)),
+                        Max3(std::fabsf(maximum.x), std::fabsf(maximum.y), std::fabsf(maximum.z)));
     }
 };
 

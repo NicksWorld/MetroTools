@@ -3,6 +3,7 @@
 
 #include "renderpanel.h"
 #include "sessionsdlg.h"
+#include "exportmodeldlg.h"
 
 #include <QToolButton>
 #include <QMenu>
@@ -290,6 +291,7 @@ void MainWindow::OnImportFBXModel() {
         fs::path fullPath = name.toStdWString();
 
         ImporterFBX importer;
+        importer.SetGameVersion(MetroContext::Get().GetGameVersion());
         RefPtr<MetroModelBase> model = importer.ImportModel(fullPath);
         if (model && mRenderPanel) {
             mRenderPanel->SetModel(model);
@@ -304,10 +306,28 @@ void MainWindow::OnExportMetroModel() {
     if (model) {
         QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro model..."), QString(), tr("Metro Model file (*.model);;All files (*.*)"));
         if (!name.isEmpty()) {
-            MemWriteStream stream;
-            if (model->Save(stream)) {
+            ExportModelDlg dlg(this);
+            dlg.SetModel(model.get());
+            if (QDialog::Accepted == dlg.exec()) {
                 fs::path fullPath = name.toStdWString();
-                OSWriteFile(fullPath, stream.Data(), stream.GetWrittenBytesCount());
+
+                MetroModelSaveParams params;
+                params.dstFile = fullPath;
+                if (dlg.IsOverrideModelVersion()) {
+                    params.gameVersion = scast<MetroGameVersion>(dlg.GetOverrideModelVersion());
+                    params.saveFlags |= MetroModelSaveParams::SaveFlags::SaveForGameVersion;
+                }
+                if (dlg.IsExportMeshesInlined()) {
+                    params.saveFlags |= MetroModelSaveParams::SaveFlags::InlineMeshes;
+                }
+                if (dlg.IsExportSkeletonInlined()) {
+                    params.saveFlags |= MetroModelSaveParams::SaveFlags::InlineSkeleton;
+                }
+
+                MemWriteStream stream;
+                if (model->Save(stream, params)) {
+                    OSWriteFile(fullPath, stream.Data(), stream.GetWrittenBytesCount());
+                }
             }
         }
     }

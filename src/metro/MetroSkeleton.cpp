@@ -5,7 +5,20 @@
 
 #include "reflection/MetroReflection.h"
 
-static const size_t kSkeletonVersionRedux       = 8;    // Latest Steam Redux are this version
+static const uint32_t kSkeletonVersion2033          = 1;
+static const uint32_t kSkeletonVersionLastLight     = 5;    // Latest Steam LL version
+static const uint32_t kSkeletonVersionRedux         = 8;    // Latest Steam Redux are this version
+
+constexpr size_t PackSkeletonVersions(const uint32_t skelVersion, const uint32_t proceduralVersion) {
+    return (scast<size_t>(proceduralVersion) << 32) | skelVersion;
+}
+constexpr uint32_t UnpackSkeletonVersion(const size_t packedVersions) {
+    return scast<uint32_t>(packedVersions & 0xFFFFFFFF);
+}
+constexpr uint32_t UnpackProceduralVersion(const size_t packedVersions) {
+    return scast<uint32_t>((packedVersions >> 32) & 0xFFFFFFFF);
+}
+
 
 enum SkeletonChunks2033 : size_t {
     SC2033_Version      = 1,
@@ -22,101 +35,242 @@ enum SkeletonChunks2033 : size_t {
 struct ReduxBoneBodyPartHelper {
     uint16_t bp;
 
-    void Serialize(MetroReflectionStream& reader) {
-        METRO_SERIALIZE_MEMBER(reader, bp);
+    void Serialize(MetroReflectionStream& stream) {
+        METRO_SERIALIZE_MEMBER(stream, bp);
     }
 };
 
 
-void ParentMapped::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, parent_bone);
-    METRO_SERIALIZE_MEMBER(reader, self_bone);
-    METRO_SERIALIZE_MEMBER(reader, q);
-    METRO_SERIALIZE_MEMBER(reader, t);
-    METRO_SERIALIZE_MEMBER(reader, s);
+void ParentMapped::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, parent_bone);
+    METRO_SERIALIZE_MEMBER(stream, self_bone);
+    METRO_SERIALIZE_MEMBER(stream, q);
+    METRO_SERIALIZE_MEMBER(stream, t);
+    METRO_SERIALIZE_MEMBER(stream, s);
 }
 
-void MetroBone::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_MEMBER(reader, parent);
-    METRO_SERIALIZE_MEMBER(reader, q);
-    METRO_SERIALIZE_MEMBER(reader, t);
+void MetroBoneBase::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, name);
+    METRO_SERIALIZE_MEMBER(stream, parent);
+    if (stream.IsOut()) {
+        this->q = QuatConjugate(q);
+    }
+    METRO_SERIALIZE_MEMBER(stream, q);
+    METRO_SERIALIZE_MEMBER(stream, t);
 
-    const size_t skeletonVersion = reader.GetUserData();
-    if (skeletonVersion > 18) {
-        METRO_SERIALIZE_MEMBER(reader, bp);
-        METRO_SERIALIZE_MEMBER(reader, bpf);
+    this->q = QuatConjugate(q);
+}
+
+void MetroBone::Serialize(MetroReflectionStream& stream) {
+    MetroBoneBase::Serialize(stream);
+
+    const uint32_t skeletonVersion = UnpackSkeletonVersion(stream.GetUserData());
+    if (skeletonVersion >= 19) {
+        METRO_SERIALIZE_MEMBER(stream, bp);
+        METRO_SERIALIZE_MEMBER(stream, bpf);
     } else {
         //#NOTE_SK: using a hack to serialize old (Redux) bones
         ReduxBoneBodyPartHelper helper{ this->bp };
-        reader >> helper;
+        stream >> helper;
 
         this->bp = scast<uint8_t>(helper.bp & 0xFF);
     }
 }
 
-void MetroLocator::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_MEMBER(reader, parent);
-    METRO_SERIALIZE_MEMBER(reader, q);
-    METRO_SERIALIZE_MEMBER(reader, t);
-    METRO_SERIALIZE_MEMBER(reader, fl);
+void MetroLocator::Serialize(MetroReflectionStream& stream) {
+    MetroBoneBase::Serialize(stream);
+
+    METRO_SERIALIZE_MEMBER(stream, fl);
 }
 
-void MetroAuxBone::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_MEMBER(reader, parent);
-    METRO_SERIALIZE_MEMBER(reader, q);
-    METRO_SERIALIZE_MEMBER(reader, t);
+void MetroAuxBone::Serialize(MetroReflectionStream& stream) {
+    MetroBoneBase::Serialize(stream);
+
+    const uint32_t skeletonVersion = UnpackSkeletonVersion(stream.GetUserData());
+    if (skeletonVersion >= 16) {
+        METRO_SERIALIZE_MEMBER(stream, fl);
+    }
 }
 
-void MetroDrivenBone::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER_CHOOSE(reader, bone);           // choose
-    METRO_SERIALIZE_MEMBER_CHOOSE(reader, driver);         // choose
-    METRO_SERIALIZE_MEMBER_CHOOSE(reader, driver_parent);  // choose
-    METRO_SERIALIZE_MEMBER(reader, component);
-    METRO_SERIALIZE_MEMBER(reader, twister);
-    METRO_SERIALIZE_MEMBER(reader, value_min);
-    METRO_SERIALIZE_MEMBER(reader, value_max);
+// PROCEDURAL BONES start
+
+void MetroProceduralBone::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, type);
+    METRO_SERIALIZE_MEMBER(stream, index_in_array);
 }
 
-void MetroDynamicBone::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER_CHOOSE(reader, bone);           // choose
-    METRO_SERIALIZE_MEMBER(reader, inertia);
-    METRO_SERIALIZE_MEMBER(reader, damping);
-    METRO_SERIALIZE_MEMBER(reader, constraints);
+
+void MetroDrivenBone::Serialize(MetroReflectionStream& stream) {
+    const uint32_t proceduralVersion = UnpackProceduralVersion(stream.GetUserData());
+
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, bone);           // choose
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, driver);         // choose
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, driver_parent);  // choose
+    METRO_SERIALIZE_MEMBER(stream, component);
+    METRO_SERIALIZE_MEMBER(stream, twister);
+    METRO_SERIALIZE_MEMBER(stream, value_min);
+    METRO_SERIALIZE_MEMBER(stream, value_max);
+
+    if (proceduralVersion >= 1) {
+        METRO_SERIALIZE_MEMBER(stream, refresh_kids);
+    }
+    if (proceduralVersion >= 5) {
+        METRO_SERIALIZE_MEMBER(stream, use_anim_poses);
+    }
 }
 
-void MetroPartition::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_ARRAY_MEMBER(reader, infl);
+void MetroDynamicBone::Serialize(MetroReflectionStream& stream) {
+    const uint32_t proceduralVersion = UnpackProceduralVersion(stream.GetUserData());
+
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, bone);           // choose
+    METRO_SERIALIZE_MEMBER(stream, inertia);
+    METRO_SERIALIZE_MEMBER(stream, damping);
+
+    if (proceduralVersion >= 9) {
+        METRO_SERIALIZE_MEMBER(stream, pos_min_limits);
+        METRO_SERIALIZE_MEMBER(stream, pos_max_limits);
+        METRO_SERIALIZE_MEMBER(stream, rot_min_limits);
+        METRO_SERIALIZE_MEMBER(stream, rot_max_limits);
+    } else {
+        METRO_SERIALIZE_MEMBER(stream, constraints);
+        if (proceduralVersion >= 6) {
+            METRO_SERIALIZE_MEMBER(stream, rot_limits);
+        }
+    }
+
+    if (proceduralVersion >= 4) {
+        METRO_SERIALIZE_MEMBER(stream, use_world_pos);
+    }
 }
 
-void MetroIkChain::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_MEMBER(reader, b0);
-    METRO_SERIALIZE_MEMBER(reader, b1);
-    METRO_SERIALIZE_MEMBER(reader, b2);
-    METRO_SERIALIZE_MEMBER(reader, knee_dir);
-    METRO_SERIALIZE_MEMBER(reader, knee_lim);
+void MetroConstrainedBone::ParentBones::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, axis);
+    METRO_SERIALIZE_MEMBER_STRARRAY_CHOOSE(stream, bone_names);
+
+    uint32_t bone_strs_size = scast<uint32_t>(bone_strs.size());
+    METRO_SERIALIZE_MEMBER(stream, bone_strs_size);
+    if (bone_strs_size > 0) {
+        if (stream.IsIn()) {
+            bone_strs.resize(bone_strs_size);
+        }
+        assert(stream.HasDebugInfo() == false);
+        for (uint32_t i = 0; i < bone_strs_size; ++i) {
+            // if debug info - need to read it
+            // "%s%d", "bone", i
+            stream >> bone_strs[i].bone;
+            // "%s%d", "weight", i
+            stream >> bone_strs[i].weight;
+        }
+    }
 }
 
-void MetroSkelParam::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_MEMBER(reader, b);
-    METRO_SERIALIZE_MEMBER(reader, e);
-    METRO_SERIALIZE_MEMBER(reader, loop);
+void MetroConstrainedBone::Serialize(MetroReflectionStream& stream) {
+    const uint32_t skeletonVersion = UnpackSkeletonVersion(stream.GetUserData());
+    const uint32_t proceduralVersion = UnpackProceduralVersion(stream.GetUserData());
+
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, bone);
+
+    if (skeletonVersion >= 10) {
+        METRO_SERIALIZE_MEMBER(stream, look_at_axis);
+        METRO_SERIALIZE_MEMBER(stream, pos_axis);
+        METRO_SERIALIZE_MEMBER(stream, rot_axis);
+    } else {
+        METRO_SERIALIZE_NAMED_MEMBER(stream, look_at_axis, axis);
+        pos_axis = scast<uint8_t>(MetroProceduralComponent::None);
+        rot_axis = scast<uint8_t>(MetroProceduralComponent::None);
+    }
+
+    if (proceduralVersion >= 3) {
+        METRO_SERIALIZE_MEMBER(stream, rotation_order);
+    } else {
+        rotation_order = scast<uint8_t>(MetroProceduralRotationOrder::Default);
+    }
+
+    METRO_SERIALIZE_STRUCT_MEMBER(stream, position);
+    METRO_SERIALIZE_STRUCT_MEMBER(stream, orientation);
+
+    if (proceduralVersion >= 1) {
+        METRO_SERIALIZE_MEMBER(stream, refresh_kids);
+    }
+    if (proceduralVersion >= 5) {
+        METRO_SERIALIZE_MEMBER(stream, use_anim_poses);
+    }
+
+    if (proceduralVersion >= 7) {
+        if (proceduralVersion > 7) {
+            METRO_SERIALIZE_MEMBER(stream, pos_min_limits);
+            METRO_SERIALIZE_MEMBER(stream, pos_max_limits);
+            METRO_SERIALIZE_MEMBER(stream, rot_min_limits);
+            METRO_SERIALIZE_MEMBER(stream, rot_max_limits);
+        } else {
+            METRO_SERIALIZE_MEMBER(stream, pos_limits);
+            METRO_SERIALIZE_MEMBER(stream, rot_limits);
+        }
+
+        METRO_SERIALIZE_MEMBER(stream, uptype);
+        METRO_SERIALIZE_STRUCT_MEMBER(stream, up);
+    }
 }
 
-void MetroWeightedMotion::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, m);
-    METRO_SERIALIZE_MEMBER(reader, w);
+void MetroParamBone::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, bone);
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, parent);
+    METRO_SERIALIZE_MEMBER_CHOOSE(stream, param);
+    METRO_SERIALIZE_MEMBER(stream, component);
 }
 
-void MotionsCollection::Serialize(MetroReflectionStream& reader) {
-    METRO_SERIALIZE_MEMBER(reader, name);
-    METRO_SERIALIZE_MEMBER(reader, path);
-    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(reader, mots);
+// PROCEDURAL BONES end
+
+void MetroPartition::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, name);
+    METRO_SERIALIZE_ARRAY_MEMBER(stream, infl);
+}
+
+void MetroIkChain::Serialize(MetroReflectionStream& stream) {
+    const uint32_t skeletonVersion = UnpackSkeletonVersion(stream.GetUserData());
+
+    METRO_SERIALIZE_MEMBER(stream, name);
+
+    if (skeletonVersion <= 11) {
+        METRO_SERIALIZE_MEMBER(stream, b0);
+        METRO_SERIALIZE_MEMBER(stream, b1);
+        METRO_SERIALIZE_MEMBER(stream, b2);
+        METRO_SERIALIZE_MEMBER(stream, knee_dir);
+    } else {
+        METRO_SERIALIZE_MEMBER(stream, upper_limb_bone);
+        METRO_SERIALIZE_MEMBER(stream, lower_limb_bone);
+        METRO_SERIALIZE_MEMBER(stream, knee_dir);
+        METRO_SERIALIZE_MEMBER(stream, max_length);
+        METRO_SERIALIZE_MEMBER(stream, flags);
+
+        if (this->flags.value & 0x100) {
+            METRO_SERIALIZE_MEMBER(stream, ground_locator);
+        }
+    }
+
+    METRO_SERIALIZE_MEMBER(stream, knee_lim);
+}
+
+void MetroFixedBone::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, id);
+}
+
+void MetroSkelParam::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, name);
+    METRO_SERIALIZE_MEMBER(stream, b);
+    METRO_SERIALIZE_MEMBER(stream, e);
+    METRO_SERIALIZE_MEMBER(stream, loop);
+}
+
+void MetroWeightedMotion::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, m);
+    METRO_SERIALIZE_MEMBER(stream, w);
+}
+
+void MotionsCollection::Serialize(MetroReflectionStream& stream) {
+    METRO_SERIALIZE_MEMBER(stream, name);
+    METRO_SERIALIZE_MEMBER(stream, path);
+    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(stream, mots);
 }
 
 
@@ -125,6 +279,7 @@ MetroSkeleton::MetroSkeleton()
     : ver(0)
     , crc(0)
     , has_as(false)
+    , mProceduralVersion(0)
 {
 }
 MetroSkeleton::~MetroSkeleton() {
@@ -144,13 +299,43 @@ bool MetroSkeleton::LoadFromData(MemStream& stream) {
     return result;
 }
 
-bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
+
+static quat MetroEulerToQuat(const vec3& r) {
+    mat4 glmM = glm::eulerAngleZXY(-r.y, -r.x, -r.z);
+    quat q = glm::quat_cast(glmM);
+    std::swap(q.y, q.z);
+    return QuatConjugate(q);
+}
+
+static vec3 QuatToMetroEuler(const quat& q) {
+    mat4 mat = glm::mat4_cast(q);
+    const mat4::col_type& i = mat[0];
+    const mat4::col_type& j = mat[1];
+    const mat4::col_type& k = mat[2];
+
+    float x, y, z;
+
+    float cy = Sqrt(j.y * j.y + i.y * i.y);
+    if (cy > 16.0f * MM_Epsilon) {
+        x = -atan2(k.x, k.z);
+        y = -atan2(-k.y, cy);
+        z = -atan2(i.y, j.y);
+    } else {
+        x = -atan2(-i.z, i.x);
+        y = -atan2(-k.y, cy);
+        z = 0.0f;
+    }
+
+    return vec3(-y, -x, -z);
+}
+
+bool MetroSkeleton::LoadFromData_2033(MemStream& dataStream) {
     bool result = false;
 
-    while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadU32();
-        const size_t chunkSize = stream.ReadU32();
-        const size_t chunkEnd = stream.GetCursor() + chunkSize;
+    StreamChunker chunker(dataStream);
+    for (size_t i = 0; i < chunker.GetChunksCount(); ++i) {
+        const size_t chunkId = chunker.GetChunkIDByIdx(i);
+        MemStream stream = chunker.GetChunkStreamByIdx(i);
 
         switch (chunkId) {
             case SC2033_Version: {
@@ -161,14 +346,21 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
                 this->crc = stream.ReadU32();
                 const size_t numBones = stream.ReadU16();
                 this->bones.resize(numBones);
+
                 for (MetroBone& b : this->bones) {
                     b.name = stream.ReadStringZ();
                     b.parent = stream.ReadStringZ();
-                    vec3 orientationEuler;
-                    stream.ReadStruct(orientationEuler);
-                    b.q = QuatFromEuler(-orientationEuler);
+                    vec3 r;
+                    stream.ReadStruct(r);
+                    b.q = MetroEulerToQuat(r);
                     stream.ReadStruct(b.t);
                     b.bp = scast<uint8_t>(stream.ReadTyped<uint16_t>() & 0xFF);
+#if 0
+                    vec3 testR = QuatToMetroEuler(b.q);
+                    assert(abs(r.x - testR.x) < 0.00001f);
+                    assert(abs(r.y - testR.y) < 0.00001f);
+                    assert(abs(r.z - testR.z) < 0.00001f);
+#endif
                 }
             } break;
 
@@ -180,7 +372,7 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
                     l.parent = stream.ReadStringZ();
                     vec3 orientationEuler;
                     stream.ReadStruct(orientationEuler);
-                    l.q = QuatFromEuler(-orientationEuler);
+                    l.q = MetroEulerToQuat(orientationEuler);
                     stream.ReadStruct(l.t);
                 }
             } break;
@@ -241,12 +433,15 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& stream) {
             } break;
         }
 
-        stream.SetCursor(chunkEnd);
+        assert(stream.Remains() == 0);
     }
 
     result = !this->bones.empty();
     if (result) {
-        this->SwizzleBones();
+#ifdef _DEBUG
+        assert(this->CalcBonesCRC() == this->crc);
+#endif
+
         this->LoadMotions();
     }
 
@@ -272,8 +467,6 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
         SC2033_Params
     };
 
-    this->SwizzleBones();
-
 #define START_CHUNK ChunkWriteHelper chunkHelper(stream, chunkId)
 
     for (const size_t chunkId : chunksInOrder) {
@@ -291,7 +484,7 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
                     stream.WriteStringZ(b.name);
                     stream.WriteStringZ(b.parent);
 
-                    vec3 rot = -QuatToEuler(b.q);
+                    vec3 rot = QuatToMetroEuler(b.q);
                     stream.Write(rot);
                     stream.Write(b.t);
                     stream.WriteU16(scast<uint16_t>(b.bp));
@@ -305,7 +498,7 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
                     stream.WriteStringZ(l.name);
                     stream.WriteStringZ(l.parent);
 
-                    vec3 rot = -QuatToEuler(l.q);
+                    vec3 rot = QuatToMetroEuler(l.q);
                     stream.Write(rot);
                     stream.Write(l.t);
                 }
@@ -324,7 +517,7 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
 
             case SC2033_Motions: {
                 START_CHUNK;
-                stream.WriteStringZ(mMotionsStr);
+                stream.WriteStringZ(this->motions);
             } break;
 
             case SC2033_IKLocks: {
@@ -375,11 +568,9 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
     }
 
 #undef START_CHUNK
-
-    this->SwizzleBones();
 }
 
-size_t MetroSkeleton::GetBonesCRC() const {
+uint32_t MetroSkeleton::GetBonesCRC() const {
     return this->crc;
 }
 
@@ -612,107 +803,122 @@ AABBox MetroSkeleton::CalcBBox() const {
     return result;
 }
 
+void MetroSkeleton::SetBones(const MyArray<MetroBone>& newBones) {
+    this->bones = newBones;
+    this->crc = this->CalcBonesCRC();
+    this->CacheMatrices();
+}
 
-void MetroSkeleton::Serialize(MetroReflectionStream& reflection) {
-    if (reflection.IsOut()) {
-        // swizzle back to Metro layout before serializing
-        this->SwizzleBones();
-    }
+void MetroSkeleton::SetLocators(const MyArray<MetroLocator>& newLocators) {
+    this->locators = newLocators;
+    this->CacheMatrices();
+}
 
-    MetroReflectionStream* skeletonReader = reflection.OpenSection("skeleton");
-    if (skeletonReader) {
-        METRO_SERIALIZE_MEMBER(*skeletonReader, ver);
-        METRO_SERIALIZE_MEMBER(*skeletonReader, crc);
 
-        skeletonReader->SetUserData(this->ver);
+void MetroSkeleton::Serialize(MetroReflectionStream& stream) {
+    MetroReflectionStream* skeletonSection = stream.OpenSection("skeleton");
+    if (skeletonSection) {
+        METRO_SERIALIZE_MEMBER(*skeletonSection, ver);
+        METRO_SERIALIZE_MEMBER(*skeletonSection, crc);
 
-        if (this->ver < 15) {
-            METRO_SERIALIZE_MEMBER(*skeletonReader, facefx);
-        } else {
-            METRO_SERIALIZE_MEMBER(*skeletonReader, pfnn); // if version > 16
+        mProceduralVersion = 0;
+        skeletonSection->SetUserData(PackSkeletonVersions(this->ver, mProceduralVersion));
+
+        if (this->ver <= 14) {
+            METRO_SERIALIZE_MEMBER(*skeletonSection, facefx);
         }
-        if (this->ver > 20) {
-            METRO_SERIALIZE_MEMBER(*skeletonReader, has_as); // if version > 20
+        if (this->ver >= 17) {
+            METRO_SERIALIZE_MEMBER(*skeletonSection, pfnn);
         }
-        METRO_SERIALIZE_MEMBER(*skeletonReader, motions);
-        if (this->ver > 12) {
-            METRO_SERIALIZE_MEMBER(*skeletonReader, source_info); // if version > 12
-            if (this->ver > 13) {
-                METRO_SERIALIZE_MEMBER(*skeletonReader, parent_skeleton); // if version > 13
-                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, parent_bone_maps); // if version > 13
+        if (this->ver >= 21) {
+            METRO_SERIALIZE_MEMBER(*skeletonSection, has_as);
+        }
+
+        METRO_SERIALIZE_MEMBER(*skeletonSection, motions);
+
+        if (this->ver >= 13) {
+            METRO_SERIALIZE_MEMBER(*skeletonSection, source_info);
+        }
+        if (this->ver >= 14) {
+            METRO_SERIALIZE_MEMBER(*skeletonSection, parent_skeleton);
+            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, parent_bone_maps);
+        }
+
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, bones);
+
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, locators);
+
+        if (this->ver >= 6) {
+            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, aux_bones);
+        }
+
+        if (this->ver >= 11) {
+            MetroReflectionStream* proceduralSection = skeletonSection->OpenSection("procedural");
+            if (proceduralSection) {
+                METRO_SERIALIZE_NAMED_MEMBER(*proceduralSection, mProceduralVersion, ver);
+
+                skeletonSection->SetUserData(PackSkeletonVersions(this->ver, mProceduralVersion));
+
+                if (mProceduralVersion > 1) {
+                    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, procedural_bones);
+                }
+                skeletonSection->CloseSection(proceduralSection);
             }
         }
 
-        //#NOTE_SK: order depends on version ?
-        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, bones);
-        //#TODO_SK: implement Exodus !!!
-        if (this->ver < 20) {
-            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, locators);
-            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, aux_bones);
-
-            // Arktika.1:
-            // if (ver > 10) {
-            //    section  "procedural" {
-            //        "procedural_bones" ("rec_%04d")
-            //    }
-            // }
-            // if (ver > 6) {
-            //     "driven_bones" ("rec_%04d")
-            // }
-            // if (ver > 7) {
-            //     "dynamic_bones" ("rec_%04d")
-            // }
-            // if (ver > 8) {
-            //     "constrained_bones" ("rec_%04d")
-            // }
-            // ....
-            // "partitions" ("rec_%04d")
-            // "ik_chains" ("rec_%04d")
-            // "fixed_bones" ("rec_%04d")
-            // "params" ("rec_%04d")
-            // "mcolls" ("rec_%04d")
-
-            //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, driven_bones);
-            //if (this->ver > 7) {
-            //    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, dynamic_bones);
-            //}
-            //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, partitions);
-            //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, ik_chains);
-            //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, fixed_bones);
-            //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, params);
-            //METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonReader, mcolls);
+        if (this->ver >= 7) {
+            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, driven_bones);
         }
 
-        reflection.CloseSection(skeletonReader);
-    }
+        if (this->ver >= 8) {
+            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, dynamic_bones);
+        }
 
-    mMotionsStr = this->motions;
+        if (this->ver >= 9) {
+            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, constrained_bones);
+
+            if (this->ver >= 20) {
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, param_bones);
+            }
+        }
+
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, partitions);
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, ik_chains);
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, fixed_bones);
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, params);
+        METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, mcolls);
+
+        stream.CloseSection(skeletonSection);
+    }
+    if (stream.IsIn()) {
+        assert(!stream.HasSomeMore());
+    }
 
     //this->MergeParentSkeleton();
 
-    //#NOTE_SK: fix-up bones transforms by swizzling them back
-    this->SwizzleBones();
-
     this->CacheMatrices();
 
-    this->LoadMotions();
+    if (stream.IsIn()) {
+        mMotionsStr = this->motions;
+        this->LoadMotions();
+    }
 }
 
-void MetroSkeleton::SwizzleBones() {
-    for (auto& b : this->bones) {
-        b.q = MetroSwizzle(b.q);
-        b.t = MetroSwizzle(b.t);
-    }
+void MetroSkeleton::CacheMatrices() {
+    const size_t numAttachPoints = this->GetNumAttachPoints();
+    mInvBindPose.resize(numAttachPoints);
 
-    for (auto& l : this->locators) {
-        l.q = MetroSwizzle(l.q);
-        l.t = MetroSwizzle(l.t);
+    for (size_t i = 0; i < numAttachPoints; ++i) {
+        mInvBindPose[i] = MatInverse(this->GetBoneFullTransform(i));
     }
+}
 
-    for (auto& a : this->aux_bones) {
-        a.q = MetroSwizzle(a.q);
-        a.t = MetroSwizzle(a.t);
+uint32_t MetroSkeleton::CalcBonesCRC() const {
+    Crc32Stream crcStream;
+    for (const MetroBone& bone : this->bones) {
+        crcStream.Update(bone.name.data(), bone.name.size());
     }
+    return crcStream.Finalize();
 }
 
 void MetroSkeleton::MergeParentSkeleton() {
@@ -742,15 +948,6 @@ void MetroSkeleton::MergeParentSkeleton() {
             }
             mMotionsStr += parentSkel->GetMotionsStr();
         }
-    }
-}
-
-void MetroSkeleton::CacheMatrices() {
-    const size_t numAttachPoints = this->GetNumAttachPoints();
-    mInvBindPose.resize(numAttachPoints);
-
-    for (size_t i = 0; i < numAttachPoints; ++i) {
-        mInvBindPose[i] = MatInverse(this->GetBoneFullTransform(i));
     }
 }
 

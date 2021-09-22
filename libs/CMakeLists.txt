@@ -80,6 +80,8 @@ add_subdirectory(nodeeditor)
 
 add_subdirectory(QtPropertyBrowser)
 
+add_subdirectory(multitoolbox)
+
 add_library(tinygltf INTERFACE)
 add_library(Tinygltf::Tinygltf ALIAS tinygltf)
 target_include_directories(tinygltf INTERFACE tinygltf)

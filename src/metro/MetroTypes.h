@@ -13,6 +13,14 @@ enum class MetroGameVersion {
     Unknown
 };
 
+static const CharString MetroGameVersionNames[scast<size_t>(MetroGameVersion::NumVersions)] = {
+    "Metro 2033",
+    "Metro Last Light",
+    "Metro Redux",
+    "Arktika.1",
+    "Metro Exodus"
+};
+
 PACKED_STRUCT_BEGIN
 struct MetroGuid {  // 16 bytes
     uint32_t    a;
@@ -299,6 +307,29 @@ static vec4 DecodeTangent(const uint32_t n) {
     return vec4(x, y, z, w);
 }
 
+inline void EncodeSkinnedPosition(const vec3& src, int16_t(&dst)[4]) {
+    assert(src.x <= 1.0f && src.x >= -1.0f);
+    assert(src.y <= 1.0f && src.y >= -1.0f);
+    assert(src.z <= 1.0f && src.z >= -1.0f);
+
+    const float kPositionQuant = 32767.0f;
+
+    dst[0] = scast<int16_t>(src.x * kPositionQuant);
+    dst[1] = scast<int16_t>(src.y * kPositionQuant);
+    dst[2] = scast<int16_t>(src.z * kPositionQuant);
+    dst[3] = 1;
+}
+
+inline void EncodeSkinnedUV(const vec2& src, int16_t(&dst)[2]) {
+    assert(src.x <= 16.0f && src.x >= -16.0f);
+    assert(src.y <= 16.0f && src.y >= -16.0f);
+
+    const float kUVQuant = 2048.0f;
+
+    dst[0] = scast<int16_t>(src.x * kUVQuant);
+    dst[1] = scast<int16_t>(src.y * kUVQuant);
+}
+
 inline vec3 MetroSwizzle(const vec3& v) {
     return vec3(v.z, v.y, v.x);
 }
@@ -311,7 +342,7 @@ inline quat MetroSwizzle(const quat& q) {
     return quat(q.w, q.z, q.y, q.x);
 }
 
-inline void MetroSwizzle(uint8_t* a) {
+inline void MetroSwizzle(uint8_t (&a)[4]) {
     std::swap(a[0], a[2]);
 }
 

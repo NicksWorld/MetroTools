@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/branchclose.png</file>
+        <file>images/branchopen.png</file>
+    </qresource>
+</RCC>

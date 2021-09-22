@@ -8,14 +8,6 @@
 #include "mycommon.h"
 #include "../MetroSessions.h"
 
-static const QString sGameVersionNames[scast<size_t>(MetroGameVersion::NumVersions)] = {
-    QString("Metro 2033"),
-    QString("Metro Last Light"),
-    QString("Redux"),
-    QString("Arktika.1"),
-    QString("Metro Exodus")
-};
-
 SessionsDlg::SessionsDlg(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::SessionsDlg)
@@ -43,7 +35,7 @@ void SessionsDlg::SetSessionsList(MetroSessionsList* list) {
     if (numSession) {
         for (size_t i = 0; i < numSession; ++i) {
             const MetroSession& session = list->GetSession(i);
-            ui->comboExistingSession->addItem(QString("%1 - %2").arg(sGameVersionNames[scast<size_t>(session.GetGameVersion())])
+            ui->comboExistingSession->addItem(QString("%1 - %2").arg(QString::fromStdString(MetroGameVersionNames[scast<size_t>(session.GetGameVersion())]))
                                                                 .arg(QString::fromStdWString(session.GetContentFolder().wstring())));
         }
         ui->comboExistingSession->setCurrentIndex(0);
@@ -56,7 +48,7 @@ void SessionsDlg::SetSessionsList(MetroSessionsList* list) {
     }
 
     for (size_t i = 0; i < scast<size_t>(MetroGameVersion::NumVersions); ++i) {
-        ui->comboGameVersion->addItem(sGameVersionNames[i]);
+        ui->comboGameVersion->addItem(QString::fromStdString(MetroGameVersionNames[i]));
     }
 }
 

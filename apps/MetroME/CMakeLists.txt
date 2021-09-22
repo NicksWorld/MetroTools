@@ -30,6 +30,9 @@ target_sources(MetroME PRIVATE
     ui/props/materialstringsprop.h
     ui/props/objectpropertybrowser.cpp
     ui/props/objectpropertybrowser.h
+    ui/rollouts/boneslistrollout.cpp
+    ui/rollouts/boneslistrollout.h
+    ui/rollouts/boneslistrollout.ui
     cpp.hint
 )
 target_link_libraries(MetroME PRIVATE

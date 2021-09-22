@@ -225,6 +225,9 @@
              </widget>
             </widget>
            </item>
+           <item>
+            <widget class="MultiToolBox" name="toolbox" native="true"/>
+           </item>
           </layout>
          </widget>
         </widget>
@@ -241,6 +244,11 @@
    <extends>QWidget</extends>
    <header>mainribbon.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MultiToolBox</class>
+   <extends>QWidget</extends>
+   <header>multitoolbox.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -7,6 +7,8 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 
+qt6_add_resources(RESOURCES multitoolbox.qrc)
+
 add_library(MultiToolbox STATIC)
 add_library(MetroTools::MultiToolbox ALIAS MultiToolbox)
 target_include_directories(MultiToolbox PUBLIC .)
@@ -18,6 +20,7 @@ target_sources(MultiToolbox PRIVATE
     titlebutton.cpp
     titlebutton.h
 )
+target_sources(MultiToolbox PUBLIC ${RESOURCES})
 target_link_libraries(MultiToolbox PRIVATE
     Qt6::Gui
     Qt6::Widgets

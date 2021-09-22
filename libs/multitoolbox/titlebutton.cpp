@@ -18,13 +18,13 @@
 
 TitleButton::TitleButton(QWidget* parent) : QToolButton(parent)
 {
-    m_branchOpen.load( ":/images/branchopen.png" );
-    m_branchClose.load( ":/images/branchclose.png" );
+    m_branchOpen.load( "://images/branchopen.png" );
+    m_branchClose.load( "://images/branchclose.png" );
 
     setCheckable(true);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    this->setMinimumHeight(30);
+    this->setMinimumHeight(10);
 }
 
 void TitleButton::paintEvent(QPaintEvent* /* event */)
@@ -73,7 +73,7 @@ void TitleButton::paintEvent(QPaintEvent* /* event */)
 
 QSize TitleButton::sizeHint() const
 {
-    QFontMetrics metrics(font());
+    QFontMetrics metrics(qApp->font());
     QSize size = QSize(0, metrics.height() + metrics.height()/4);
     return size;
 }

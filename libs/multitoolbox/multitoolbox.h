@@ -23,7 +23,7 @@ class MultiToolBox : public QWidget
 {
 Q_OBJECT
 public:
-    MultiToolBox(QWidget* parent = 0, Qt::WindowFlags f = 0);
+    MultiToolBox(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     ~MultiToolBox();
     // Add a widget to the toolbox. Takes the ownership of the widget.
     void addWidget(QWidget* w, bool visible = true);
@@ -34,7 +34,7 @@ protected:
     // gets hidden/shown in some way (except clicking the title button).
     bool eventFilter(QObject* obj, QEvent* event);
 private slots:
-    void showHide(QWidget* w);
+    void showHide(QObject* w);
 private:
     QList<QPointer<QWidget> >		m_widgets;
     QList<QPointer<QAbstractButton> >	m_headers;

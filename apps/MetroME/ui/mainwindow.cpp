@@ -35,9 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , mRenderPanel(nullptr)
     , mModelHierarchyTree(new QTreeWidget)
-    , mSkeletonHierarchyTree(new QTreeWidget)
     , mModelPropertyBrowser(new ObjectPropertyBrowser)
-    , mSkeletonPropertyBrowser(new ObjectPropertyBrowser)
+    , mBonesListRollout(new BonesListRollout)
     , mSelectedGD(-1)
     , mMatStringsProp{}
     , mIsInSkeletonView(false)
@@ -72,25 +71,21 @@ MainWindow::MainWindow(QWidget *parent)
     mRenderPanel->setGeometry(QRect(0, 0, ui->renderContainer->width(), ui->renderContainer->height()));
     ui->renderContainer->layout()->addWidget(mRenderPanel);
 
+    ui->toolbox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->toolbox->addWidget(mBonesListRollout);
+    ui->toolbox->hide();
+
     // trees
     mModelHierarchyTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     mModelHierarchyTree->setHeaderHidden(true);
-    mSkeletonHierarchyTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mSkeletonHierarchyTree->setHeaderHidden(true);
     ui->pnlTreeView->layout()->addWidget(mModelHierarchyTree);
-    ui->pnlTreeView->layout()->addWidget(mSkeletonHierarchyTree);
     mModelHierarchyTree->show();
-    mSkeletonHierarchyTree->hide();
     connect(mModelHierarchyTree, &QTreeWidget::currentItemChanged, this, &MainWindow::OnModelHierarchyTreeCurrentItemChanged);
-    connect(mSkeletonHierarchyTree, &QTreeWidget::currentItemChanged, this, &MainWindow::OnSkeletonHierarchyTreeCurrentItemChanged);
 
     // property views
     mModelPropertyBrowser->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mSkeletonPropertyBrowser->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     ui->pnlProperties->layout()->addWidget(mModelPropertyBrowser);
-    ui->pnlProperties->layout()->addWidget(mSkeletonPropertyBrowser);
     mModelPropertyBrowser->show();
-    mSkeletonPropertyBrowser->hide();
     connect(mModelPropertyBrowser, &ObjectPropertyBrowser::objectPropertyChanged, this, &MainWindow::OnPropertyBrowserObjectPropertyChanged);
 
     // renderer
@@ -149,41 +144,7 @@ void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
 
     RefPtr<MetroSkeleton> skeleton = model->IsSkeleton() ? scast<MetroModelSkeleton*>(model)->GetSkeleton() : nullptr;
     if (skeleton) {
-        mSkeletonHierarchyTree->clear();
-        QTreeWidgetItem* topBonesNode = new QTreeWidgetItem({ QLatin1String("Bones") });
-        topBonesNode->setData(0, Qt::UserRole, QVariant(int(-1)));
-        mSkeletonHierarchyTree->addTopLevelItem(topBonesNode);
-
-        QTreeWidgetItem* topLocatorsNode = new QTreeWidgetItem({ QLatin1String("Locators") });
-        topLocatorsNode->setData(0, Qt::UserRole, QVariant(int(-1)));
-        mSkeletonHierarchyTree->addTopLevelItem(topLocatorsNode);
-
-        const size_t numBones = skeleton->GetNumBones();
-        MyArray<QTreeWidgetItem*> boneNodes(numBones);
-        // 1st pass - create all nodes
-        for (size_t i = 0; i < numBones; ++i) {
-            QString boneName = QString::fromStdString(skeleton->GetBoneName(i));
-            boneNodes[i] = new QTreeWidgetItem({ boneName });
-            boneNodes[i]->setData(0, Qt::UserRole, QVariant(scast<int>(i)));
-        }
-        // 2nd pass - make the hierarchy
-        for (size_t i = 0; i < numBones; ++i) {
-            const size_t parentIdx = skeleton->GetBoneParentIdx(i);
-            if (kInvalidValue == parentIdx) {
-                topBonesNode->addChild(boneNodes[i]);
-            } else {
-                boneNodes[parentIdx]->addChild(boneNodes[i]);
-            }
-        }
-
-        const size_t numLocators = skeleton->GetNumLocators();
-        for (size_t i = 0; i < numLocators; ++i) {
-            const size_t fulIdx = i + numBones;
-            QString locatorName = QString::fromStdString(skeleton->GetBoneName(fulIdx));
-            QTreeWidgetItem* locatorNode = new QTreeWidgetItem({ locatorName });
-            locatorNode->setData(0, Qt::UserRole, QVariant(scast<int>(fulIdx)));
-            topLocatorsNode->addChild(locatorNode);
-        }
+        mBonesListRollout->FillForTheSkeleton(skeleton.get());
     }
 }
 
@@ -227,15 +188,15 @@ void MainWindow::OnWindowLoaded() {
 
 void MainWindow::OnRibbonTabChanged(const MainRibbon::TabType tab) {
     if (MainRibbon::TabType::Model == tab) {
+        ui->toolbox->hide();
+        ui->splitterSidePanel->show();
         mModelHierarchyTree->show();
         mModelPropertyBrowser->show();
-        mSkeletonHierarchyTree->hide();
-        mSkeletonPropertyBrowser->hide();
     } else if (MainRibbon::TabType::Skeleton == tab) {
+        ui->splitterSidePanel->hide();
         mModelHierarchyTree->hide();
         mModelPropertyBrowser->hide();
-        mSkeletonHierarchyTree->show();
-        mSkeletonPropertyBrowser->show();
+        ui->toolbox->show();
 
         this->OnSkeletonShowBones(true);
         this->OnSkeletonShowBonesLinks(true);
@@ -586,8 +547,4 @@ void MainWindow::OnModelHierarchyTreeCurrentItemChanged(QTreeWidgetItem*, QTreeW
         mSelectedGD = -1;
         mModelPropertyBrowser->setActiveObject(nullptr);
     }
-}
-
-void MainWindow::OnSkeletonHierarchyTreeCurrentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*) {
-
 }

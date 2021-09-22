@@ -37,7 +37,7 @@ MultiToolBox::MultiToolBox(QWidget* parent, Qt::WindowFlags f) : QWidget(parent,
     ui->setupUi(this);
     ui->retranslateUi(this);
 
-#ifdef Q_WS_WIN32
+#ifdef Q_WS_WIN
     QPalette pal = ui->widget->palette();;
     ui->scrollArea->setPalette( pal );
 #endif
@@ -52,7 +52,7 @@ MultiToolBox::MultiToolBox(QWidget* parent, Qt::WindowFlags f) : QWidget(parent,
     m_wrapper->setLayout(m_layout);
 
     m_signalMapper = new QSignalMapper(this);
-    QObject::connect(m_signalMapper, SIGNAL(mapped(QWidget*)), this, SLOT(showHide(QWidget*)));
+    connect(m_signalMapper, &QSignalMapper::mappedObject, this, &MultiToolBox::showHide);
 }
 
 void MultiToolBox::addWidget(QWidget* w, bool visible)
@@ -68,8 +68,10 @@ void MultiToolBox::addWidget(QWidget* w, bool visible)
     TitleButton* titleButton = new TitleButton; // N.B. layout will take the ownership
     titleButton->setChecked(visible);
     titleButton->setText(w->windowTitle());
-    m_signalMapper->setMapping(titleButton, w);
-    QObject::connect(titleButton, SIGNAL(clicked()), m_signalMapper, SLOT(map()));
+    m_signalMapper->setMapping(static_cast<QObject*>(titleButton), static_cast<QObject*>(w));
+
+    using MapSlot = void(QSignalMapper::*)();
+    QObject::connect(titleButton, &TitleButton::clicked, m_signalMapper, static_cast<MapSlot>(&QSignalMapper::map));
 
     w->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
 
@@ -127,10 +129,10 @@ bool MultiToolBox::eventFilter(QObject* obj, QEvent* event)
     return false;
 }
 
-void MultiToolBox::showHide(QWidget* w)
+void MultiToolBox::showHide(QObject* w)
 {
     Q_ASSERT(w);
-    w->setVisible(!w->isVisible());
+    static_cast<QWidget*>(w)->setVisible(!static_cast<QWidget*>(w)->isVisible());
 }
 
 QList<QPointer<QWidget> > MultiToolBox::widgets() const

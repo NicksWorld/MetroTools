@@ -6,6 +6,8 @@
 
 #include "props/objectpropertybrowser.h"
 
+#include "rollouts/boneslistrollout.h"
+
 #include "common/mycommon.h"
 
 #include "mainribbon.h"
@@ -59,15 +61,13 @@ public slots:
 
 private slots:
     void    OnModelHierarchyTreeCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem* previous);
-    void    OnSkeletonHierarchyTreeCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem* previous);
 
 private:
     Ui::MainWindow*                 ui;
     RenderPanel*                    mRenderPanel;
     QTreeWidget*                    mModelHierarchyTree;
-    QTreeWidget*                    mSkeletonHierarchyTree;
     ObjectPropertyBrowser*          mModelPropertyBrowser;
-    ObjectPropertyBrowser*          mSkeletonPropertyBrowser;
+    BonesListRollout*               mBonesListRollout;
     int                             mSelectedGD;
     StrongPtr<MaterialStringsProp>  mMatStringsProp;
     bool                            mIsInSkeletonView;

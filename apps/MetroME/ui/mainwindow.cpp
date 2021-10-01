@@ -34,11 +34,15 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , mRenderPanel(nullptr)
-    , mModelHierarchyTree(new QTreeWidget)
-    , mModelPropertyBrowser(new ObjectPropertyBrowser)
+    // Model rollouts
+    , mModelMeshesRollout(new ModelMeshesRollout)
+    , mModelPhysXRollout(new ModelPhysXRollout)
+    // Skeleton rollouts
     , mBonesListRollout(new BonesListRollout)
-    , mSelectedGD(-1)
-    , mMatStringsProp{}
+    , mMotionsRollout(new MotionsRollout)
+    , mFaceFXRollout(new FaceFXRollout)
+    , mParamsRollout(new ParamsRollout)
+    //
     , mIsInSkeletonView(false)
 {
     ui->setupUi(this);
@@ -71,22 +75,20 @@ MainWindow::MainWindow(QWidget *parent)
     mRenderPanel->setGeometry(QRect(0, 0, ui->renderContainer->width(), ui->renderContainer->height()));
     ui->renderContainer->layout()->addWidget(mRenderPanel);
 
-    ui->toolbox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    ui->toolbox->addWidget(mBonesListRollout);
-    ui->toolbox->hide();
+    // add model rollouts
+    connect(mModelMeshesRollout, &ModelMeshesRollout::SignalMeshSelectionChanged, this, &MainWindow::OnModelMeshSelectionChanged);
+    connect(mModelMeshesRollout, &ModelMeshesRollout::SignalMeshPropertiesChanged, this, &MainWindow::OnModelMeshPropertiesChanged);
+    ui->toolboxModel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->toolboxModel->addWidget(mModelMeshesRollout);
+    ui->toolboxModel->addWidget(mModelPhysXRollout);
 
-    // trees
-    mModelHierarchyTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mModelHierarchyTree->setHeaderHidden(true);
-    ui->pnlTreeView->layout()->addWidget(mModelHierarchyTree);
-    mModelHierarchyTree->show();
-    connect(mModelHierarchyTree, &QTreeWidget::currentItemChanged, this, &MainWindow::OnModelHierarchyTreeCurrentItemChanged);
-
-    // property views
-    mModelPropertyBrowser->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    ui->pnlProperties->layout()->addWidget(mModelPropertyBrowser);
-    mModelPropertyBrowser->show();
-    connect(mModelPropertyBrowser, &ObjectPropertyBrowser::objectPropertyChanged, this, &MainWindow::OnPropertyBrowserObjectPropertyChanged);
+    // add skeleton rollouts
+    ui->toolboxSkeleton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->toolboxSkeleton->addWidget(mBonesListRollout);
+    ui->toolboxSkeleton->addWidget(mMotionsRollout);
+    ui->toolboxSkeleton->addWidget(mFaceFXRollout);
+    ui->toolboxSkeleton->addWidget(mParamsRollout);
+    ui->toolboxSkeleton->hide();
 
     // renderer
     bool deviceIsOk = u4a::Renderer::Get().CreateDevice(u4a::Renderer::IF_D2D_Support);
@@ -115,37 +117,16 @@ MainWindow::~MainWindow() {
 
 
 void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
-    mSelectedGD = -1;
+    // Setup model rollouts
+    mModelMeshesRollout->FillForTheModel(model);
+    mModelPhysXRollout->FillForTheModel(model);
 
-    MyArray<MetroModelGeomData> gds;
-    model->CollectGeomData(gds);
-
-    if (!gds.empty()) {
-        mModelHierarchyTree->clear();
-        QTreeWidgetItem* topNode = new QTreeWidgetItem({ QLatin1String("Model") });
-        topNode->setData(0, Qt::UserRole, QVariant(int(-1)));
-        mModelHierarchyTree->addTopLevelItem(topNode);
-
-        int idx = 0;
-        for (const auto& gd : gds) {
-            QString childText = QString("Mesh_%1").arg(idx);
-            QTreeWidgetItem* child = new QTreeWidgetItem({ childText });
-            child->setData(0, Qt::UserRole, QVariant(idx));
-
-            topNode->addChild(child);
-
-            ++idx;
-        }
-
-        mModelHierarchyTree->expandAll();
-
-        mModelPropertyBrowser->setActiveObject(nullptr);
-    }
-
-    RefPtr<MetroSkeleton> skeleton = model->IsSkeleton() ? scast<MetroModelSkeleton*>(model)->GetSkeleton() : nullptr;
-    if (skeleton) {
-        mBonesListRollout->FillForTheSkeleton(skeleton.get());
-    }
+    // Setup skeleton rollouts
+    MetroSkeleton* skeleton = model->IsSkeleton() ? scast<MetroModelSkeleton*>(model)->GetSkeleton().get() : nullptr;
+    mBonesListRollout->FillForTheSkeleton(skeleton);
+    mMotionsRollout->FillForTheSkeleton(skeleton);
+    mFaceFXRollout->FillForTheSkeleton(skeleton);
+    mParamsRollout->FillForTheSkeleton(skeleton);
 }
 
 
@@ -188,18 +169,11 @@ void MainWindow::OnWindowLoaded() {
 
 void MainWindow::OnRibbonTabChanged(const MainRibbon::TabType tab) {
     if (MainRibbon::TabType::Model == tab) {
-        ui->toolbox->hide();
-        ui->splitterSidePanel->show();
-        mModelHierarchyTree->show();
-        mModelPropertyBrowser->show();
+        ui->toolboxSkeleton->hide();
+        ui->toolboxModel->show();
     } else if (MainRibbon::TabType::Skeleton == tab) {
-        ui->splitterSidePanel->hide();
-        mModelHierarchyTree->hide();
-        mModelPropertyBrowser->hide();
-        ui->toolbox->show();
-
-        this->OnSkeletonShowBones(true);
-        this->OnSkeletonShowBonesLinks(true);
+        ui->toolboxModel->hide();
+        ui->toolboxSkeleton->show();
     }
 }
 
@@ -482,69 +456,11 @@ void MainWindow::OnSkeletonShowBonesNames(bool checked) {
     }
 }
 
-void MainWindow::OnPropertyBrowserObjectPropertyChanged() {
-    if (mSelectedGD >= 0 && mRenderPanel) {
-        RefPtr<MetroModelBase> model = mRenderPanel->GetModel();
-        if (model) {
-            MyArray<MetroModelGeomData> gds;
-            model->CollectGeomData(gds);
-
-            MetroModelBase* gdModel = const_cast<MetroModelBase*>(gds[mSelectedGD].model);
-
-            bool updateModel = false;
-
-            if (mMatStringsProp->texture.toStdString() != gdModel->GetMaterialString(0)) {
-                gdModel->SetMaterialString(mMatStringsProp->texture.toStdString(), 0);
-                updateModel = true;
-            }
-            if (mMatStringsProp->shader.toStdString() != gdModel->GetMaterialString(1)) {
-                gdModel->SetMaterialString(mMatStringsProp->shader.toStdString(), 1);
-                updateModel = true;
-            }
-            if (mMatStringsProp->material.toStdString() != gdModel->GetMaterialString(2)) {
-                gdModel->SetMaterialString(mMatStringsProp->material.toStdString(), 2);
-                updateModel = true;
-            }
-            if (mMatStringsProp->src_mat.toStdString() != gdModel->GetMaterialString(3)) {
-                gdModel->SetMaterialString(mMatStringsProp->src_mat.toStdString(), 3);
-                updateModel = true;
-            }
-
-            if (updateModel) {
-                mRenderPanel->UpdateModelProps();
-            }
-        }
-    }
+void MainWindow::OnModelMeshSelectionChanged(int) {
 }
 
-void MainWindow::OnModelHierarchyTreeCurrentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*) {
-    QTreeWidgetItem* item = mModelHierarchyTree->currentItem();
-    if (item) {
-        const int gdIdx = item->data(0, Qt::UserRole).toInt();
-
-        if (gdIdx >= 0 && mRenderPanel) {
-            RefPtr<MetroModelBase> model = mRenderPanel->GetModel();
-            if (model) {
-                MyArray<MetroModelGeomData> gds;
-                model->CollectGeomData(gds);
-
-                const MetroModelBase* gdModel = gds[gdIdx].model;
-
-                mModelPropertyBrowser->setActiveObject(nullptr);
-
-                mMatStringsProp = MakeStrongPtr<MaterialStringsProp>();
-                mMatStringsProp->texture = QString::fromStdString(gdModel->GetMaterialString(0));
-                mMatStringsProp->shader = QString::fromStdString(gdModel->GetMaterialString(1));
-                mMatStringsProp->material = QString::fromStdString(gdModel->GetMaterialString(2));
-                mMatStringsProp->src_mat = QString::fromStdString(gdModel->GetMaterialString(3));
-
-                mModelPropertyBrowser->setActiveObject(mMatStringsProp.get());
-
-                mSelectedGD = gdIdx;
-            }
-        }
-    } else {
-        mSelectedGD = -1;
-        mModelPropertyBrowser->setActiveObject(nullptr);
+void MainWindow::OnModelMeshPropertiesChanged() {
+    if (mRenderPanel) {
+        mRenderPanel->UpdateModelProps();
     }
 }

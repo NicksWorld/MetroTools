@@ -277,17 +277,28 @@ public:
     mat4                        GetBoneTransform(const size_t idx) const;
     mat4                        GetBoneFullTransform(const size_t idx) const;
     const mat4&                 GetBoneFullTransformInv(const size_t idx) const;
-    const size_t                GetBoneParentIdx(const size_t idx) const;
+    size_t                      GetBoneParentIdx(const size_t idx) const;
     const CharString&           GetBoneName(const size_t idx) const;
     const CharString&           GetBoneParentName(const size_t idx) const;
     size_t                      FindBone(const CharString& name) const;
 
     const CharString&           GetMotionsStr() const;
+    void                        SetMotionsStr(const CharString& str);
     size_t                      GetNumMotions() const;
     CharString                  GetMotionName(const size_t idx) const;
     const CharString&           GetMotionPath(const size_t idx) const;
     float                       GetMotionDuration(const size_t idx) const;
     RefPtr<MetroMotion>         GetMotion(const size_t idx);
+
+    const CharString&           GetFaceFX() const;
+    void                        SetFaceFX(const CharString& str);
+
+    size_t                      GetNumParams() const;
+    const MetroSkelParam&       GetSkelParam(const size_t idx) const;
+    void                        SetSkelParam(const size_t idx, const MetroSkelParam& param);
+    void                        AddSkelParam(const MetroSkelParam& param);
+    void                        RemoveSkelParam(const size_t idx);
+    void                        ReplaceSkelParams(const MyArray<MetroSkelParam>& newParams);
 
     AABBox                      CalcBBox() const;
 

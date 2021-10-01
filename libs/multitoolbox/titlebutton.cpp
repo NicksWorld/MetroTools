@@ -24,7 +24,7 @@ TitleButton::TitleButton(QWidget* parent) : QToolButton(parent)
     setCheckable(true);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    this->setMinimumHeight(10);
+    this->setMinimumHeight(20);
 }
 
 void TitleButton::paintEvent(QPaintEvent* /* event */)

@@ -276,8 +276,8 @@ public:
 
     virtual void                CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
-    virtual bool                IsHierarchy() const { return true; }
-    virtual bool                IsSkinnedHierarchy() const { return mType == scast<uint16_t>(MetroModelType::Hierarchy2); }
+    virtual bool                IsHierarchy() const override { return true; }
+    virtual bool                IsSkinnedHierarchy() const override { return mType == scast<uint16_t>(MetroModelType::Hierarchy2); }
 
     void                        ApplyTPreset(const CharString& tpresetName);
 
@@ -330,6 +330,9 @@ public:
 
     const RefPtr<MetroSkeleton>& GetSkeleton() const;
     void                    SetSkeleton(RefPtr<MetroSkeleton> skeleton);
+
+    const StringArray&      GetPhysXLinks() const;
+    void                    SetPhysXLinks(const StringArray& newLinks);
 
     void                    AddChildEx(const RefPtr<MetroModelBase>& child);
 

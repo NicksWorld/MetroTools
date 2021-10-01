@@ -473,7 +473,7 @@ void MetroSkeleton::Save_2033(MemWriteStream& stream) {
         switch (chunkId) {
             case SC2033_Version: {
                 START_CHUNK;
-                stream.WriteU32(this->ver);
+                stream.WriteU32(kSkeletonVersion2033);
             } break;
 
             case SC2033_Bones: {
@@ -676,7 +676,7 @@ const mat4& MetroSkeleton::GetBoneFullTransformInv(const size_t idx) const {
     return mInvBindPose[idx];
 }
 
-const size_t MetroSkeleton::GetBoneParentIdx(const size_t idx) const {
+size_t MetroSkeleton::GetBoneParentIdx(const size_t idx) const {
     const CharString& parentName = this->GetBoneParentName(idx);
     return this->FindBone(parentName);
 }
@@ -747,6 +747,10 @@ const CharString& MetroSkeleton::GetMotionsStr() const {
     return mMotionsStr;
 }
 
+void MetroSkeleton::SetMotionsStr(const CharString& str) {
+    mMotionsStr = this->motions = str;
+}
+
 size_t MetroSkeleton::GetNumMotions() const {
     return mMotions.size();
 }
@@ -787,7 +791,39 @@ RefPtr<MetroMotion> MetroSkeleton::GetMotion(const size_t idx) {
         mMotions[idx].motion = motion;
     }
 
-    return std::move(motion);
+    return motion;
+}
+
+const CharString& MetroSkeleton::GetFaceFX() const {
+    return this->facefx;
+}
+
+void MetroSkeleton::SetFaceFX(const CharString& str) {
+    this->facefx = str;
+}
+
+size_t MetroSkeleton::GetNumParams() const {
+    return this->params.size();
+}
+
+const MetroSkelParam& MetroSkeleton::GetSkelParam(const size_t idx) const {
+    return this->params[idx];
+}
+
+void MetroSkeleton::SetSkelParam(const size_t idx, const MetroSkelParam& param) {
+    this->params[idx] = param;
+}
+
+void MetroSkeleton::AddSkelParam(const MetroSkelParam& param) {
+    this->params.push_back(param);
+}
+
+void MetroSkeleton::RemoveSkelParam(const size_t idx) {
+    this->params.erase(this->params.begin() + idx);
+}
+
+void MetroSkeleton::ReplaceSkelParams(const MyArray<MetroSkelParam>& newParams) {
+    this->params = newParams;
 }
 
 AABBox MetroSkeleton::CalcBBox() const {

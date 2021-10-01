@@ -810,13 +810,18 @@ bool MetroModelHierarchy::Save(MemWriteStream& stream, const MetroModelSaveParam
 
     const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
 
+    //#NOTE_SK: 2033 doesn't support tpresets
+    const bool is2033 = (version <= kModelVersion2033);
+
     if (this->IsSkinnedHierarchy() && mSkeletonCRC) {
         ChunkWriteHelper skeletonCRCChunk(stream, MC_SkeletonBonesCRC);
         stream.WriteU32(mSkeletonCRC);
     }
 
     // tpresets
-    this->SaveTPresets(stream, version);
+    if (!is2033) {
+        this->SaveTPresets(stream, version);
+    }
 
     // children
     {
@@ -1092,11 +1097,12 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
         readBoneMtls(mMeleeMaterials);
         readBoneMtls(mStepMaterials);
 
-        assert(hitpmtlsStream.Ended());
+        //assert(hitpmtlsStream.Ended());
     }
 
     MemStream foldersStream = chunker.GetChunkStream(MC_Folders);
     if (foldersStream) {
+        assert(false);
         const size_t numFolders = foldersStream.ReadU32();
         mFolders.resize(numFolders);
         for (CharString& s : mFolders) {
@@ -1152,11 +1158,13 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
 
     const uint16_t version = params.IsSaveForGameVersion() ? GetModelVersionFromGameVersion(params.gameVersion) : mVersion;
 
-    // tpresets
-    this->SaveTPresets(stream, version);
-
-    //#NOTE_SK: 2033 only supports external skeletons and meshes
+    //#NOTE_SK: 2033 only supports external skeletons and meshes and doesn't support tpresets
     const bool is2033 = (version <= kModelVersion2033);
+
+    // tpresets
+    if (!is2033) {
+        this->SaveTPresets(stream, version);
+    }
 
     // skeleton
     if (mSkeleton) {
@@ -1294,6 +1302,18 @@ const RefPtr<MetroSkeleton>& MetroModelSkeleton::GetSkeleton() const {
 
 void MetroModelSkeleton::SetSkeleton(RefPtr<MetroSkeleton> skeleton) {
     mSkeleton = skeleton;
+}
+
+const StringArray& MetroModelSkeleton::GetPhysXLinks() const {
+    return mPhysXLinks;
+}
+
+void MetroModelSkeleton::SetPhysXLinks(const StringArray& newLinks) {
+    mPhysXLinks = newLinks;
+    //#NOTE_SK: should always be 4 links !!!
+    while (mPhysXLinks.size() < 4) {
+        mPhysXLinks.push_back(kEmptyString);
+    }
 }
 
 void MetroModelSkeleton::AddChildEx(const RefPtr<MetroModelBase>& child) {

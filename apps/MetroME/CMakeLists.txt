@@ -33,6 +33,21 @@ target_sources(MetroME PRIVATE
     ui/rollouts/boneslistrollout.cpp
     ui/rollouts/boneslistrollout.h
     ui/rollouts/boneslistrollout.ui
+    ui/rollouts/motionsrollout.cpp
+    ui/rollouts/motionsrollout.h
+    ui/rollouts/motionsrollout.ui
+    ui/rollouts/facefxrollout.cpp
+    ui/rollouts/facefxrollout.h
+    ui/rollouts/facefxrollout.ui
+    ui/rollouts/paramsrollout.cpp
+    ui/rollouts/paramsrollout.h
+    ui/rollouts/paramsrollout.ui
+    ui/rollouts/modelmeshesrollout.cpp
+    ui/rollouts/modelmeshesrollout.h
+    ui/rollouts/modelmeshesrollout.ui
+    ui/rollouts/modelphysxrollout.cpp
+    ui/rollouts/modelphysxrollout.h
+    ui/rollouts/modelphysxrollout.ui
     cpp.hint
 )
 target_link_libraries(MetroME PRIVATE

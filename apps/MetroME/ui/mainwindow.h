@@ -2,11 +2,16 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTreeWidgetItem>
 
-#include "props/objectpropertybrowser.h"
+// Model rollouts
+#include "rollouts/modelmeshesrollout.h"
+#include "rollouts/modelphysxrollout.h"
 
+// Skeleton rollouts
 #include "rollouts/boneslistrollout.h"
+#include "rollouts/motionsrollout.h"
+#include "rollouts/facefxrollout.h"
+#include "rollouts/paramsrollout.h"
 
 #include "common/mycommon.h"
 
@@ -15,7 +20,7 @@
 
 class SimpleRibbon;
 class MetroModelBase;
-class MaterialStringsProp;
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -30,7 +35,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    void UpdateUIForTheModel(MetroModelBase* model);
+    void    UpdateUIForTheModel(MetroModelBase* model);
 
 public slots:
     void    OnWindowLoaded();
@@ -56,20 +61,24 @@ public slots:
     void    OnSkeletonShowBones(bool checked);
     void    OnSkeletonShowBonesLinks(bool checked);
     void    OnSkeletonShowBonesNames(bool checked);
-    //
-    void    OnPropertyBrowserObjectPropertyChanged();
 
 private slots:
-    void    OnModelHierarchyTreeCurrentItemChanged(QTreeWidgetItem* current, QTreeWidgetItem* previous);
+    // Model rollouts
+    void    OnModelMeshSelectionChanged(int idx);
+    void    OnModelMeshPropertiesChanged();
 
 private:
     Ui::MainWindow*                 ui;
     RenderPanel*                    mRenderPanel;
-    QTreeWidget*                    mModelHierarchyTree;
-    ObjectPropertyBrowser*          mModelPropertyBrowser;
+    // Model rollouts
+    ModelMeshesRollout*             mModelMeshesRollout;
+    ModelPhysXRollout*              mModelPhysXRollout;
+    // Skeleton rollouts
     BonesListRollout*               mBonesListRollout;
-    int                             mSelectedGD;
-    StrongPtr<MaterialStringsProp>  mMatStringsProp;
+    MotionsRollout*                 mMotionsRollout;
+    FaceFXRollout*                  mFaceFXRollout;
+    ParamsRollout*                  mParamsRollout;
+    //
     bool                            mIsInSkeletonView;
 };
 #endif // MAINWINDOW_H

@@ -13,14 +13,14 @@ add_library(MultiToolbox STATIC)
 add_library(MetroTools::MultiToolbox ALIAS MultiToolbox)
 target_include_directories(MultiToolbox PUBLIC .)
 target_sources(MultiToolbox PRIVATE
-    multitoolbox.qrc
+    ${RESOURCES}
     multitoolbox.ui
     multitoolbox.cpp
     multitoolbox.h
     titlebutton.cpp
     titlebutton.h
 )
-target_sources(MultiToolbox PUBLIC ${RESOURCES})
+# target_sources(MultiToolbox PUBLIC ${RESOURCES})
 target_link_libraries(MultiToolbox PRIVATE
     Qt6::Gui
     Qt6::Widgets

@@ -215,6 +215,7 @@ void MainRibbon::BuildModelTab() {
 }
 
 void MainRibbon::BuildSkeletonTab() {
+#if 0
     mGroupSkeletonFile = mTabSkeleton->AddRibbonGroup(tr("File"));
 
     SimpleRibbonButton* importSkeletonButton = new SimpleRibbonButton;
@@ -249,6 +250,7 @@ void MainRibbon::BuildSkeletonTab() {
         connect(exportToFBXAction, &QAction::triggered, this, &MainRibbon::OnFileExportFBXSkeletonCommand);
     }
     mGroupSkeletonFile->AddWidget(exportSkeletonButton);
+#endif
 }
 
 void MainRibbon::BuildAnimationTab() {

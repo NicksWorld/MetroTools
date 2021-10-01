@@ -11,7 +11,7 @@ function(CompileHLSLShader source_path shader_type entry_point out includes)
         COMMENT "Compiling shader ${source_path}..."
         COMMAND ${FXC_BIN} /E \"${entry_point}\" /T \"${shader_type}\" /O3 /Fh \"${header_path}\" /Vn s${source_filename}Data /Qstrip_reflect /Qstrip_debug \"${source_path}\"
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS "${source_path}" ${includes}
+        DEPENDS "${source_path}" ${${includes}}
     )
 endfunction()
 
@@ -39,12 +39,12 @@ set(SHADER_INCLUDES
     VertexCommon.hlsli)
 
 foreach(ps ${PIXEL_SHADERS})
-  CompileHLSLShader(${ps} "ps_5_0" "main" out ${SHADER_INCLUDES})
+  CompileHLSLShader(${ps} "ps_5_0" "main" out SHADER_INCLUDES)
   list(APPEND compiled_shaders ${out})
 endforeach()
 
 foreach(vs ${VERTEX_SHADERS})
-  CompileHLSLShader(${vs} "vs_5_0" "main" out ${SHADER_INCLUDES})
+  CompileHLSLShader(${vs} "vs_5_0" "main" out SHADER_INCLUDES)
   list(APPEND compiled_shaders ${out})
 endforeach()
 

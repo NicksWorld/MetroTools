@@ -24,7 +24,7 @@ enum ModelChunks {
 
     MC_HitPresetAndMtls     = 0x00000012,   // 18
 
-    MC_Folders              = 0x00000013,   // 19
+    MC_MotionsFolders       = 0x00000013,   // 19       /* vanilla 2033 only ? */
 
     MC_SkeletonLink         = 0x00000014,   // 20
 
@@ -34,7 +34,7 @@ enum ModelChunks {
 
     MC_PhysXLinks           = 0x00000019,   // 25
 
-    MC_TexturesReplacements = 0x0000001D,   // 29
+    MC_TexturesReplacements = 0x0000001D,   // 29       /* vanilla 2033 only ? */
 
     MC_Voice                = 0x0000001F,   // 31
 
@@ -1101,36 +1101,40 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
             mHitPreset = hitpmtlsStream.ReadStringZ();
         }
 
-        auto readBoneMtls = [&hitpmtlsStream](MyArray<BoneMaterial>& arr) {
+        auto readBoneMtls = [&hitpmtlsStream](MyArray<BoneMaterial>& arr, const bool skipLegacyFloat) {
             const size_t numMtls = hitpmtlsStream.ReadU32();
             if (numMtls > 0) {
                 arr.resize(numMtls);
                 for (BoneMaterial& bm : arr) {
                     bm.boneId = hitpmtlsStream.ReadU16();
                     bm.material = hitpmtlsStream.ReadStringZ();
+
+                    //#NOTE_SK: I have no idea wtf is this
+                    if (skipLegacyFloat) {
+                        hitpmtlsStream.SkipBytes(sizeof(float));
+                    }
                 }
             }
 
             //#TODO_SK: if mVersion > 8 -> also read presets
         };
 
-        readBoneMtls(mGameMaterials);
-        readBoneMtls(mMeleeMaterials);
-        readBoneMtls(mStepMaterials);
+        readBoneMtls(mGameMaterials, mVersion == kModelVersion2033_Old);
+        readBoneMtls(mMeleeMaterials, false);
+        readBoneMtls(mStepMaterials, false);
 
         //assert(hitpmtlsStream.Ended());
     }
 
-    MemStream foldersStream = chunker.GetChunkStream(MC_Folders);
-    if (foldersStream) {
-        assert(false);
-        const size_t numFolders = foldersStream.ReadU32();
-        mFolders.resize(numFolders);
-        for (CharString& s : mFolders) {
-            s = foldersStream.ReadStringZ();
+    MemStream motionsFoldersStream = chunker.GetChunkStream(MC_MotionsFolders);
+    if (motionsFoldersStream) {
+        const size_t numFolders = motionsFoldersStream.ReadU32();
+        mMotionsFolders.resize(numFolders);
+        for (CharString& s : mMotionsFolders) {
+            s = motionsFoldersStream.ReadStringZ();
         }
 
-        assert(foldersStream.Ended());
+        assert(motionsFoldersStream.Ended());
     }
 
     MemStream physxLinksStream = chunker.GetChunkStream(MC_PhysXLinks);
@@ -1300,11 +1304,11 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
     }
 
     // folders
-    if (!mFolders.empty()) {
-        ChunkWriteHelper foldersChunk(stream, MC_Folders);
+    if (!mMotionsFolders.empty()) {
+        ChunkWriteHelper foldersChunk(stream, MC_MotionsFolders);
 
-        stream.WriteU32(scast<uint32_t>(mFolders.size()));
-        for (CharString& s : mFolders) {
+        stream.WriteU32(scast<uint32_t>(mMotionsFolders.size()));
+        for (CharString& s : mMotionsFolders) {
             stream.WriteStringZ(s);
         }
     }

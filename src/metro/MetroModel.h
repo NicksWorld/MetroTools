@@ -354,7 +354,7 @@ protected:
     MyArray<BoneMaterial>   mGameMaterials;
     MyArray<BoneMaterial>   mMeleeMaterials;
     MyArray<BoneMaterial>   mStepMaterials;
-    StringArray             mFolders;
+    StringArray             mMotionsFolders;
     StringArray             mPhysXLinks;
     CharString              mVoice;
 };

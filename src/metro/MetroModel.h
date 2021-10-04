@@ -4,6 +4,8 @@
 class MetroSkeleton;
 class MetroMotion;
 
+using MetroModelTReplacements = MyDict<CharString, CharString>;
+
 struct MetroModelLoadParams {
     enum LoadFlags : uint32_t {
         LoadGeometry    = 1,
@@ -16,11 +18,12 @@ struct MetroModelLoadParams {
         LoadEverything  = 0xF
     };
 
-    CharString  modelName;
-    CharString  tpresetName;
-    uint32_t    formatVersion;
-    uint32_t    loadFlags;
-    MetroFSPath srcFile;
+    CharString              modelName;
+    CharString              tpresetName;
+    uint32_t                formatVersion;
+    uint32_t                loadFlags;
+    MetroFSPath             srcFile;
+    MetroModelTReplacements treplacements;
 };
 
 struct MetroModelSaveParams {
@@ -44,7 +47,6 @@ struct MetroModelSaveParams {
         return TestBit<uint32_t>(saveFlags, SaveFlags::InlineSkeleton);
     }
 };
-
 
 struct MetroModelTPreset {
     struct Item {
@@ -305,6 +307,7 @@ protected:
     MyArray<uint32_t>           mChildrenRefs;
     MyArray<ModelPtr>           mLods;
     MyArray<MetroModelTPreset>  mTPresets;
+    MetroModelTReplacements     mTReplacements;
 };
 
 // Complete animated model, can consist of multiple Skin models (inline or external *.mesh files)

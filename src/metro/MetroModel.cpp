@@ -184,6 +184,11 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
             if (StrContains(mMaterialStrings[3], "collision")) {
                 mIsCollisionModel = true;
             }
+        } else if (params.formatVersion <= kModelVersion2033) { // original 2033 relies on texture replacemens
+            auto it = params.treplacements.find(mMaterialStrings[0]);
+            if (it != params.treplacements.end()) {
+                mMaterialStrings[0] = it->second;
+            }
         }
     }
 
@@ -1032,6 +1037,22 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
         }
     }
 
+    MetroModelLoadParams meshesLoadParams = params;
+
+    //#NOTE_SK: only in original 2033 models, later versions ue tpresets
+    MemStream textureReplacementsStream = chunker.GetChunkStream(MC_TexturesReplacements);
+    if (textureReplacementsStream) {
+        CharString textureReplacementsString = textureReplacementsStream.ReadStringZ();
+        auto textureReplacements = StrSplitViews(textureReplacementsString, ',');
+        for (const auto& r : textureReplacements) {
+            auto replacementPair = StrSplitViews(r, '=');
+            assert(replacementPair.size() == 2);
+            mTReplacements.insert({ CharString(replacementPair[0]), CharString(replacementPair[1]) });
+        }
+
+        meshesLoadParams.treplacements = mTReplacements;
+    }
+
     MemStream meshesLinksStream = chunker.GetChunkStream(MC_MeshesLinks);
     if (meshesLinksStream) {
         const size_t numStrings = meshesLinksStream.ReadU32();  // not used ???
@@ -1039,13 +1060,13 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
         for (size_t i = 0; i < 3; ++i) {
             CharString meshesNames = meshesLinksStream.ReadStringZ();
             if (!i) {
-                if (!this->LoadLodMeshes(this, meshesNames, params, i)) {
+                if (!this->LoadLodMeshes(this, meshesNames, meshesLoadParams, i)) {
                     result = false;
                     break;
                 }
             } else {
                 RefPtr<MetroModelHierarchy> lodModel = SCastRefPtr<MetroModelHierarchy>(MetroModelFactory::CreateModelFromType(MetroModelType::Hierarchy2));
-                if (this->LoadLodMeshes(lodModel.get(), meshesNames, params, i)) {
+                if (this->LoadLodMeshes(lodModel.get(), meshesNames, meshesLoadParams, i)) {
                     mLods.push_back(lodModel);
                 }
             }
@@ -1059,13 +1080,13 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
                 if (lodsChunks.GetChunkIDByIdx(i) == i) {
                     MemStream lodStream = lodsChunks.GetChunkStreamByIdx(i);
                     if (!i) {
-                        if (!this->LoadLodMeshes(this, lodStream, params, i)) {
+                        if (!this->LoadLodMeshes(this, lodStream, meshesLoadParams, i)) {
                             result = false;
                             break;
                         }
                     } else {
                         RefPtr<MetroModelHierarchy> lodModel = SCastRefPtr<MetroModelHierarchy>(MetroModelFactory::CreateModelFromType(MetroModelType::Hierarchy2));
-                        if (this->LoadLodMeshes(lodModel.get(), lodStream, params, i)) {
+                        if (this->LoadLodMeshes(lodModel.get(), lodStream, meshesLoadParams, i)) {
                             mLods.push_back(lodModel);
                         }
                     }
@@ -1202,16 +1223,32 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
             stream.WriteU32(3);
             for (size_t i = 0; i < 3; ++i) {
                 if (!mLodMeshes[i].empty()) {
-                    fs::path lodMeshPath = params.dstFile;
-                    lodMeshPath.replace_extension(".mesh");
-                    MemWriteStream lodMeshStream;
-                    RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(mLodMeshes[i][0]);
-                    hm->SetSkeletonCRC(skeletonCRC);
-                    hm->Save(lodMeshStream, params);
-                    OSWriteFile(lodMeshPath, lodMeshStream.Data(), lodMeshStream.GetWrittenBytesCount());
+                    fs::path commonLodMeshesBasePath = params.dstFile;
+                    commonLodMeshesBasePath.replace_extension(kEmptyString);
 
-                    CharString lodMeshLink = MakeModelLink(lodMeshPath);
-                    stream.WriteStringZ(lodMeshLink);
+                    CharString lodMeshesLinks;
+
+                    const LodMeshesArr& lodMeshes = mLodMeshes[i];
+                    const size_t numLodMeshes = lodMeshes.size();
+                    for (size_t j = 0; j < numLodMeshes; ++j) {
+                        fs::path lodMeshPath = commonLodMeshesBasePath;
+                        lodMeshPath += WideString(L"_l") + std::to_wstring(i) + WideString(L"_m") + std::to_wstring(j);
+                        lodMeshPath.replace_extension(".mesh");
+
+                        MemWriteStream lodMeshStream;
+                        RefPtr<MetroModelHierarchy> hm = SCastRefPtr<MetroModelHierarchy>(lodMeshes[j]);
+                        hm->SetSkeletonCRC(skeletonCRC);
+                        hm->Save(lodMeshStream, params);
+                        OSWriteFile(lodMeshPath, lodMeshStream.Data(), lodMeshStream.GetWrittenBytesCount());
+
+                        if (j > 0) {
+                            lodMeshesLinks.push_back(',');
+                        }
+
+                        lodMeshesLinks += MakeModelLink(lodMeshPath);
+                    }
+
+                    stream.WriteStringZ(lodMeshesLinks);
                 } else {
                     stream.WriteU8(0); // empty string
                 }
@@ -1403,6 +1440,7 @@ bool MetroModelSkeleton::LoadLodMesh(MetroModelHierarchy* target, MemStream& str
             //#NOTE_SK: for some weird reason some of the child meshes have empty header (all nulls, still 64 bytes)
             //          so we detect it as static mesh and fail miserably, so now we enforce skinned hierarchy mesh type
             loadParams.loadFlags |= MetroModelLoadParams::LoadForceSkinH;
+
             RefPtr<MetroModelBase> mesh = MetroModelFactory::CreateModelFromStream(stream, loadParams);
             if (mesh) {
                 //#NOTE_SK: are we sure it's always hierarchy/skeleton ?

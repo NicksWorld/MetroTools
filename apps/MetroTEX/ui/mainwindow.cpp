@@ -276,7 +276,7 @@ void MainWindow::AddOrReplaceTexture(bool replaceCurrent) {
 
                             mTexturesDB->AddTexture(info);
 
-                            const int newIdx = ui->lstTextures->count() - 1;
+                            const int newIdx = ui->lstTextures->count();
                             QListWidgetItem* newItem = new QListWidgetItem(QString::fromStdString(info.name));
                             newItem->setData(Qt::UserRole, QVariant(newIdx));
                             ui->lstTextures->addItem(newItem);

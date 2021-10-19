@@ -69,6 +69,15 @@ add_library(Fbx::Fbx ALIAS fbx)
 target_include_directories(fbx INTERFACE fbx/include)
 target_link_directories(fbx INTERFACE fbx/lib/x64)
 
+add_library(physx284 INTERFACE)
+add_library(Physx284::Physx284 ALIAS physx284)
+target_include_directories(physx284 INTERFACE
+    physx284/Foundation/include
+    physx284/Physics/include
+    physx284/Cooking/include
+)
+target_link_directories(physx284 INTERFACE physx284/lib/win64)
+
 add_library(crunch INTERFACE)
 add_library(Crunch::Crunch ALIAS crunch)
 target_include_directories(crunch INTERFACE crunch/inc)

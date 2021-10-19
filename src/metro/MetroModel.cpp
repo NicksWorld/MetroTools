@@ -2,6 +2,9 @@
 #include "MetroContext.h"
 #include "MetroSkeleton.h"
 #include "MetroMotion.h"
+#if 1
+#include "physics/MetroPhysics.h"
+#endif
 
 
 enum ModelChunks {
@@ -1144,6 +1147,19 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
         for (CharString& s : mPhysXLinks) {
             s = physxLinksStream.ReadStringZ();
         }
+
+#if 0
+        if (!mPhysXLinks.empty()) {
+            CharString fullPhysPath = MetroFileSystem::Paths::MeshesFolder + mPhysXLinks[0] + ".pbi_pc";
+            MemStream physStream = MetroContext::Get().GetFilesystem().OpenFileFromPath(fullPhysPath);
+            if (physStream) {
+                MetroPhysicsCollection* phys = MetroPhysicsLoadCollectionFromStream(physStream);
+                if (phys) {
+                    MySafeDelete(phys);
+                }
+            }
+        }
+#endif
 
         assert(physxLinksStream.Ended());
     }

@@ -57,20 +57,22 @@ target_sources(metro PRIVATE
     entities/MetroEntity.h
     entities/MetroEntityFactory.h
     entities/MetroUObject.h
+    physics/MetroPhysics.cpp
+    physics/MetroPhysics.h
     reflection/MetroReflection.cpp
     reflection/MetroReflectionJson.cpp
     reflection/MetroReflection.h
     reflection/MetroReflectionBinary.inl
     reflection/MetroReflectionJson.inl
-    vfs/MetroVFS.cpp
-    vfs/MetroVFS.h
     scripts/MetroBlock.cpp
     scripts/MetroBlock.h
     scripts/MetroBlockFactory.cpp
     scripts/MetroBlockFactory.h
     scripts/MetroBlockMeta.h
     scripts/MetroScript.cpp
-    scripts/MetroScript.h)
+    scripts/MetroScript.h
+    vfs/MetroVFS.cpp
+    vfs/MetroVFS.h)
 target_link_libraries(metro 
     PRIVATE
         MetroTools::Common
@@ -81,4 +83,5 @@ target_link_libraries(metro
         QuickLz::QuickLz
         Jansson::Jansson
     PUBLIC
-        Crunch::Crunch)
+        Crunch::Crunch
+        Physx284::Physx284)

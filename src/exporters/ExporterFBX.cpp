@@ -784,10 +784,6 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
                 quat rot;
                 MatDecompose(pose, pos, scale, rot);
 
-                pos = MetroSwizzle(pos);
-                scale = MetroSwizzle(scale);
-                rot = MetroSwizzle(rot);
-
                 modelNode->LclTranslation.Set(MetroVecToFbxVec(pos));
                 modelNode->LclRotation.Set(MetroRotToFbxRot(rot));
                 modelNode->LclScaling.Set(MetroVecToFbxVec(scale));

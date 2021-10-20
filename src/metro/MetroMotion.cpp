@@ -699,8 +699,6 @@ void MetroMotion::ReadAttributeCurve(const uint8_t* curveData, AttributeCurve& c
         if (mVersion < kMotionVersionArktika1 && !disableBswap) {
             p.value = EndianSwapBytes(p.value);
         }
-
-        p.value = MetroSwizzle(p.value);
     } else if (ctype == AttribCurveType::Unknown_3 || ctype == AttribCurveType::Unknown_6) {
         assert(false);
     } else {
@@ -719,8 +717,6 @@ void MetroMotion::ReadAttributeCurve(const uint8_t* curveData, AttributeCurve& c
                         p.time = EndianSwapBytes(p.time);
                         p.value = EndianSwapBytes(p.value);
                     }
-
-                    p.value = MetroSwizzle(p.value);
 
                     timingsPtr++;
                     valuesPtr += attribSize;
@@ -764,8 +760,6 @@ void MetroMotion::ReadAttributeCurve(const uint8_t* curveData, AttributeCurve& c
                     p.value.x = scast<float>(px) * scale.x + offset.x;
                     p.value.y = scast<float>(py) * scale.y + offset.y;
                     p.value.z = scast<float>(pz) * scale.z + offset.z;
-
-                    p.value = MetroSwizzle(p.value);
 
                     timingsPtr++;
                     valuesPtr += 3;
@@ -816,8 +810,6 @@ void MetroMotion::ReadAttributeCurve(const uint8_t* curveData, AttributeCurve& c
                         case 2: p.value = vec4(qx, qy, qw, qz); break;
                         case 3: p.value = vec4(qx, qy, qz, qw); break;
                     }
-
-                    p.value = MetroSwizzle(p.value);
 
                     *rcast<quat*>(&p.value) = Normalize(*rcast<quat*>(&p.value));
 
@@ -875,7 +867,6 @@ void MetroMotion::ReadBoneCurve_2033(MemStream& stream, AttributeCurve& rotation
             pt.value = vec4(qx, qy, qz, qw);
         }
 
-        pt.value = MetroSwizzle(pt.value);
         *rcast<quat*>(&pt.value) = Normalize(*rcast<quat*>(&pt.value));
 
         time += secPerFrame;
@@ -898,7 +889,7 @@ void MetroMotion::ReadBoneCurve_2033(MemStream& stream, AttributeCurve& rotation
         for (auto& pt : positions.points) {
             pt.time = time;
 
-            pt.value = MetroSwizzle(vec4(vec3(scast<float>(elementsPtr[0]), scast<float>(elementsPtr[1]), scast<float>(elementsPtr[2])) * scale + offset, 0.0f));
+            pt.value = vec4(vec3(scast<float>(elementsPtr[0]), scast<float>(elementsPtr[1]), scast<float>(elementsPtr[2])) * scale + offset, 0.0f);
 
             time += secPerFrame;
             elementsPtr += 3;
@@ -908,7 +899,6 @@ void MetroMotion::ReadBoneCurve_2033(MemStream& stream, AttributeCurve& rotation
         auto& pt = positions.points.front();
         pt.time = 0.0f;
         stream.ReadToBuffer(&pt.value, sizeof(vec3));
-        pt.value = MetroSwizzle(pt.value);
     }
 }
 
@@ -999,7 +989,7 @@ void MetroMotion::WriteMotionCurve(MemWriteStream& stream, const AttributeCurve&
     stream.WriteU32(disableBswap ? curveHeader : EndianSwapBytes(curveHeader));
 
     if (ctype == scast<uint32_t>(AttribCurveType::OneValue)) {
-        vec4 value = MetroSwizzle(curve.points.back().value);
+        vec4 value = curve.points.back().value;
         for (size_t i = 0; i < attribSize; ++i) {
             stream.WriteF32(disableBswap ? value[i] : EndianSwapBytes(value[i]));
         }
@@ -1010,7 +1000,7 @@ void MetroMotion::WriteMotionCurve(MemWriteStream& stream, const AttributeCurve&
         }
         // values
         for (const auto& p : curve.points) {
-            vec4 value = MetroSwizzle(p.value);
+            vec4 value = p.value;
             for (size_t i = 0; i < attribSize; ++i) {
                 stream.WriteF32(disableBswap ? value[i] : EndianSwapBytes(value[i]));
             }

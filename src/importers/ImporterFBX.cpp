@@ -518,19 +518,19 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
             vec3 pos = FbxVecToVec3(myControlPoints[idx].pos);
 
             UniversalVertex vertex;
-            vertex.pos = MetroSwizzle(pos);
+            vertex.pos = pos;
 
             FbxVector4 normal = GetNormalFromElement(fbxNormals, idx, vertexIdx);
-            vertex.normal = MetroSwizzle(FbxVecToVec3(normal));
+            vertex.normal = FbxVecToVec3(normal);
 
             if (fbxTangents) {
                 FbxVector4 tangent = GetNormalFromElement(fbxTangents, idx, vertexIdx);
-                vertex.tangent = MetroSwizzle(FbxVecToVec3(tangent));
+                vertex.tangent = FbxVecToVec3(tangent);
             }
 
             if (fbxBitangents) {
                 FbxVector4 bitangent = GetNormalFromElement(fbxBitangents, idx, vertexIdx);
-                vertex.bitangent = MetroSwizzle(FbxVecToVec3(bitangent));
+                vertex.bitangent = FbxVecToVec3(bitangent);
             }
 
             FbxVector2 uv;

@@ -323,8 +323,6 @@ bool LevelGeo::CreateTerrain() {
             const vec3 minp = vec3(mTerrainMin.x + chunkPos.x, mTerrainMin.y, mTerrainMin.z + chunkPos.y);
             const vec3 maxp = vec3(minp.x + dimChunk.x, dimChunk.y, minp.z + dimChunk.z);
 
-            chunk.bbox.minimum = MetroSwizzle(minp);
-            chunk.bbox.maximum = MetroSwizzle(maxp);
             mTerrainChunks.push_back(chunk);
         }
     }

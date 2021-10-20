@@ -77,9 +77,6 @@ void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
         vec3 pos, scale;
         quat rot;
         MatDecompose(pose, pos, scale, rot);
-        pos = MetroSwizzle(pos);
-        scale = MetroSwizzle(scale);
-        rot = MetroSwizzle(rot);
 
         LogPrintF(LogLevel::Info, "%s, id = %d, parent_id = %d, name = %s, visual = %s, pos = (%f, %f, %f)", this->uobject->cls.c_str(),
             this->uobject->initData.id, this->uobject->initData.parent_id, this->uobject->name.empty() ? "" : this->uobject->name.c_str(),

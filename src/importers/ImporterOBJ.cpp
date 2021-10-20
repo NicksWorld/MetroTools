@@ -90,8 +90,8 @@ RefPtr<MetroModelStd> ImporterOBJ::CreateStdModel(const tinyobj::shape_t& shape,
             uv.y = attrib.texcoords[2 * i.texcoord_index + 1];
 
             VertexStatic vertex = {};
-            vertex.pos = MetroSwizzle(pos);
-            vertex.normal = EncodeNormal(MetroSwizzle(normal), 1.0f);
+            vertex.pos = pos;
+            vertex.normal = EncodeNormal(normal, 1.0f);
             vertex.uv = uv;
 
             collector.AddVertex(vertex);

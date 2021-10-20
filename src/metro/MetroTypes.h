@@ -355,9 +355,9 @@ template <>
 inline MetroVertex ConvertVertex<VertexStatic>(const VertexStatic& v) {
     MetroVertex result = {};
 
-    result.pos = MetroSwizzle(v.pos);
-    result.normal = MetroSwizzle(DecodeNormal(v.normal));
-    result.tangent = MetroSwizzle(DecodeTangent(v.aux0));
+    result.pos = v.pos;
+    result.normal = DecodeNormal(v.normal);
+    result.tangent = DecodeTangent(v.aux0);
     result.uv0 = v.uv;
 
     return result;
@@ -370,13 +370,13 @@ inline MetroVertex ConvertVertex<VertexSkinned>(const VertexSkinned& v) {
 
     MetroVertex result = {};
 
-    result.pos = MetroSwizzle(vec3(scast<float>(v.pos[0]) * posDequant,
-                                   scast<float>(v.pos[1]) * posDequant,
-                                   scast<float>(v.pos[2]) * posDequant));
+    result.pos = vec3(scast<float>(v.pos[0]) * posDequant,
+                      scast<float>(v.pos[1]) * posDequant,
+                      scast<float>(v.pos[2]) * posDequant);
     *rcast<uint32_t*>(result.bones) = *rcast<const uint32_t*>(v.bones);
     MetroSwizzle(result.bones);
-    result.normal = MetroSwizzle(DecodeNormal(v.normal));
-    result.tangent = MetroSwizzle(DecodeTangent(v.aux0));
+    result.normal = DecodeNormal(v.normal);
+    result.tangent = DecodeTangent(v.aux0);
     *rcast<uint32_t*>(result.weights) = *rcast<const uint32_t*>(v.weights);
     MetroSwizzle(result.weights);
     result.uv0 = vec2(scast<float>(v.uv[0]) * uvDequant,
@@ -391,9 +391,9 @@ inline MetroVertex ConvertVertex<VertexLevel>(const VertexLevel& v) {
 
     MetroVertex result = {};
 
-    result.pos = MetroSwizzle(v.pos);
-    result.normal = MetroSwizzle(DecodeNormal(v.normal));
-    result.tangent = MetroSwizzle(DecodeTangent(v.aux0));
+    result.pos = v.pos;
+    result.normal = DecodeNormal(v.normal);
+    result.tangent = DecodeTangent(v.aux0);
     result.uv0 = vec2(scast<float>(v.uv0[0]) * kUV0Dequant,
                       scast<float>(v.uv0[1]) * kUV0Dequant);
     result.uv1 = vec2(scast<float>(v.uv1[0]) * kUV1Dequant,
@@ -407,8 +407,8 @@ inline MetroVertex ConvertVertex<VertexSoft>(const VertexSoft& v) {
 
     MetroVertex result = {};
 
-    result.pos = MetroSwizzle(v.pos);
-    result.normal = vec4(MetroSwizzle(v.normal), 0.0f);
+    result.pos = v.pos;
+    result.normal = vec4(v.normal, 0.0f);
     result.uv0 = vec2(scast<float>(v.uv[0]) * uvDequant,
                       scast<float>(v.uv[1]) * uvDequant);
     return result;

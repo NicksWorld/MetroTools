@@ -130,10 +130,6 @@ SceneNode* Spawner::SpawnLevelGeo(Scene& scene, MetroLevel* srcLevel, const vec3
                 quat rot;
                 MatDecompose(pose, pos, scale, rot);
 
-                pos = MetroSwizzle(pos);
-                scale = MetroSwizzle(scale);
-                rot = MetroSwizzle(rot);
-
                 child->SetPosition(pos);
                 child->SetScale(scale);
                 child->SetRotation(rot);

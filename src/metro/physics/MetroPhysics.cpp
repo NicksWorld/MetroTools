@@ -104,6 +104,13 @@ public:
         mStream->SkipBytes(bytesToSkip);
     }
 
+    inline CharString ReadString() {
+        const uint32_t stringLen = mStream->ReadU32();
+        CharString str; str.resize(stringLen, 0);
+        mStream->ReadToBuffer(str.data(), stringLen);
+        return str;
+    }
+
     template <size_t N>
     CharString ReadNameN() {
         char s_name[N];
@@ -132,6 +139,21 @@ MetroPhysicsCollection* MetroPhysicsLoadCollectionFromStream(MemStream srcStream
     return collection;
 }
 
+MetroPhysicsCForm* MetroPhysicsLoadCFormFromStream(MemStream srcStream, const bool isLevelGeo) {
+    NxuBinaryStream stream;
+    stream.Start(&srcStream);
+
+    const uint32_t formatVer = stream.ReadDword();
+    const uint32_t fileCRC = stream.ReadDword();
+
+    MetroPhysicsCForm* cform = new MetroPhysicsCForm;
+    if (!cform->Load(&stream, formatVer, isLevelGeo)) {
+        MySafeDelete(cform);
+    }
+
+    return cform;
+}
+
 void MetroPhysicsSpring::Read(NxuBinaryStream* stream, MetroPhysicsSpring& spring) {
     spring.spring = stream->ReadFloat();
     spring.damper = stream->ReadFloat();
@@ -157,6 +179,121 @@ void MetroPhysicsPairFlag::Read(NxuBinaryStream* stream, MetroPhysicsPairFlag& p
     pairFlag.actor1Index = stream->ReadDword();
     pairFlag.shape1Index = stream->ReadDword();
 }
+
+
+
+
+MetroPhysicsCForm::MetroPhysicsCForm() {
+}
+MetroPhysicsCForm::~MetroPhysicsCForm() {
+}
+
+bool MetroPhysicsCForm::Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) {
+    // 2033 formatVer == 5
+
+    const size_t numMeshes = stream->ReadDword();
+
+    if (numMeshes) {
+        mMeshes.reserve(numMeshes);
+        for (size_t i = 0; i < numMeshes; ++i) {
+            MetroPhysicsCMesh* mesh = new MetroPhysicsCMesh;
+            if (!mesh->Load(stream, formatVer, isLevelGeo)) {
+                MySafeDelete(mesh);
+            } else {
+                mMeshes.push_back(mesh);
+            }
+        }
+    }
+
+    return mMeshes.size() == numMeshes;
+}
+
+
+MetroPhysicsCMesh::MetroPhysicsCMesh() {
+}
+MetroPhysicsCMesh::~MetroPhysicsCMesh() {
+}
+
+bool MetroPhysicsCMesh::Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) {
+    if (!this->LoadMaterial(stream, formatVer, isLevelGeo)) {
+        return false;
+    }
+
+    // cooked NXTriMesh data
+    const size_t cookedDataSize = stream->ReadDword();
+    mCookedData.resize(cookedDataSize);
+    stream->ReadBuffer(mCookedData.data(), cookedDataSize);
+
+    return true;
+}
+
+bool MetroPhysicsCMesh::LoadMaterial(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) {
+    mIsDummy = stream->ReadBool();
+    if (mIsDummy) {
+        mDummy = stream->ReadWord();
+        return true;
+    }
+
+    bool hasMtlName = false;
+    bool hasSector = false;
+    bool hasColGroup = false;
+    bool hasRaycast = false;
+    bool hasPrimitive = true;
+
+    if (!isLevelGeo) {
+        hasMtlName = (formatVer >= 9);
+        hasSector = (formatVer >= 6);
+        hasColGroup = (formatVer >= 7);
+        hasRaycast = (formatVer >= 8);
+        if (formatVer < 10) {
+            hasPrimitive = false;
+        }
+    } else {
+        hasMtlName = (formatVer >= 14);
+        hasSector = (formatVer >= 9);
+        hasColGroup = (formatVer >= 10);
+        hasRaycast = (formatVer >= 11);
+        hasPrimitive = (formatVer >= 15);
+    }
+
+    mShader = stream->ReadString();
+    mTexList = stream->ReadString();
+    CharString unusedMaterial = stream->ReadString();
+    if (hasMtlName) {
+        mMaterialName = stream->ReadString();
+    }
+
+    //mGameMaterial = GameMtlByTexture();
+
+    if (hasSector) {
+        mSector = stream->ReadWord();
+    } else {
+        mSector = 0xFFFF;
+    }
+
+    if (hasColGroup) {
+        mCollisionGroup = stream->ReadWord();
+    } else {
+        mCollisionGroup = 0xFFFF;
+    }
+
+    if (hasRaycast) {
+        mIsRaycast = stream->ReadBool();
+    } else {
+        mIsRaycast = true;
+    }
+
+    if (hasPrimitive) {
+        mIsPrimitive = stream->ReadBool();
+    } else {
+        mIsPrimitive = false;
+    }
+
+    return true;
+}
+
+
+
 
 struct NxuParameter {
     uint32_t    param;

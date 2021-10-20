@@ -2,7 +2,7 @@
 #include "MetroContext.h"
 #include "MetroSkeleton.h"
 #include "MetroMotion.h"
-#if 1
+#if 0
 #include "physics/MetroPhysics.h"
 #endif
 

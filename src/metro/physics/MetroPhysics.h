@@ -2,6 +2,8 @@
 #include "mycommon.h"
 #include "mymath.h"
 
+class MetroPhysicsCForm;
+class MetroPhysicsCMesh;
 class MetroPhysicsCollection;
 class MetroPhysicsTrimesh;
 class MetroPhysicsConvex;
@@ -17,6 +19,7 @@ class MetroPhysicsSpringAndDamperEffector;
 class NxuBinaryStream;
 
 MetroPhysicsCollection* MetroPhysicsLoadCollectionFromStream(MemStream srcStream);
+MetroPhysicsCForm* MetroPhysicsLoadCFormFromStream(MemStream srcStream, const bool isLevelGeo);
 
 struct MetroPhysicsSpring {
     float   spring;
@@ -50,8 +53,44 @@ struct MetroPhysicsPairFlag {
     uint32_t    shape1Index;
 
     static void Read(NxuBinaryStream* stream, MetroPhysicsPairFlag& pairFlag);
-
 };
+
+
+class MetroPhysicsCForm {
+public:
+    MetroPhysicsCForm();
+    ~MetroPhysicsCForm();
+
+    bool    Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+
+private:
+    MyArray<MetroPhysicsCMesh*> mMeshes;
+};
+
+class MetroPhysicsCMesh {
+public:
+    MetroPhysicsCMesh();
+    ~MetroPhysicsCMesh();
+
+    bool        Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+
+private:
+    bool        LoadMaterial(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+
+private:
+    uint16_t    mDummy;
+    uint16_t    mSector;
+    uint16_t    mCollisionGroup;
+    bool        mIsDummy;
+    bool        mIsPrimitive;
+    bool        mIsRaycast;
+    CharString  mShader;
+    CharString  mTexList;
+    CharString  mGameMaterial;
+    CharString  mMaterialName;
+    BytesArray  mCookedData;
+};
+
 
 class MetroPhysicsCollection {
 public:

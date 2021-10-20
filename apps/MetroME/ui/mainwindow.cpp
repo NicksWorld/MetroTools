@@ -27,6 +27,10 @@
 #include "exporters/ExporterFBX.h"
 #include "exporters/ExporterGLTF.h"
 
+#if 0
+#include "metro/physics/MetroPhysics.h"
+#endif
+
 #include "../MetroSessions.h"
 
 
@@ -197,6 +201,18 @@ void MainWindow::OnImportMetroModel() {
 
             RefPtr<MetroModelBase> model = MetroModelFactory::CreateModelFromStream(stream, params);
             if (model && mRenderPanel) {
+#if 0
+                if (model->IsHierarchy() && !model->IsSkinnedHierarchy()) {
+                    fs::path physPath = fullPath;
+                    physPath.replace_extension(".nxcform_pc");
+                    MemStream physStream = OSReadFile(physPath);
+                    if (physStream) {
+                        MetroPhysicsCForm* phys = MetroPhysicsLoadCFormFromStream(physStream, false);
+                        MySafeDelete(phys);
+                    }
+                }
+#endif
+
                 mRenderPanel->SetModel(model);
 
                 this->UpdateUIForTheModel(model.get());

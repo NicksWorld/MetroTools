@@ -213,13 +213,13 @@ inline mat4 MatTranslate(const mat4& m, const vec3& v) {
     return glm::translate(m, v);
 }
 inline mat4 MatOrtho(const float left, const float right, const float bottom, const float top, const float zNear, const float zFar) {
-    return glm::orthoRH(left, right, bottom, top, zNear, zFar);
+    return glm::orthoLH(left, right, bottom, top, zNear, zFar);
 }
 inline mat4 MatPerspective(const float fovy, const float aspect, const float zNear, const float zFar) {
-    return glm::perspectiveRH(fovy, aspect, zNear, zFar);
+    return glm::perspectiveLH(fovy, aspect, zNear, zFar);
 }
 inline mat4 MatLookAt(const vec3& eye, const vec3& center, const vec3& up) {
-    return glm::lookAtRH(eye, center, up);
+    return glm::lookAtLH(eye, center, up);
 }
 inline mat4 MatInverse(const mat4& m) {
     return glm::inverse(m);

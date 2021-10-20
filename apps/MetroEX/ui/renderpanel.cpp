@@ -305,7 +305,7 @@ void RenderPanel::mouseMoveEvent(QMouseEvent* event) {
 
         mLastLMPos = mp;
 
-        mCamera->Rotate(-deltaX * kCameraRotateSpeed, -deltaY * kCameraRotateSpeed);
+        mCamera->Rotate(deltaX * kCameraRotateSpeed, deltaY * kCameraRotateSpeed);
     } else if (mRMBDown) {
         const float deltaX = scast<float>(mp.x() - mLastRMPos.x());
         const float deltaY = scast<float>(mp.y() - mLastRMPos.y());

@@ -91,14 +91,18 @@ public:
         }
     }
 
-    virtual void CloseSection(MetroReflectionStream* section) override {
+    virtual void CloseSection(MetroReflectionStream* section, const bool skipRemaining = true) override {
         if (section) {
             if (section == this) {  // this->HasNoSections()
                 //#NOTE_SK: since it's our shadow copy, we just do nothing
             } else {
                 MetroReflectionBinaryReadStream* binR = scast<MetroReflectionBinaryReadStream*>(section);
                 //assert(binR->mStream.Ended());  // make sure we read all of the section
-                mStream.SkipBytes(binR->mStream.Length());
+                if (skipRemaining) {
+                    mStream.SkipBytes(binR->mStream.Length());
+                } else {
+                    mStream.SkipBytes(binR->mStream.GetCursor());
+                }
                 delete section;
             }
         }
@@ -177,7 +181,7 @@ public:
         return this;
     }
 
-    virtual void CloseSection(MetroReflectionStream* section) override {
+    virtual void CloseSection(MetroReflectionStream* section, const bool skipRemaining = true) override {
         if (section == this && !this->HasNoSections()) {
             const size_t sectionLengthOffset = mSectionSizeOffsets.front();
             mSectionSizeOffsets.pop_front();

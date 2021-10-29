@@ -76,7 +76,6 @@ METRO_REGISTER_TYPE_ALIAS(vec4, vec4f)
 METRO_REGISTER_TYPE_ALIAS(quat, vec4f)
 METRO_REGISTER_TYPE_ALIAS(CharString, stringz)
 METRO_REGISTER_TYPE_ALIAS(Bool8, bool8)
-METRO_REGISTER_TYPE_ALIAS(flags32, flags32)
 METRO_REGISTER_TYPE_ALIAS(ivec4, vec4i);
 METRO_REGISTER_TYPE_ALIAS(vec4s16, vec4s16);
 METRO_REGISTER_TYPE_ALIAS(ang3f, ang3f);
@@ -197,7 +196,7 @@ public:
     virtual bool SerializeEditorTag(const CharString& propName, const size_t chooseType = 0);
     virtual bool SerializeTypeInfo(const CharString& propName, const CharString& typeAlias);
     virtual MetroReflectionStream* OpenSection(const CharString& sectionName, const bool nameUnknown = false) = 0;
-    virtual void CloseSection(MetroReflectionStream* section) = 0;
+    virtual void CloseSection(MetroReflectionStream* section, const bool skipRemaining = true) = 0;
 
     int SkipSection(const CharString& sectionName, const bool nameUnknown = false) {
         MetroReflectionStream* section = this->OpenSection(sectionName, nameUnknown);;
@@ -335,10 +334,6 @@ inline void operator >>(MetroReflectionStream& s, Bool8& v) {
     s >> v.val8;
 }
 
-inline void operator >>(MetroReflectionStream& s, flags32& v) {
-    s >> v.value;
-}
-
 inline void operator >>(MetroReflectionStream& s, ivec4& v) {
     s.SerializeInts(&v.x, 4);
 }
@@ -427,6 +422,10 @@ struct ArrayElementTypeGetter {
 
 #define METRO_SERIALIZE_NAMED_MEMBER(s, memberName, memberDataName)                                 \
     (s).SerializeTypeInfo(STRINGIFY(memberDataName), MetroTypeGetAlias<CLEAN_TYPE(memberName)>());  \
+    (s) >> memberName;
+
+#define METRO_SERIALIZE_NAMED_MEMBER_STR(s, memberName, memberDataNameStr)                          \
+    (s).SerializeTypeInfo(memberDataNameStr, MetroTypeGetAlias<CLEAN_TYPE(memberName)>());          \
     (s) >> memberName;
 
 #define METRO_SERIALIZE_STRUCT_MEMBER(s, memberName) (s).SerializeStruct(STRINGIFY(memberName), memberName)

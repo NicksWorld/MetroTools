@@ -75,9 +75,11 @@ void Camera::Move(const float side, const float direction) {
 
 void Camera::Rotate(const float angleX, const float angleY) {
     if (Camera::Mode::FirstPerson == mMode) {
-        vec3 side = cross(mDirection, sCameraUp);
+        vec3 side = this->GetSide();
+        vec3 up = this->GetUp();
+
         quat pitchQ = QuatAngleAxis(Deg2Rad(angleY), side);
-        quat headingQ = QuatAngleAxis(Deg2Rad(angleX), sCameraUp);
+        quat headingQ = QuatAngleAxis(Deg2Rad(angleX), up);
         quat temp = normalize(pitchQ * headingQ);
         mDirection = normalize(QuatRotate(temp, mDirection));
 

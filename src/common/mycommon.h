@@ -806,11 +806,6 @@ struct Bool8 {
 } PACKED_STRUCT_END;
 static_assert(sizeof(Bool8) == sizeof(uint8_t));
 
-PACKED_STRUCT_BEGIN
-struct flags32 {
-    uint32_t    value;
-} PACKED_STRUCT_END;
-
 //struct Range {
 //    size_t  left, right;
 //

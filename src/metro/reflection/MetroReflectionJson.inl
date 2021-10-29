@@ -59,7 +59,7 @@ public:
     // Need to override this as we just need the name, not a type
     virtual bool SerializeTypeInfo(const CharString& propName, const CharString& typeAlias) override;
     virtual MetroReflectionStream* OpenSection(const CharString& sectionName, const bool nameUnknown = false) override;
-    virtual void CloseSection(MetroReflectionStream* section) override;
+    virtual void CloseSection(MetroReflectionStream* section, const bool skipRemaining = true) override;
 
     virtual void BeginArray16(uint16_t&) override;
     virtual void BeginArray32(uint32_t&) override;
@@ -169,7 +169,7 @@ public:
     // Need to override this as we just need the name, not a type
     virtual bool SerializeTypeInfo(const CharString& propName, const CharString& typeAlias) override;
     virtual MetroReflectionStream* OpenSection(const CharString& sectionName, const bool nameUnknown = false) override;
-    virtual void CloseSection(MetroReflectionStream* section) override;
+    virtual void CloseSection(MetroReflectionStream* section, const bool skipRemaining = true) override;
 
     virtual void BeginArray16(uint16_t&) override;
     virtual void BeginArray32(uint32_t&) override;

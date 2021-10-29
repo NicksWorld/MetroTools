@@ -153,13 +153,14 @@ void MetroConstrainedBone::ParentBones::Serialize(MetroReflectionStream& stream)
         if (stream.IsIn()) {
             bone_strs.resize(bone_strs_size);
         }
-        assert(stream.HasDebugInfo() == false);
+
         for (uint32_t i = 0; i < bone_strs_size; ++i) {
-            // if debug info - need to read it
-            // "%s%d", "bone", i
-            stream >> bone_strs[i].bone;
-            // "%s%d", "weight", i
-            stream >> bone_strs[i].weight;
+            CharString idxStr = std::to_string(i);
+            CharString boneDataName = CharString("bone") + idxStr;
+            CharString weightDataName = CharString("weight") + idxStr;
+
+            METRO_SERIALIZE_NAMED_MEMBER_STR(stream, bone_strs[i].bone, boneDataName);
+            METRO_SERIALIZE_NAMED_MEMBER_STR(stream, bone_strs[i].weight, weightDataName);
         }
     }
 }
@@ -241,9 +242,9 @@ void MetroIkChain::Serialize(MetroReflectionStream& stream) {
         METRO_SERIALIZE_MEMBER(stream, lower_limb_bone);
         METRO_SERIALIZE_MEMBER(stream, knee_dir);
         METRO_SERIALIZE_MEMBER(stream, max_length);
-        METRO_SERIALIZE_MEMBER(stream, flags);
+        METRO_SERIALIZE_MEMBER_FLAGS32(stream, flags);
 
-        if (this->flags.value & 0x100) {
+        if (this->flags & 0x100) {
             METRO_SERIALIZE_MEMBER(stream, ground_locator);
         }
     }
@@ -898,7 +899,9 @@ void MetroSkeleton::Serialize(MetroReflectionStream& stream) {
                 if (mProceduralVersion > 1) {
                     METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, procedural_bones);
                 }
-                skeletonSection->CloseSection(proceduralSection);
+                //#NOTE_SK: some of the models have incorrect section size (like dynamic\objects\jeton_sparta\jeton_sparta)
+                //          and it leads to us skipping some stuff below, the game ignores the section sizes, so do we here
+                skeletonSection->CloseSection(proceduralSection, false);
             }
         }
 

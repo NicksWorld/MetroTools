@@ -997,6 +997,10 @@ void MetroModelHierarchy::ApplyTPresetInternal(const MetroModelTPreset& tpreset)
 MetroModelSkeleton::MetroModelSkeleton()
     : Base()
 {
+    mVoiceParams[0] = 1.0f;
+    mVoiceParams[1] = 0.0f;
+    mVoiceParams[2] = 0.0f;
+
     mType = scast<uint16_t>(MetroModelType::Skeleton);
 }
 MetroModelSkeleton::~MetroModelSkeleton() {
@@ -1104,7 +1108,7 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
             mHitPreset = hitpmtlsStream.ReadStringZ();
         }
 
-        auto readBoneMtls = [&hitpmtlsStream](MyArray<BoneMaterial>& arr, const bool skipLegacyFloat) {
+        auto readBoneMtls = [&hitpmtlsStream](MyArray<BoneMaterial>& arr, MyArray<BoneMaterialSet>& sets, const bool skipLegacyFloat, const uint16_t version) {
             const size_t numMtls = hitpmtlsStream.ReadU32();
             if (numMtls > 0) {
                 arr.resize(numMtls);
@@ -1119,14 +1123,30 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
                 }
             }
 
-            //#TODO_SK: if mVersion > 8 -> also read presets
+            if (version > kModelVersion2033) {
+                const size_t numSets = hitpmtlsStream.ReadU16();
+                if (numSets) {
+                    sets.resize(numSets);
+                    for (BoneMaterialSet& ms : sets) {
+                        ms.name = hitpmtlsStream.ReadStringZ();
+                        const size_t numItems = hitpmtlsStream.ReadU16();
+                        if (numItems) {
+                            ms.items.resize(numItems);
+                            for (BoneMaterial& itm : ms.items) {
+                                itm.boneId = hitpmtlsStream.ReadU16();
+                                itm.material = hitpmtlsStream.ReadStringZ();
+                            }
+                        }
+                    }
+                }
+            }
         };
 
-        readBoneMtls(mGameMaterials, mVersion == kModelVersion2033_Old);
-        readBoneMtls(mMeleeMaterials, false);
-        readBoneMtls(mStepMaterials, false);
+        readBoneMtls(mGameMaterials, mGameMaterialsPresets, mVersion == kModelVersion2033_Old, mVersion);
+        readBoneMtls(mMeleeMaterials, mMeleeMaterialsPresets, false, mVersion);
+        readBoneMtls(mStepMaterials, mStepMaterialsPresets, false, mVersion);
 
-        //assert(hitpmtlsStream.Ended());
+        assert(hitpmtlsStream.Ended());
     }
 
     MemStream motionsFoldersStream = chunker.GetChunkStream(MC_MotionsFolders);
@@ -1166,7 +1186,18 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
 
     MemStream voiceStream = chunker.GetChunkStream(MC_Voice);
     if (voiceStream) {
-        mVoice = voiceStream.ReadStringZ();
+        mVoice[0] = voiceStream.ReadStringZ();
+        if (mVersion >= 40) {
+            mVoice[1] = voiceStream.ReadStringZ();
+
+            if ((mVersion - 43) <= 3) {
+                mVoice[2] = voiceStream.ReadStringZ();
+
+                mVoiceParams[0] = voiceStream.ReadF32();
+                mVoiceParams[1] = voiceStream.ReadF32();
+                mVoiceParams[2] = voiceStream.ReadF32();
+            }
+        }
 
         assert(voiceStream.Ended());
     }
@@ -1302,7 +1333,7 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
             stream.WriteStringZ(mHitPreset);
         }
 
-        auto writeBoneMtls = [&stream](const MyArray<BoneMaterial>& arr) {
+        auto writeBoneMtls = [&stream, version](const MyArray<BoneMaterial>& arr, MyArray<BoneMaterialSet>& sets) {
             stream.WriteU32(scast<uint32_t>(arr.size()));
             if (!arr.empty()) {
                 for (const BoneMaterial& bm : arr) {
@@ -1311,12 +1342,26 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
                 }
             }
 
-            //#TODO_SK: if mVersion > 8 -> also write presets
+            if (version > kModelVersion2033) {
+                stream.WriteU16(scast<uint16_t>(sets.size()));
+                if (!sets.empty()) {
+                    for (BoneMaterialSet& ms : sets) {
+                        stream.WriteStringZ(ms.name);
+                        stream.WriteU16(scast<uint16_t>(ms.items.size()));
+                        if (!ms.items.empty()) {
+                            for (BoneMaterial& itm : ms.items) {
+                                stream.WriteU16(itm.boneId);
+                                stream.WriteStringZ(itm.material);
+                            }
+                        }
+                    }
+                }
+            }
         };
 
-        writeBoneMtls(mGameMaterials);
-        writeBoneMtls(mMeleeMaterials);
-        writeBoneMtls(mStepMaterials);
+        writeBoneMtls(mGameMaterials, mGameMaterialsPresets);
+        writeBoneMtls(mMeleeMaterials, mMeleeMaterialsPresets);
+        writeBoneMtls(mStepMaterials, mStepMaterialsPresets);
     }
 
     // folders
@@ -1343,7 +1388,19 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
     {
         ChunkWriteHelper voiceChunk(stream, MC_Voice);
 
-        stream.WriteStringZ(mVoice);
+        stream.WriteStringZ(mVoice[0]);
+
+        if (version >= 40) {
+            stream.WriteStringZ(mVoice[1]);
+
+            if ((version - 43) <= 3) {
+                stream.WriteStringZ(mVoice[2]);
+
+                stream.WriteF32(mVoiceParams[0]);
+                stream.WriteF32(mVoiceParams[1]);
+                stream.WriteF32(mVoiceParams[2]);
+            }
+        }
     }
 
     return true;

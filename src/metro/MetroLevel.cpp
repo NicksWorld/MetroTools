@@ -48,16 +48,20 @@ static const size_t kLevelVersionExodus     = 19;
 
 void MetroTerrain::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, version);     // 2 - Arktika.1, 3 - Exodus
-    METRO_SERIALIZE_MEMBER(s, has_terrain);
-    if (has_terrain) {
-        METRO_SERIALIZE_MEMBER(s, hmap);
-        METRO_SERIALIZE_MEMBER_CHOOSE(s, diffuse);
-        METRO_SERIALIZE_MEMBER_CHOOSE(s, shader);
-        METRO_SERIALIZE_MEMBER(s, dim_min);
-        METRO_SERIALIZE_MEMBER(s, dim_size);
-        METRO_SERIALIZE_MEMBER(s, hmap_width);
-        METRO_SERIALIZE_MEMBER(s, hmap_height);
-        //mtl_mask_names
+    if (version == 3) {
+        METRO_SERIALIZE_MEMBER(s, has_terrain);
+        if (has_terrain) {
+            METRO_SERIALIZE_MEMBER(s, hmap);
+            METRO_SERIALIZE_MEMBER_CHOOSE(s, diffuse);
+            METRO_SERIALIZE_MEMBER_CHOOSE(s, shader);
+            METRO_SERIALIZE_MEMBER(s, dim_min);
+            METRO_SERIALIZE_MEMBER(s, dim_size);
+            METRO_SERIALIZE_MEMBER(s, hmap_width);
+            METRO_SERIALIZE_MEMBER(s, hmap_height);
+            //mtl_mask_names
+        }
+    } else {
+        //#TODO_SK: implement me!!!
     }
 }
 

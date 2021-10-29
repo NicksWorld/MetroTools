@@ -150,7 +150,7 @@ MetroReflectionStream* MetroReflectionJsonWriteStream::OpenSection(const CharStr
     return this;
 }
 
-void MetroReflectionJsonWriteStream::CloseSection(MetroReflectionStream* section) {
+void MetroReflectionJsonWriteStream::CloseSection(MetroReflectionStream* section, const bool) {
     assert(this == section);
     if (this == section) {
         ObjMode& om = mTopObjectsStack.front();
@@ -357,7 +357,7 @@ MetroReflectionStream* MetroReflectionJsonReadStream::OpenSection(const CharStri
     return result;
 }
 
-void MetroReflectionJsonReadStream::CloseSection(MetroReflectionStream* section) {
+void MetroReflectionJsonReadStream::CloseSection(MetroReflectionStream* section, const bool) {
     if (section == this) {
         ObjIter& oi = mTopObjectsStack.front();
         mCurrentObj = oi.j;

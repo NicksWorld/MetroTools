@@ -320,6 +320,11 @@ public:
         CharString  material;
     };
 
+    struct BoneMaterialSet {
+        CharString              name;
+        MyArray<BoneMaterial>   items;
+    };
+
 public:
     MetroModelSkeleton();
     virtual ~MetroModelSkeleton();
@@ -352,11 +357,15 @@ protected:
     MyArray<LodMeshesArr>   mLodMeshes;
     CharString              mHitPreset;
     MyArray<BoneMaterial>   mGameMaterials;
+    MyArray<BoneMaterialSet> mGameMaterialsPresets;
     MyArray<BoneMaterial>   mMeleeMaterials;
+    MyArray<BoneMaterialSet> mMeleeMaterialsPresets;
     MyArray<BoneMaterial>   mStepMaterials;
+    MyArray<BoneMaterialSet> mStepMaterialsPresets;
     StringArray             mMotionsFolders;
     StringArray             mPhysXLinks;
-    CharString              mVoice;
+    CharString              mVoice[3];
+    float                   mVoiceParams[3];
 };
 
 class MetroModelSoft final : public MetroModelBase {

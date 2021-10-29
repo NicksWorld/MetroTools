@@ -208,7 +208,7 @@ struct MetroIkChain {
     uint16_t    upper_limb_bone;
     uint16_t    lower_limb_bone;
     float       max_length;
-    flags32     flags;
+    uint32_t    flags;              // !! flags32
     // if flags & 0x100
     uint16_t    ground_locator;
 

@@ -44,19 +44,19 @@ struct color32u { uint32_t value; };
 struct pose_43 : mat4x3 {};
 struct pose_43T : mat3x4 {};
 
-static const float MM_Pi = 3.14159265358979323846f;
-static const float MM_InvPi = 1.0f / MM_Pi;
-static const float MM_TwoPi = MM_Pi * 2.0f;
-static const float MM_HalfPi = MM_Pi * 0.5f;
-static const float MM_Epsilon = 1.192092896e-07f;
-static const float MM_OneMinusEpsilon = 0.9999999403953552f;
+constexpr float MM_Pi = 3.14159265358979323846f;
+constexpr float MM_InvPi = 1.0f / MM_Pi;
+constexpr float MM_TwoPi = MM_Pi * 2.0f;
+constexpr float MM_HalfPi = MM_Pi * 0.5f;
+constexpr float MM_Epsilon = 1.192092896e-07f;
+constexpr float MM_OneMinusEpsilon = 0.9999999403953552f;
 
 
-inline float Rad2Deg(const float rad) {
+constexpr float Rad2Deg(const float rad) {
     return rad * (180.0f / MM_Pi);
 }
 
-inline float Deg2Rad(const float deg) {
+constexpr float Deg2Rad(const float deg) {
     return deg * (MM_Pi / 180.0f);
 }
 

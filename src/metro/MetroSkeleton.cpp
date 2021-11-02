@@ -899,25 +899,31 @@ void MetroSkeleton::Serialize(MetroReflectionStream& stream) {
                 if (mProceduralVersion > 1) {
                     METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, procedural_bones);
                 }
-                //#NOTE_SK: some of the models have incorrect section size (like dynamic\objects\jeton_sparta\jeton_sparta)
-                //          and it leads to us skipping some stuff below, the game ignores the section sizes, so do we here
-                skeletonSection->CloseSection(proceduralSection, false);
+
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, driven_bones);
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, dynamic_bones);
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, constrained_bones);
+
+                if (this->ver >= 20) {
+                    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, param_bones);
+                }
+
+                if (stream.IsIn()) {
+                    assert(proceduralSection->GetRemains() == 0);
+                }
+                skeletonSection->CloseSection(proceduralSection);
             }
-        }
+        } else {
+            if (this->ver >= 7) {
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, driven_bones);
+            }
 
-        if (this->ver >= 7) {
-            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, driven_bones);
-        }
+            if (this->ver >= 8) {
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, dynamic_bones);
+            }
 
-        if (this->ver >= 8) {
-            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, dynamic_bones);
-        }
-
-        if (this->ver >= 9) {
-            METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, constrained_bones);
-
-            if (this->ver >= 20) {
-                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, param_bones);
+            if (this->ver >= 9) {
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, constrained_bones);
             }
         }
 

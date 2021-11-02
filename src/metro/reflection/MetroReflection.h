@@ -196,7 +196,7 @@ public:
     virtual bool SerializeEditorTag(const CharString& propName, const size_t chooseType = 0);
     virtual bool SerializeTypeInfo(const CharString& propName, const CharString& typeAlias);
     virtual MetroReflectionStream* OpenSection(const CharString& sectionName, const bool nameUnknown = false) = 0;
-    virtual void CloseSection(MetroReflectionStream* section, const bool skipRemaining = true) = 0;
+    virtual void CloseSection(MetroReflectionStream* section) = 0;
 
     int SkipSection(const CharString& sectionName, const bool nameUnknown = false) {
         MetroReflectionStream* section = this->OpenSection(sectionName, nameUnknown);;

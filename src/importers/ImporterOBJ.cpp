@@ -106,7 +106,7 @@ RefPtr<MetroModelStd> ImporterOBJ::CreateStdModel(const tinyobj::shape_t& shape,
     const size_t numFaces = collector.indices.size() / 3;
 
     RefPtr<MetroModelStd> result = MakeRefPtr<MetroModelStd>();
-    result->CreateMesh(numVertices, numFaces);
+    result->CreateMesh(numVertices, numFaces, 0, 0);
     result->CopyVerticesData(collector.vertices.data());
     result->CopyFacesData(collector.indices.data());
     result->SetMaterialString(kEmptyString, 0); // force-create material strings array

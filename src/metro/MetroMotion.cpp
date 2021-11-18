@@ -660,11 +660,6 @@ bool MetroMotion::LoadInternal() {
     return result;
 }
 
-inline float EndianSwapBytes(const float f) {
-    const uint32_t u = EndianSwapBytes(*rcast<const uint32_t*>(&f));
-    return *rcast<const float*>(&u);
-}
-
 inline vec3 EndianSwapBytes(const vec3& v) {
     return vec3(EndianSwapBytes(v.x), EndianSwapBytes(v.y), EndianSwapBytes(v.z));
 }

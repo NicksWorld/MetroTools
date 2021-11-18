@@ -22,6 +22,12 @@ struct VSOutputDebug {
     float4 color        : TEXCOORD0;
 };
 
+struct VSOutputDebug2 {
+    float4 pos          : SV_Position;
+    float4 normal       : TEXCOORD0;
+    float4 color        : TEXCOORD1;
+};
+
 struct PSOutput {
     float4 albedo       : SV_Target0;  // RGBA8_UNORM (RGB - albedo, A - interpolated vertex AO)
     float3 normal       : SV_Target1;  // R11G11B10 (world space)

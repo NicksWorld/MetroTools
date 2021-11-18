@@ -3,6 +3,7 @@
 #include "engine/Scene.h"
 #include "engine/scenenodes/ModelNode.h"
 #include "engine/scenenodes/LevelGeoNode.h"
+#include "engine/scenenodes/DebugGeoNode.h"
 #include "engine/Model.h"
 #include "engine/ResourcesManager.h"
 
@@ -140,6 +141,24 @@ SceneNode* Spawner::SpawnLevelGeo(Scene& scene, MetroLevel* srcLevel, const vec3
 
         result = node;
     }
+
+    return result;
+}
+
+SceneNode* Spawner::SpawnDebugGeoNode(Scene& scene, DebugGeo* debugGeo, const vec3& pos, SceneNode* parent) {
+    SceneNode* result = nullptr;
+
+    DebugGeoNode* node = new DebugGeoNode();
+    node->SetDebugGeo(debugGeo);
+
+    if (!parent) {
+        parent = scene.GetRootNode();
+    }
+
+    node->SetPosition(pos);
+    parent->AttachChild(node);
+
+    result = node;
 
     return result;
 }

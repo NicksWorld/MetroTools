@@ -1,6 +1,7 @@
 #pragma once
 #include "mycommon.h"
 #include "mymath.h"
+#include "metro/MetroTypes.h"
 
 class MetroPhysicsCForm;
 class MetroPhysicsCMesh;
@@ -18,8 +19,9 @@ class MetroPhysicsSpringAndDamperEffector;
 
 class NxuBinaryStream;
 
-MetroPhysicsCollection* MetroPhysicsLoadCollectionFromStream(MemStream srcStream);
-MetroPhysicsCForm* MetroPhysicsLoadCFormFromStream(MemStream srcStream, const bool isLevelGeo);
+RefPtr<MetroPhysicsCollection>  MetroPhysicsLoadCollectionFromStream(MemStream srcStream);
+RefPtr<MetroPhysicsCForm>       MetroPhysicsLoadCFormFromStream(MemStream srcStream, const bool isLevelGeo);
+void                            MetroPhysicsWriteCFormToStream(const RefPtr<MetroPhysicsCForm>& cform, MemWriteStream& dstStream, const MetroGameVersion gameVersion, const bool isLevelGeo);
 
 struct MetroPhysicsSpring {
     float   spring;
@@ -61,10 +63,16 @@ public:
     MetroPhysicsCForm();
     ~MetroPhysicsCForm();
 
-    bool    Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+    static uint32_t             GameVersionToCFormVersion(const MetroGameVersion gameVersion);
+
+    bool                        Read(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+    void                        Write(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) const;
+    size_t                      GetNumCMeshes() const;
+    RefPtr<MetroPhysicsCMesh>   GetCMesh(const size_t idx) const;
+    void                        AddCMesh(const RefPtr<MetroPhysicsCMesh>& mesh);
 
 private:
-    MyArray<MetroPhysicsCMesh*> mMeshes;
+    MyArray<RefPtr<MetroPhysicsCMesh>>  mMeshes;
 };
 
 class MetroPhysicsCMesh {
@@ -72,23 +80,47 @@ public:
     MetroPhysicsCMesh();
     ~MetroPhysicsCMesh();
 
-    bool        Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+    bool                Read(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+    void                Write(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) const;
+
+    uint16_t            GetSector() const;
+    void                SetSector(const uint16_t sector);
+    uint16_t            GetCollisionGroup() const;
+    void                SetCollisionGroup(const uint16_t colGroup);
+    bool                IsPrimitive() const;
+    void                SetIsPrimitive(const bool b);
+    bool                IsRaycast() const;
+    void                SetIsRaycast(const bool b);
+
+    const CharString&   GetShader() const;
+    void                SetShader(const CharString& shader);
+    const CharString&   GetTexture() const;
+    void                SetTexture(const CharString& texture);
+    const CharString&   GetMaterialName1() const;
+    void                SetMaterialName1(const CharString& material);
+    const CharString&   GetMaterialName2() const;
+    void                SetMaterialName2(const CharString& material);
+
+    BytesArray&         GetCookedData();
+    void                SetCookedData(const void* data, const size_t dataSize);
 
 private:
-    bool        LoadMaterial(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+    bool                ReadMaterial(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo);
+    void                WriteMaterial(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) const;
 
 private:
-    uint16_t    mDummy;
-    uint16_t    mSector;
-    uint16_t    mCollisionGroup;
-    bool        mIsDummy;
-    bool        mIsPrimitive;
-    bool        mIsRaycast;
-    CharString  mShader;
-    CharString  mTexList;
-    CharString  mGameMaterial;
-    CharString  mMaterialName;
-    BytesArray  mCookedData;
+    uint16_t            mDummy;
+    uint16_t            mSector;
+    uint16_t            mCollisionGroup;
+    bool                mIsDummy;
+    bool                mIsPrimitive;
+    bool                mIsRaycast;
+    CharString          mShader;
+    CharString          mTexList;
+    CharString          mGameMaterial;
+    CharString          mMaterialName1;
+    CharString          mMaterialName2;
+    BytesArray          mCookedData;
 };
 
 

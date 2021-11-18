@@ -53,6 +53,13 @@ public:
         }
     };
 
+    struct FbxMeshesFounder {
+        MyArray<fbxsdk::FbxMesh*>   meshes;
+        MyArray<fbxsdk::FbxMesh*>   shadowMeshes;
+        MyArray<fbxsdk::FbxMesh*>   lod1Meshes;
+        MyArray<fbxsdk::FbxMesh*>   lod2Meshes;
+    };
+
     struct BoneFbxNode {
         fbxsdk::FbxNode* fbxNode;
         CharString       name;
@@ -96,7 +103,8 @@ public:
     RefPtr<MetroModelBase>      ImportModel(const fs::path& filePath);
 
 private:
-    void                        AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh);
+    void                        CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMeshesFounder& foundMeshes);
+    void                        AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh);
     RefPtr<MetroSkeleton>       TryToImportSkeleton(fbxsdk::FbxNode* fbxRootNode);
     void                        AddJointRecursive(fbxsdk::FbxNode* fbxNode, fbxsdk::FbxNode* fbxParentNode);
     void                        FixUpSkinnedVertices(MyArray<UniversalVertex>& vertices);

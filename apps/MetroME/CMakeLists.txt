@@ -27,6 +27,9 @@ target_sources(MetroME PRIVATE
     ui/exportmodeldlg.cpp
     ui/exportmodeldlg.h
     ui/exportmodeldlg.ui
+    ui/exportfbxdlg.cpp
+    ui/exportfbxdlg.h
+    ui/exportfbxdlg.ui
     ui/props/materialstringsprop.h
     ui/props/objectpropertybrowser.cpp
     ui/props/objectpropertybrowser.h
@@ -63,4 +66,10 @@ target_link_libraries(MetroME PRIVATE
     Qt6::Widgets
 
     QtPropertyBrowser::QtPropertyBrowser
+
+    Physx2utils::Physx2utils
+    Physx3utils::Physx3utils
+
+    d2d1.lib
+    dwrite.lib
 )

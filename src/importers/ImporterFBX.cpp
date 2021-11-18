@@ -10,6 +10,10 @@
 
 #pragma comment(lib, "libfbxsdk.lib")
 
+static const CharString kShadowSuffix   = "_shadow";
+static const CharString kLOD1Suffix     = "_lod1";
+static const CharString kLOD2Suffix     = "_lod2";
+
 //
 //static bool IsNodeABone(FbxNode* node) {
 //    //return node->GetSkeleton() != nullptr;
@@ -130,11 +134,12 @@ static FbxVector4 GetNormalFromElement(T* element, const int controlPointIdx, co
     return normal;
 }
 
+template <typename T>
 struct VerticesCollector {
-    MyArray<ImporterFBX::UniversalVertex> vertices;
+    MyArray<T>        vertices;
     MyArray<uint16_t> indices;
 
-    void AddVertex(const ImporterFBX::UniversalVertex& v) {
+    void AddVertex(const T& v) {
         const auto begin = this->vertices.begin();
         const auto end = this->vertices.end();
         const auto it = std::find(begin, end, v);
@@ -387,22 +392,16 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
         const bool success = fbxImporter->Initialize(filePath.u8string().c_str(), -1, ios);
         if (success && fbxImporter->IsFBX()) {
             if (fbxImporter->Import(fbxScene)) {
-                const FbxAxisSystem ourAxis = FbxAxisSystem::MayaYUp;
+                const FbxAxisSystem ourAxis = FbxAxisSystem::DirectX;
 
                 FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
                 if (fileAxis != ourAxis) {
                     ourAxis.ConvertScene(fbxScene);
                 }
 
-                MyArray<FbxMesh*> fbxMeshesList;
-
+                FbxMeshesFounder foundMeshes;
                 FbxNode* rootNode = fbxScene->GetRootNode();
-                for (int i = 0; i < rootNode->GetChildCount(); ++i) {
-                    FbxNode* node = rootNode->GetChild(i);
-                    if (node && node->GetNodeAttribute() && node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
-                        fbxMeshesList.push_back(scast<FbxMesh*>(node->GetNodeAttribute()));
-                    }
-                }
+                this->CollectSceneMeshesRecursive(rootNode, foundMeshes);
 
                 //// try to find the bind pose
                 //FbxPose* fbxBindPose = nullptr;
@@ -423,10 +422,32 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
                     result = MakeRefPtr<MetroModelHierarchy>();
                 }
 
-                result->SetModelVersionBasedOnGameVersion(mGameVersion); //! Redux
+                result->SetModelVersionBasedOnGameVersion(mGameVersion);
 
-                for (FbxMesh* fbxMesh : fbxMeshesList) {
-                    this->AddMeshToModel(result, fbxMesh);
+                const bool hasShadowGeometry = (foundMeshes.shadowMeshes.size() == foundMeshes.meshes.size());
+
+                for (size_t i = 0, numMeshes = foundMeshes.meshes.size(); i < numMeshes; ++i) {
+                    this->AddMeshToModel(result, foundMeshes.meshes[i], hasShadowGeometry ? foundMeshes.shadowMeshes[i] : nullptr);
+                }
+
+                if (mSkeleton == nullptr) {
+                    if (!foundMeshes.lod1Meshes.empty()) {
+                        RefPtr<MetroModelBase> lod1Model = MakeRefPtr<MetroModelHierarchy>();
+                        for (fbxsdk::FbxMesh* mesh : foundMeshes.lod1Meshes) {
+                            this->AddMeshToModel(lod1Model, mesh, nullptr);
+                        }
+                        // add LOD1
+                        SCastRefPtr<MetroModelHierarchy>(result)->AddLOD(lod1Model);
+
+                        if (!foundMeshes.lod2Meshes.empty()) {
+                            RefPtr<MetroModelBase> lod2Model = MakeRefPtr<MetroModelHierarchy>();
+                            for (fbxsdk::FbxMesh* mesh : foundMeshes.lod2Meshes) {
+                                this->AddMeshToModel(lod2Model, mesh, nullptr);
+                            }
+                            // add LOD2
+                            SCastRefPtr<MetroModelHierarchy>(result)->AddLOD(lod2Model);
+                        }
+                    }
                 }
             }
         }
@@ -440,7 +461,46 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
     return result;
 }
 
-void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh) {
+// returns 0 if not a lod mesh, returns 1 if LOD1 mesh, returns 2 if LOD2 mesh
+static int FBXI_IsLODMesh(fbxsdk::FbxNode* node) {
+    fbxsdk::FbxNode* parent = node->GetParent();
+    if (parent) {
+        CharString parentName = parent->GetNameOnly().Buffer();
+
+        if (StrEndsWith(parentName, kLOD1Suffix)) {
+            return 1;
+        } else if (StrEndsWith(parentName, kLOD2Suffix)) {
+            return 2;
+        }
+    }
+
+    return 0;
+}
+
+void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMeshesFounder& foundMeshes) {
+    if (rootNode->GetNodeAttribute() && rootNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
+        fbxsdk::FbxMesh* mesh = scast<fbxsdk::FbxMesh*>(rootNode->GetNodeAttribute());
+        CharString nodeName = rootNode->GetNameOnly().Buffer();
+        if (StrEndsWith(nodeName, kShadowSuffix)) {
+            foundMeshes.shadowMeshes.push_back(mesh);
+        } else {
+            const int lodType = FBXI_IsLODMesh(rootNode);
+            if (1 == lodType) {
+                foundMeshes.lod1Meshes.push_back(mesh);
+            } else if (2 == lodType) {
+                foundMeshes.lod2Meshes.push_back(mesh);
+            } else {
+                foundMeshes.meshes.push_back(mesh);
+            }
+        }
+    } else {
+        for (int i = 0, numChild = rootNode->GetChildCount(); i < numChild; ++i) {
+            this->CollectSceneMeshesRecursive(rootNode->GetChild(i), foundMeshes);
+        }
+    }
+}
+
+void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh) {
     const int numControlPoints = fbxMesh->GetControlPointsCount();
     const FbxVector4* controlPoints = fbxMesh->GetControlPoints();
 
@@ -449,6 +509,16 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
     for (int i = 0; i < numControlPoints; ++i) {
         ControlPoint& ctrlPt = myControlPoints[i];
         ctrlPt.pos = controlPoints[i];
+    }
+
+    MyArray<vec3> myShadowPoints;
+    if (fbxShadowMesh) {
+        const int numShadowPoints = fbxShadowMesh->GetControlPointsCount();
+        const FbxVector4* shadowPoints = fbxShadowMesh->GetControlPoints();
+        myShadowPoints.resize(numShadowPoints);
+        for (int i = 0; i < numShadowPoints; ++i) {
+            myShadowPoints[i] = FbxVecToVec3(shadowPoints[i]);
+        }
     }
 
     // if we have skeleton - collect control points influences
@@ -583,13 +653,21 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
 
     myControlPoints.clear();
 
-    VerticesCollector collector;
+    VerticesCollector<UniversalVertex> collector;
     for (const UniversalVertex& v : vertices) {
         collector.AddVertex(v);
     }
 
     const size_t numVertices = collector.vertices.size();
     const size_t numFaces = collector.indices.size() / 3;
+
+    VerticesCollector<vec3> shadowCollector;
+    for (const vec3& v : myShadowPoints) {
+        shadowCollector.AddVertex(v);
+    }
+
+    const size_t numShadowVertices = shadowCollector.vertices.size();
+    const size_t numShadowFaces = shadowCollector.indices.size() / 3;
 
     RefPtr<MetroModelBase> mesh;
 
@@ -639,15 +717,28 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
             dst.uv = src.uv;
         }
 
+        MyArray<VertexStaticShadow> shadowVertices(numShadowVertices);
+        for (size_t i = 0; i < numShadowVertices; ++i) {
+            VertexStaticShadow& dst = shadowVertices[i];
+            dst.pos = shadowCollector.vertices[i];
+            dst.padding = 0;
+        }
+
         RefPtr<MetroModelStd> staticMesh = MakeRefPtr<MetroModelStd>();
-        staticMesh->CreateMesh(numVertices, numFaces);
+        staticMesh->CreateMesh(numVertices, numFaces, numShadowVertices, numShadowFaces);
         staticMesh->CopyVerticesData(staticVertices.data());
         staticMesh->CopyFacesData(collector.indices.data());
+        if (numShadowVertices) {
+            staticMesh->CopyShadowVerticesData(shadowVertices.data());
+            staticMesh->CopyShadowFacesData(shadowCollector.indices.data());
+        }
 
         mesh = staticMesh;
     }
 
     mesh->SetMaterialString(kEmptyString, 0); // force-create material strings array
+    CharString meshName = fbxMesh->GetNameOnly();
+    mesh->SetMaterialString(meshName, 3);
 
     BSphere bsphere;
     bsphere.center = bbox.Center();

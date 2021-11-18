@@ -178,15 +178,12 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
         if (params.formatVersion >= kModelVersionLastLight) {
             mMaterialStrings[3] = materialsStream.ReadStringZ();
 
-            //#NOTE_SK: here's the game, depending on some other flags, might read uint16_t
-            //          uint16_t matFlags = materialsStream.ReadU16();
-            //          bool ignore_model = matFlags & 8;
             mMaterialFlags0 = materialsStream.ReadU16();
             mMaterialFlags1 = materialsStream.ReadU16();
 
-            if (StrContains(mMaterialStrings[3], "collision")) {
-                mIsCollisionModel = true;
-            }
+            // collision meshes:  mMaterialFlags0 == 0x0108 && mMaterialFlags1 == 0x0100;
+            // bool ignore_model = matFlags & 8;
+            mIsCollisionModel = (0 != (mMaterialFlags0 & 8));
         } else if (params.formatVersion <= kModelVersion2033) { // original 2033 relies on texture replacemens
             auto it = params.treplacements.find(mMaterialStrings[0]);
             if (it != params.treplacements.end()) {
@@ -307,6 +304,10 @@ size_t MetroModelBase::GetLodCount() const {
     return 0;
 }
 
+RefPtr<MetroModelBase> MetroModelBase::GetLod(const size_t) const {
+    return nullptr;
+}
+
 const AABBox& MetroModelBase::GetBBox() const {
     return mBBox;
 }
@@ -362,7 +363,7 @@ uint32_t MetroModelBase::GetVertexType() const {
 }
 
 void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t) const {
-    if (this->MeshValid()) {
+    if (this->MeshValid() && !this->IsCollisionModel()) {
         MetroModelGeomData gd = {
             mBBox,
             mBSphere,
@@ -474,7 +475,7 @@ bool MetroModelStd::Load(MemStream& stream, MetroModelLoadParams& params) {
     // load base
     const bool baseLoaded = MetroModelBase::Load(stream, params);
 
-    return mMesh && baseLoaded;
+    return (mMesh && baseLoaded);
 }
 
 bool MetroModelStd::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
@@ -539,25 +540,41 @@ void MetroModelStd::FreeGeometryMem() {
 }
 
 // model creation
-void MetroModelStd::CreateMesh(const size_t numVertices, const size_t numFaces) {
+void MetroModelStd::CreateMesh(const size_t numVertices, const size_t numFaces, const size_t numShadowVertices, const size_t numShadowFaces) {
     mMesh = MakeRefPtr<MetroModelMesh>();
     memset(mMesh.get(), 0, sizeof(MetroModelMesh));
 
     mMesh->verticesCount = scast<uint32_t>(numVertices);
     mMesh->facesCount = scast<uint32_t>(numFaces);
+    mMesh->shadowVerticesCount = scast<uint32_t>(numShadowVertices);
+    mMesh->shadowFacesCount = scast<uint32_t>(numShadowFaces);
     mMesh->vertexType = MetroVertexType::Static;
     mMesh->verticesScale = 1.0f;
 
-    mVerticesData.resize(numVertices * sizeof(VertexStatic));
-    mFacesData.resize(numFaces * sizeof(MetroFace));
+    mVerticesData.resize(numVertices * sizeof(VertexStatic) + numShadowVertices * sizeof(VertexStaticShadow));
+    mFacesData.resize(numFaces * sizeof(MetroFace) + numShadowFaces * sizeof(MetroFace));
 }
 
 void MetroModelStd::CopyVerticesData(const void* vertices) {
-    memcpy(mVerticesData.data(), vertices, mVerticesData.size());
+    const size_t verticesDataSize = mMesh->verticesCount * sizeof(VertexStatic);
+    memcpy(mVerticesData.data(), vertices, verticesDataSize);
 }
 
 void MetroModelStd::CopyFacesData(const void* faces) {
-    memcpy(mFacesData.data(), faces, mFacesData.size());
+    const size_t facesDataSize = mMesh->facesCount * sizeof(MetroFace);
+    memcpy(mFacesData.data(), faces, facesDataSize);
+}
+
+void MetroModelStd::CopyShadowVerticesData(const void* shadowVertices) {
+    const size_t verticesDataSize = mMesh->verticesCount * sizeof(VertexStatic);
+    const size_t shadowVerticesDataSize = mMesh->shadowVerticesCount * sizeof(VertexStaticShadow);
+    memcpy(mVerticesData.data() + verticesDataSize, shadowVertices, shadowVerticesDataSize);
+}
+
+void MetroModelStd::CopyShadowFacesData(const void* shadowFaces) {
+    const size_t facesDataSize = mMesh->facesCount * sizeof(MetroFace);
+    const size_t shadowFacesDataSize = mMesh->shadowFacesCount * sizeof(MetroFace);
+    memcpy(mFacesData.data() + facesDataSize, shadowFaces, shadowFacesDataSize);
 }
 
 
@@ -861,6 +878,10 @@ size_t MetroModelHierarchy::GetLodCount() const {
     return mLods.size();
 }
 
+RefPtr<MetroModelBase> MetroModelHierarchy::GetLod(const size_t idx) const {
+    return mLods[idx];
+}
+
 void MetroModelHierarchy::FreeGeometryMem() {
     for (auto& child : mChildren) {
         child->FreeGeometryMem();
@@ -925,6 +946,10 @@ void MetroModelHierarchy::AddChild(const RefPtr<MetroModelBase>& child) {
         mBSphere.Absorb(child->GetBSphere());
         mBBox.Absorb(child->GetBBox());
     }
+}
+
+void MetroModelHierarchy::AddLOD(const RefPtr<MetroModelBase>& lod) {
+    mLods.push_back(lod);
 }
 
 void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {

@@ -4,6 +4,7 @@
 #include "renderpanel.h"
 #include "sessionsdlg.h"
 #include "exportmodeldlg.h"
+#include "exportfbxdlg.h"
 
 #include <QToolButton>
 #include <QMenu>
@@ -27,8 +28,153 @@
 #include "exporters/ExporterFBX.h"
 #include "exporters/ExporterGLTF.h"
 
-#if 0
+#if 1
 #include "metro/physics/MetroPhysics.h"
+#define PHYSX2UTILS_IMPORT 1
+#include "physx/physx2utils/physx2utils.h"
+#define PHYSX3UTILS_IMPORT 1
+#include "physx/physx3utils/physx3utils.h"
+
+#include "engine/DebugGeo.h"
+
+static RefPtr<u4a::DebugGeo> DebugGeoFromCForm(MetroPhysicsCForm* phys, const MetroGameVersion gameVersion) {
+    RefPtr<u4a::DebugGeo> debugGeo;
+
+    std::function<IPhysXUtils*()> createPhysXUtils;
+    std::function<void(IPhysXUtils*)> destroyPhysXUtils;
+
+    if (gameVersion <= MetroGameVersion::OGLastLight) {
+        createPhysXUtils = []()->IPhysXUtils* {
+            IPhysX2Utils* utils2 = nullptr;
+            if (nux2::CreatePhysX2Utils(0, &utils2)) {
+                return utils2;
+            } else {
+                return nullptr;
+            }
+        };
+        destroyPhysXUtils = [](IPhysXUtils* utils) {
+            nux2::DestroyPhysX2Utils(scast<IPhysX2Utils*>(utils));
+        };
+    } else {
+        createPhysXUtils = []()->IPhysXUtils* {
+            IPhysX3Utils* utils3 = nullptr;
+            if (nux3::CreatePhysX3Utils(0, &utils3)) {
+                return utils3;
+            } else {
+                return nullptr;
+            }
+        };
+        destroyPhysXUtils = [](IPhysXUtils* utils) {
+            nux3::DestroyPhysX3Utils(scast<IPhysX3Utils*>(utils));
+        };
+    }
+
+    IPhysXUtils* physxUtils = createPhysXUtils();
+    if (physxUtils) {
+        debugGeo = MakeRefPtr<u4a::DebugGeo>();
+        bool hasSections = false;
+
+        for (size_t i = 0, numMeshes = phys->GetNumCMeshes(); i < numMeshes; ++i) {
+            RefPtr<MetroPhysicsCMesh> cmesh = phys->GetCMesh(i);
+
+            BytesArray& cookedData = cmesh->GetCookedData();
+            MyArray<vec3> vertices;
+            MyArray<uint16_t> indices;
+            if (!physxUtils->CookedTriMeshToRawVertices(cookedData.data(), cookedData.size(), vertices, indices)) {
+                assert(false);
+            } else {
+                debugGeo->AddSection(vertices.data(), vertices.size(), indices.data(), indices.size());
+                hasSections = true;
+            }
+        }
+
+        if (!hasSections || !debugGeo->Create()) {
+            debugGeo = nullptr;
+        }
+
+        destroyPhysXUtils(physxUtils);
+    }
+
+    return debugGeo;
+}
+
+RefPtr<MetroPhysicsCForm> MakeCFormFromModel(MetroModelBase* model, const MetroGameVersion gameVersion) {
+    RefPtr<MetroPhysicsCForm> result;
+
+    if (model->GetLodCount() > 1) {
+        model = model->GetLod(1).get();
+    } else if (model->GetLodCount() > 0) {
+        model = model->GetLod(0).get();
+    }
+
+    MyArray<MetroModelGeomData> gds;
+    model->CollectGeomData(gds);
+
+    std::function<IPhysXUtils* ()> createPhysXUtils;
+    std::function<void(IPhysXUtils*)> destroyPhysXUtils;
+
+    if (gameVersion <= MetroGameVersion::OGLastLight) {
+        createPhysXUtils = []()->IPhysXUtils* {
+            IPhysX2Utils* utils2 = nullptr;
+            if (nux2::CreatePhysX2Utils(nux2::kInitCooker, &utils2)) {
+                return utils2;
+            } else {
+                return nullptr;
+            }
+        };
+        destroyPhysXUtils = [](IPhysXUtils* utils) {
+            nux2::DestroyPhysX2Utils(scast<IPhysX2Utils*>(utils));
+        };
+    } else {
+        createPhysXUtils = []()->IPhysXUtils* {
+            IPhysX3Utils* utils3 = nullptr;
+            if (nux3::CreatePhysX3Utils(nux3::kInitCooker, &utils3)) {
+                return utils3;
+            } else {
+                return nullptr;
+            }
+        };
+        destroyPhysXUtils = [](IPhysXUtils* utils) {
+            nux3::DestroyPhysX3Utils(scast<IPhysX3Utils*>(utils));
+        };
+    }
+
+    IPhysXUtils* physxUtils = createPhysXUtils();
+    if (physxUtils) {
+        bool failed = false;
+        result = MakeRefPtr<MetroPhysicsCForm>();
+        for (const MetroModelGeomData& gd : gds) {
+            MyArray<vec3> points(gd.mesh->verticesCount);
+            const VertexStatic* srcVertices = rcast<const VertexStatic*>(gd.vertices);
+            for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
+                points[i] = srcVertices[i].pos;
+            }
+
+            BytesArray cookedMesh;
+            if (!physxUtils->RawVerticesToCookedTriMesh(points.data(), points.size(), rcast<const uint16_t*>(gd.faces), scast<size_t>(gd.mesh->facesCount) * 3, cookedMesh)) {
+                failed = true;
+                break;
+            }
+
+            RefPtr<MetroPhysicsCMesh> cmesh = MakeRefPtr<MetroPhysicsCMesh>();
+            cmesh->SetShader(gd.model->GetMaterialString(0));
+            cmesh->SetTexture(gd.model->GetMaterialString(1));
+            cmesh->SetMaterialName1(gd.model->GetMaterialString(2));
+            cmesh->SetMaterialName2(gd.model->GetMaterialString(3));
+            cmesh->SetCookedData(cookedMesh.data(), cookedMesh.size());
+
+            result->AddCMesh(cmesh);
+        }
+
+        if (failed) {
+            result = nullptr;
+        }
+
+        destroyPhysXUtils(physxUtils);
+    }
+
+    return result;
+}
 #endif
 
 #include "../MetroSessions.h"
@@ -73,6 +219,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBonesChecked, this, &MainWindow::OnSkeletonShowBones);
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBonesLinksChecked, this, &MainWindow::OnSkeletonShowBonesLinks);
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBonesNamesChecked, this, &MainWindow::OnSkeletonShowBonesNames);
+    connect(ui->ribbon, &MainRibbon::Signal3DViewShowModelChecked, this, &MainWindow::OnShowModel);
+    connect(ui->ribbon, &MainRibbon::Signal3DViewModelLODValueChanged, this, &MainWindow::OnModelLODValueChanged);
+    connect(ui->ribbon, &MainRibbon::Signal3DViewShowPhysicsChecked, this, &MainWindow::OnShowPhysics);
 
     mRenderPanel = new RenderPanel(ui->renderContainer);
     mRenderPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -131,6 +280,29 @@ void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
     mMotionsRollout->FillForTheSkeleton(skeleton);
     mFaceFXRollout->FillForTheSkeleton(skeleton);
     mParamsRollout->FillForTheSkeleton(skeleton);
+
+    ui->ribbon->SetLODLimit(scast<int>(model->GetLodCount()));
+}
+
+void MainWindow::UpdatePhysicsFromTheModel(MetroModelBase* model, const fs::path& modelPath) {
+    mModelPhysx = nullptr;
+
+    if (model->IsHierarchy() && !model->IsSkinnedHierarchy()) {
+        fs::path physPath = modelPath;
+        const MetroGameVersion gameVersion = MetroContext::Get().GetGameVersion();
+        const CharString& cformExt = MetroContext::Get().GetCFormExtension();
+        physPath.replace_extension(cformExt);
+        MemStream physStream = OSReadFile(physPath);
+        if (physStream) {
+            mModelPhysx = MetroPhysicsLoadCFormFromStream(physStream, false);
+            if (mModelPhysx) {
+                RefPtr<u4a::DebugGeo> debugGeo = DebugGeoFromCForm(mModelPhysx.get(), gameVersion);
+                if (debugGeo) {
+                    mRenderPanel->SetDebugGeo(debugGeo);
+                }
+            }
+        }
+    }
 }
 
 
@@ -178,6 +350,9 @@ void MainWindow::OnRibbonTabChanged(const MainRibbon::TabType tab) {
     } else if (MainRibbon::TabType::Skeleton == tab) {
         ui->toolboxModel->hide();
         ui->toolboxSkeleton->show();
+    } else if (MainRibbon::TabType::Physics == tab) {
+        ui->toolboxModel->hide();
+        ui->toolboxSkeleton->hide();
     }
 }
 
@@ -201,21 +376,10 @@ void MainWindow::OnImportMetroModel() {
 
             RefPtr<MetroModelBase> model = MetroModelFactory::CreateModelFromStream(stream, params);
             if (model && mRenderPanel) {
-#if 0
-                if (model->IsHierarchy() && !model->IsSkinnedHierarchy()) {
-                    fs::path physPath = fullPath;
-                    physPath.replace_extension(".nxcform_pc");
-                    MemStream physStream = OSReadFile(physPath);
-                    if (physStream) {
-                        MetroPhysicsCForm* phys = MetroPhysicsLoadCFormFromStream(physStream, false);
-                        MySafeDelete(phys);
-                    }
-                }
-#endif
-
                 mRenderPanel->SetModel(model);
 
                 this->UpdateUIForTheModel(model.get());
+                this->UpdatePhysicsFromTheModel(model.get(), fullPath);
             }
         }
     }
@@ -305,17 +469,23 @@ void MainWindow::OnExportFBXModel() {
     if (model) {
         QString name = QFileDialog::getSaveFileName(this, tr("Where to export FBX model..."), QString(), tr("FBX model file (*.fbx);;All files (*.*)"));
         if (!name.isEmpty()) {
-            fs::path fullPath = name.toStdWString();
+            ExportFBXDlg dlg(this);
+            dlg.SetModel(model.get());
+            if (QDialog::Accepted == dlg.exec()) {
+                fs::path fullPath = name.toStdWString();
 
-            ExporterFBX expFbx;
-            expFbx.SetExportMesh(true);
-            expFbx.SetExportSkeleton(true);
-            expFbx.SetExcludeCollision(true);
-            expFbx.SetExportAnimation(false);
+                ExporterFBX expFbx;
+                expFbx.SetExportMesh(true);
+                expFbx.SetExportSkeleton(dlg.GetExportSkeleton());
+                expFbx.SetExportShadowGeometry(dlg.GetExportShadowGeometry());
+                expFbx.SetExportLODs(dlg.GetExportLODs());
+                expFbx.SetExcludeCollision(true);
+                expFbx.SetExportAnimation(false);
 
-            expFbx.SetExporterName("MetroME");
-            expFbx.SetTexturesExtension(".tga");
-            expFbx.ExportModel(*model, fullPath);
+                expFbx.SetExporterName("MetroME");
+                expFbx.SetTexturesExtension(".tga");
+                expFbx.ExportModel(*model, fullPath);
+            }
         }
     }
 }
@@ -469,6 +639,24 @@ void MainWindow::OnSkeletonShowBonesLinks(bool checked) {
 void MainWindow::OnSkeletonShowBonesNames(bool checked) {
     if (mRenderPanel) {
         mRenderPanel->SetDebugSkeletonShowBonesNames(checked);
+    }
+}
+
+void MainWindow::OnShowModel(bool checked) {
+    if (mRenderPanel) {
+        mRenderPanel->SetShowModel(checked);
+    }
+}
+
+void MainWindow::OnModelLODValueChanged(int value) {
+    if (mRenderPanel) {
+        mRenderPanel->SetLod(scast<size_t>(value));
+    }
+}
+
+void MainWindow::OnShowPhysics(bool checked) {
+    if (mRenderPanel) {
+        mRenderPanel->SetDebugShowPhysics(checked);
     }
 }
 

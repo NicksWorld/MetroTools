@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QSpinBox>
 
 
 class SimpleRibbon;
@@ -19,6 +20,7 @@ public:
         Model,
         Skeleton,
         Animation,
+        Physics,
         View
     };
 
@@ -26,6 +28,7 @@ public:
     ~MainRibbon() override;
 
     void    EnableTab(const TabType tab, const bool enable);
+    void    SetLODLimit(const int limit);
 
 signals:
     void    SignalCurrentTabChanged(const TabType tab);
@@ -49,6 +52,9 @@ signals:
     void    Signal3DViewShowBonesChecked(bool checked);
     void    Signal3DViewShowBonesLinksChecked(bool checked);
     void    Signal3DViewShowBonesNamesChecked(bool checked);
+    void    Signal3DViewShowModelChecked(bool checked);
+    void    Signal3DViewModelLODValueChanged(int value);
+    void    Signal3DViewShowPhysicsChecked(bool checked);
 
 private slots:
     void    OnCurrentTabChanged(int index);
@@ -72,12 +78,16 @@ private slots:
     void    On3DViewShowBonesChecked(int state);
     void    On3DViewShowBonesLinksChecked(int state);
     void    On3DViewShowBonesNamesChecked(int state);
+    void    On3DViewShowModelChecked(int state);
+    void    On3DViewModelLODValueChanged(int value);
+    void    On3DViewShowPhysicsChecked(int state);
 
 private:
     void    BuildRibbon();
     void    BuildModelTab();
     void    BuildSkeletonTab();
     void    BuildAnimationTab();
+    void    BuildPhysicsTab();
     void    Build3DViewTab();
 
 private:
@@ -86,6 +96,7 @@ private:
     SimpleRibbonTab*    mTabModel;
     SimpleRibbonTab*    mTabSkeleton;
     SimpleRibbonTab*    mTabAnimation;
+    SimpleRibbonTab*    mTabPhysics;
     SimpleRibbonTab*    mTab3DView;
     // model groups
     SimpleRibbonGroup*  mGroupModelFile;
@@ -95,9 +106,13 @@ private:
     SimpleRibbonGroup*  mGroup3DViewBounds;
     SimpleRibbonGroup*  mGroup3DViewSkeleton;
     SimpleRibbonGroup*  mGroup3DViewModel;
+    SimpleRibbonGroup*  mGroup3DViewPhysics;
     // 3d view controls
     QComboBox*          mComboBoundsType;
     QCheckBox*          mCheckSubmodelBounds;
     QCheckBox*          mCheckShowBonesLinks;
     QCheckBox*          mCheckShowBonesNames;
+    QCheckBox*          mCheckShowPhysics;
+    QCheckBox*          mCheckShowModel;
+    QSpinBox*           mModelLod;
 };

@@ -20,6 +20,7 @@
 
 class SimpleRibbon;
 class MetroModelBase;
+class MetroPhysicsCForm;
 
 
 QT_BEGIN_NAMESPACE
@@ -36,6 +37,7 @@ public:
     ~MainWindow();
 
     void    UpdateUIForTheModel(MetroModelBase* model);
+    void    UpdatePhysicsFromTheModel(MetroModelBase* model, const fs::path& modelPath);
 
 public slots:
     void    OnWindowLoaded();
@@ -61,6 +63,9 @@ public slots:
     void    OnSkeletonShowBones(bool checked);
     void    OnSkeletonShowBonesLinks(bool checked);
     void    OnSkeletonShowBonesNames(bool checked);
+    void    OnShowModel(bool checked);
+    void    OnModelLODValueChanged(int value);
+    void    OnShowPhysics(bool checked);
 
 private slots:
     // Model rollouts
@@ -70,6 +75,7 @@ private slots:
 private:
     Ui::MainWindow*                 ui;
     RenderPanel*                    mRenderPanel;
+    RefPtr<MetroPhysicsCForm>       mModelPhysx;
     // Model rollouts
     ModelMeshesRollout*             mModelMeshesRollout;
     ModelPhysXRollout*              mModelPhysXRollout;

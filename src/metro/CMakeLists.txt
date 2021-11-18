@@ -83,5 +83,4 @@ target_link_libraries(metro
         QuickLz::QuickLz
         Jansson::Jansson
     PUBLIC
-        Crunch::Crunch
-        Physx284::Physx284)
+        Crunch::Crunch)

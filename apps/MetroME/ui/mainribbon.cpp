@@ -2,7 +2,7 @@
 
 #include <QHBoxLayout>
 #include <QMenu>
-#include <QSpinBox>
+
 
 #include "simpleribbon/SimpleRibbon.h"
 #include "simpleribbon/SimpleRibbonTab.h"
@@ -28,11 +28,15 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mGroup3DViewBounds(nullptr)
     , mGroup3DViewSkeleton(nullptr)
     , mGroup3DViewModel(nullptr)
+    , mGroup3DViewPhysics(nullptr)
     // 3d view controls
     , mComboBoundsType(nullptr)
     , mCheckSubmodelBounds(nullptr)
     , mCheckShowBonesLinks(nullptr)
     , mCheckShowBonesNames(nullptr)
+    , mCheckShowPhysics(nullptr)
+    , mCheckShowModel(nullptr)
+    , mModelLod(nullptr)
 {
     QHBoxLayout* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -58,7 +62,11 @@ void MainRibbon::EnableTab(const TabType tab, const bool enable) {
             mRibbon->EnableRibbonTab(mTab3DView->GetTabName(), enable);
         break;
     }
-    
+}
+
+void MainRibbon::SetLODLimit(const int limit) {
+    mModelLod->setMinimum(0);
+    mModelLod->setMaximum(limit);
 }
 
 
@@ -146,6 +154,19 @@ void MainRibbon::On3DViewShowBonesNamesChecked(int state) {
     emit Signal3DViewShowBonesNamesChecked(Qt::Checked == state);
 }
 
+void MainRibbon::On3DViewShowModelChecked(int state) {
+    emit Signal3DViewShowModelChecked(Qt::Checked == state);
+}
+
+void MainRibbon::On3DViewModelLODValueChanged(int value) {
+    emit Signal3DViewModelLODValueChanged(value);
+}
+
+void MainRibbon::On3DViewShowPhysicsChecked(int state) {
+    emit Signal3DViewShowPhysicsChecked(Qt::Checked == state);
+}
+
+
 void MainRibbon::BuildRibbon() {
     mRibbon = new SimpleRibbon(this);
     QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
@@ -158,6 +179,7 @@ void MainRibbon::BuildRibbon() {
     mTabModel = mRibbon->AddRibbonTab(tr("Model"));
     mTabSkeleton = mRibbon->AddRibbonTab(tr("Skeleton"));
     mTabAnimation = mRibbon->AddRibbonTab(tr("Animation"));
+    mTabPhysics = mRibbon->AddRibbonTab(tr("Physics"));
     mTab3DView = mRibbon->AddRibbonTab(tr("3D View"));
 
     this->BuildModelTab();
@@ -174,15 +196,19 @@ void MainRibbon::BuildModelTab() {
     SimpleRibbonButton* importModelButton = new SimpleRibbonButton;
     importModelButton->SetText(tr("Import..."));
     importModelButton->SetTooltip(tr("Import model from file"));
-    importModelButton->SetIcon(QIcon(":/imgs/ImportFile.png"));
+    importModelButton->SetIcon(QPixmap(":/imgs/ImportFile.png"));
     {
         QMenu* menu = new QMenu("");
-        QAction* importFromModelAction = menu->addAction("Import from Metro model...");
+        QAction* importFromModelAction = menu->addAction(QPixmap(":/imgs/metro_icon.png"), tr("Import from Metro model..."));
         menu->addSeparator();
-        QAction* importFromObjAction = menu->addAction("Import from OBJ model...");
+        QAction* importFromObjAction = menu->addAction(QPixmap(":/imgs/obj.svg"), tr("Import from OBJ model..."));
         menu->addSeparator();
-        QAction* importFromFbxAction = menu->addAction("Import from FBX model...");
+        QAction* importFromFbxAction = menu->addAction(QPixmap(":/imgs/fbx.svg"), tr("Import from FBX model..."));
         importModelButton->SetMenu(menu);
+
+        connect(importModelButton, &SimpleRibbonButton::clicked, this, [importModelButton](bool checked) {
+            importModelButton->showMenu();
+        });
 
         connect(importFromModelAction, &QAction::triggered, this, &MainRibbon::OnFileImportMetroModelCommand);
         connect(importFromObjAction, &QAction::triggered, this, &MainRibbon::OnFileImportOBJModelCommand);
@@ -194,17 +220,21 @@ void MainRibbon::BuildModelTab() {
     SimpleRibbonButton* exportModelButton = new SimpleRibbonButton;
     exportModelButton->SetText(tr("Export..."));
     exportModelButton->SetTooltip(tr("Export model to file"));
-    exportModelButton->SetIcon(QIcon(":/imgs/ExportFile.png"));
+    exportModelButton->SetIcon(QPixmap(":/imgs/ExportFile.png"));
     {
         QMenu* menu = new QMenu("");
-        QAction* exportToModelAction = menu->addAction("Export to Metro model...");
+        QAction* exportToModelAction = menu->addAction(QPixmap(":/imgs/metro_icon.png"), tr("Export to Metro model..."));
         menu->addSeparator();
-        QAction* exportToOBJAction = menu->addAction("Export to OBJ model...");
+        QAction* exportToOBJAction = menu->addAction(QPixmap(":/imgs/obj.svg"), tr("Export to OBJ model..."));
         menu->addSeparator();
-        QAction* exportToFBXAction = menu->addAction("Export to FBX model...");
+        QAction* exportToFBXAction = menu->addAction(QPixmap(":/imgs/fbx.svg"), tr("Export to FBX model..."));
         menu->addSeparator();
-        QAction* exportToGLTFAction = menu->addAction("Export to GLTF model...");
+        QAction* exportToGLTFAction = menu->addAction(QPixmap(":/imgs/gltf.svg"), tr("Export to GLTF model..."));
         exportModelButton->SetMenu(menu);
+
+        connect(exportModelButton, &SimpleRibbonButton::clicked, this, [exportModelButton](bool checked) {
+            exportModelButton->showMenu();
+        });
 
         connect(exportToModelAction, &QAction::triggered, this, &MainRibbon::OnFileExportMetroModelCommand);
         connect(exportToOBJAction, &QAction::triggered, this, &MainRibbon::OnFileExportOBJModelCommand);
@@ -256,10 +286,14 @@ void MainRibbon::BuildSkeletonTab() {
 void MainRibbon::BuildAnimationTab() {
 }
 
+void MainRibbon::BuildPhysicsTab() {
+}
+
 void MainRibbon::Build3DViewTab() {
     mGroup3DViewBounds = mTab3DView->AddRibbonGroup(tr("Bounds"));
     mGroup3DViewSkeleton = mTab3DView->AddRibbonGroup(tr("Skeleton"));
     mGroup3DViewModel = mTab3DView->AddRibbonGroup(tr("Model"));
+    mGroup3DViewPhysics = mTab3DView->AddRibbonGroup(tr("Physics"));
 
     // Bounds
     {
@@ -278,7 +312,7 @@ void MainRibbon::Build3DViewTab() {
         mCheckSubmodelBounds = new QCheckBox();
         mCheckSubmodelBounds->setText(tr("Submodels bounds"));
         mCheckSubmodelBounds->setEnabled(false);
-        connect(chkShowBounds, &QCheckBox::stateChanged, this, &MainRibbon::On3DViewSubmodelsBoundsChecked);
+        connect(mCheckSubmodelBounds, &QCheckBox::stateChanged, this, &MainRibbon::On3DViewSubmodelsBoundsChecked);
 
         vbar->AddWidget(chkShowBounds);
         vbar->AddWidget(mComboBoundsType);
@@ -308,15 +342,32 @@ void MainRibbon::Build3DViewTab() {
     // Model
     {
         SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        mCheckShowModel = new QCheckBox();
+        mCheckShowModel->setText(tr("Show model"));
+        mCheckShowModel->setChecked(true);
+        connect(mCheckShowModel, &QCheckBox::stateChanged, this, &MainRibbon::On3DViewShowModelChecked);
+
         QLabel* labelLOD = new QLabel();
         labelLOD->setText(tr("LOD to show:"));
 
-        QSpinBox* lodUpDown = new QSpinBox();
-        lodUpDown->setMinimum(0);
-        lodUpDown->setMaximum(0);
+        mModelLod = new QSpinBox();
+        mModelLod->setMinimum(0);
+        mModelLod->setMaximum(0);
+        connect(mModelLod, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainRibbon::On3DViewModelLODValueChanged);
 
+        vbar->AddWidget(mCheckShowModel);
         vbar->AddWidget(labelLOD);
-        vbar->AddWidget(lodUpDown);
+        vbar->AddWidget(mModelLod);
         mGroup3DViewModel->AddWidget(vbar);
+    }
+    // Physics
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        mCheckShowPhysics = new QCheckBox();
+        mCheckShowPhysics->setText(tr("Show physics"));
+        connect(mCheckShowPhysics, &QCheckBox::stateChanged, this, &MainRibbon::On3DViewShowPhysicsChecked);
+
+        vbar->AddWidget(mCheckShowPhysics);
+        mGroup3DViewPhysics->AddWidget(vbar);
     }
 }

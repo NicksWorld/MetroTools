@@ -47,6 +47,8 @@ struct VertexCommon {
 #define FromMetroV3(v)  ((v).xyz)
 #define FromMetroV4(v)  ((v).xyzw)
 
+#define UnpackNormal(v) mad((v).xyz, 2.0f, -1.0f)
+
 #if defined(VTX_TYPE_STATIC)
 
 #define InputVertex VertexStatic
@@ -55,7 +57,7 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     VertexCommon dst = (VertexCommon)0;
 
     dst.pos = FromMetroV3(src.pos);
-    dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
+    dst.normal = UnpackNormal(src.normal);
     dst.uv0 = src.uv;
     dst.vao = src.normal.w;
 
@@ -86,7 +88,7 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     dst.pos.z = (dst.pos.z > 32767.0f) ? (dst.pos.z * kPositionDequant - 2.0f) : (dst.pos.z * kPositionDequant);
     dst.pos *= Skinned_VScale.x;
 
-    dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
+    dst.normal = UnpackNormal(src.normal);
 
     uint4 indices = FromMetroV4(src.bones) / 3; // why the fuck?
     float4 weights = FromMetroV4(src.weights);
@@ -115,7 +117,7 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
     const float kUV1Dequant = 1.0f / 32767.0f;
 
     dst.pos = FromMetroV3(src.pos);
-    dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
+    dst.normal = UnpackNormal(src.normal);
     dst.uv0 = src.uv0uv1.xy * kUV0Dequant;
     dst.uv1 = src.uv0uv1.zw * kUV1Dequant;
     dst.vao = 1.0f;
@@ -135,10 +137,8 @@ VertexCommon ProcessInputVertex(in InputVertex src) {
 
     const float kUVDequant = 1.0f / 2048.0f;
 
-    float4 t = src.tangent * 2.0f - 1.0f;
-
     dst.pos = FromMetroV3(src.pos);
-    dst.normal = FromMetroV3(src.normal) * 2.0f - 1.0f;
+    dst.normal = UnpackNormal(src.normal);
     dst.uv0 = float2(src.uv) * kUVDequant;
     dst.vao = 1.0f;
 

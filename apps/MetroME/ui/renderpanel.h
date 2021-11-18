@@ -16,6 +16,8 @@ class MetroTexture;
 
 namespace u4a {
     class ModelNode;
+    class DebugGeo;
+    class DebugGeoNode;
 }
 
 class RenderPanel : public QWidget {
@@ -36,6 +38,8 @@ public:
     const RefPtr<MetroModelBase>&   GetModel() const;
     void                            UpdateModelProps();
 
+    void                            SetDebugGeo(const RefPtr<u4a::DebugGeo>& debugGeo);
+
     void                            SetLod(const size_t lodId);
     void                            SwitchMotion(const size_t idx);
     bool                            IsPlayingAnim() const;
@@ -43,6 +47,7 @@ public:
 
     void                            ResetCamera();
 
+    void                            SetShowModel(const bool show);
     void                            SetDebugShowBounds(const bool show);
     void                            SetDebugShowSubmodelsBounds(const bool show);
     void                            SetDebugBoundsType(const DebugBoundsType dbt);
@@ -50,6 +55,7 @@ public:
     bool                            IsShowingSkeletonShowBones() const;
     void                            SetDebugSkeletonShowBonesLinks(const bool show);
     void                            SetDebugSkeletonShowBonesNames(const bool show);
+    void                            SetDebugShowPhysics(const bool show);
 
 private:
     void                            CreateD2DResources();
@@ -79,12 +85,16 @@ private:
     u4a::Swapchain*                 mSwapchain;
     u4a::Scene*                     mScene;
     u4a::Camera*                    mCamera;
+    vec3                            mCameraOffset;
 
     // model viewer stuff
     RefPtr<MetroModelBase>          mModel;
     u4a::ModelNode*                 mModelNode;
     const MetroMotion*              mCurrentMotion;
     bool                            mAnimPlaying;
+
+    RefPtr<u4a::DebugGeo>           mDebugGeo;
+    u4a::DebugGeoNode*              mDebugGeoNode;
 
     QTimer                          mTimer;
 
@@ -93,6 +103,7 @@ private:
     QPoint                          mLastLMPos;
     QPoint                          mLastRMPos;
     float                           mZoom;
+    bool                            mShowModel;
     bool                            mShowWireframe;
     bool                            mShowCollision;
 
@@ -103,6 +114,7 @@ private:
     bool                            mShowBones;
     bool                            mShowBonesLinks;
     bool                            mShowBonesNames;
+    bool                            mShowPhysics;
 
     // text drawing
     ID2D1Factory*                   mD2DFactory;

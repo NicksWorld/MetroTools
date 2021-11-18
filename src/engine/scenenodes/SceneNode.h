@@ -13,6 +13,7 @@ public:
         Dummy,
         Model,
         LevelGeo,
+        DebugGeo
     };
 
 public:

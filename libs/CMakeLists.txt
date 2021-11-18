@@ -75,8 +75,16 @@ target_include_directories(physx284 INTERFACE
     physx284/Foundation/include
     physx284/Physics/include
     physx284/Cooking/include
+    physx284/PhysXLoader/include
 )
 target_link_directories(physx284 INTERFACE physx284/lib/win64)
+
+add_library(physx34 INTERFACE)
+add_library(Physx34::Physx34 ALIAS physx34)
+target_include_directories(physx34 INTERFACE
+    physx34/Include
+)
+target_link_directories(physx34 INTERFACE physx34/lib)
 
 add_library(crunch INTERFACE)
 add_library(Crunch::Crunch ALIAS crunch)

@@ -12,6 +12,9 @@
 
 #pragma comment(lib, "libfbxsdk.lib")
 
+static const CharString kShadowSuffix   = "_shadow";
+static const CharString kLOD1Suffix     = "_lod1";
+static const CharString kLOD2Suffix     = "_lod2";
 
 static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
     MyArray<MetroVertex> result;
@@ -64,6 +67,49 @@ static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
     return std::move(result);
 }
 
+static MyArray<MetroVertex> MakeCommonVerticesShadow(const MetroModelGeomData& gd) {
+    MyArray<MetroVertex> result;
+
+    if (gd.mesh->vertexType == MetroVertexType::Skin) {
+        const void* shadowVertsPtr = rcast<const uint8_t*>(gd.vertices) + (gd.mesh->verticesCount * sizeof(VertexSkinned));
+        const VertexSkinnedShadow* srcVerts = rcast<const VertexSkinnedShadow*>(shadowVertsPtr);
+
+        result.resize(gd.mesh->shadowVerticesCount);
+        MetroVertex* dstVerts = result.data();
+
+        for (size_t i = 0; i < gd.mesh->shadowVerticesCount; ++i) {
+            *dstVerts = ConvertVertex(*srcVerts);
+            dstVerts->pos *= gd.mesh->verticesScale;
+
+            //#NOTE_SK: need to remap bones
+            dstVerts->bones[0] = gd.mesh->bonesRemap[srcVerts->bones[0] / 3];
+            dstVerts->bones[1] = gd.mesh->bonesRemap[srcVerts->bones[1] / 3];
+            dstVerts->bones[2] = gd.mesh->bonesRemap[srcVerts->bones[2] / 3];
+            dstVerts->bones[3] = gd.mesh->bonesRemap[srcVerts->bones[3] / 3];
+
+            ++srcVerts;
+            ++dstVerts;
+        }
+    } else if (gd.mesh->vertexType == MetroVertexType::Static) {
+        const void* shadowVertsPtr = rcast<const uint8_t*>(gd.vertices) + (gd.mesh->verticesCount * sizeof(VertexStatic));
+
+        const VertexStaticShadow* srcVerts = rcast<const VertexStaticShadow*>(shadowVertsPtr);
+
+        result.resize(gd.mesh->shadowVerticesCount);
+        MetroVertex* dstVerts = result.data();
+
+        for (size_t i = 0; i < gd.mesh->shadowVerticesCount; ++i) {
+            *dstVerts = ConvertVertex(*srcVerts);
+            ++srcVerts;
+            ++dstVerts;
+        }
+    } else {
+        assert(false && "Unknown vertex type!");
+    }
+
+    return result;
+}
+
 
 
 using MyFbxMaterialsDict = MyDict<HashString, FbxSurfacePhong*>;
@@ -78,6 +124,8 @@ struct MyFbxMeshModel {
     FbxNode*            root;
     MyArray<FbxNode*>   nodes;
     MyArray<FbxMesh*>   meshes;
+    MyArray<FbxNode*>   shadowNodes;
+    MyArray<FbxMesh*>   shadowMeshes;
 };
 
 
@@ -199,9 +247,9 @@ static void FBXE_CreateMeshModel(FbxManager* mgr,
         const MetroFace* faces = scast<const MetroFace*>(gd.faces);
         for (size_t i = 0; i < gd.mesh->facesCount; ++i) {
             fbxMesh->BeginPolygon();
-            fbxMesh->AddPolygon(scast<int>(faces[i].c));
-            fbxMesh->AddPolygon(scast<int>(faces[i].b));
             fbxMesh->AddPolygon(scast<int>(faces[i].a));
+            fbxMesh->AddPolygon(scast<int>(faces[i].b));
+            fbxMesh->AddPolygon(scast<int>(faces[i].c));
             fbxMesh->EndPolygon();
         }
 
@@ -224,6 +272,53 @@ static void FBXE_CreateMeshModel(FbxManager* mgr,
         fbxModel.root->AddChild(meshNode);
         fbxModel.meshes.push_back(fbxMesh);
         fbxModel.nodes.push_back(meshNode);
+    }
+}
+
+static void FBXE_CreateMeshShadowModel(FbxManager* mgr,
+                                       FbxScene* scene,
+                                       const MetroModelBase& model,
+                                       const CharString& name,
+                                       MyFbxMeshModel& fbxModel) {
+
+    MyArray<MetroModelGeomData> gds;
+    model.CollectGeomData(gds);
+
+    size_t meshIdx = 0;
+    for (auto& gd : gds) {
+        if (gd.mesh->shadowVerticesCount) {
+            MyArray<MetroVertex> vertices = MakeCommonVerticesShadow(gd);
+
+            CharString meshName = std::to_string(meshIdx++) + kShadowSuffix;
+
+            FbxMesh* fbxMesh = FbxMesh::Create(scene, meshName.c_str());
+
+            // assign vertices
+            fbxMesh->InitControlPoints(scast<int>(vertices.size()));
+            FbxVector4* ptrCtrlPoints = fbxMesh->GetControlPoints();
+
+            for (const MetroVertex& v : vertices) {
+                *ptrCtrlPoints = MetroVecToFbxVec(v.pos);
+                ++ptrCtrlPoints;
+            }
+
+            // build polygons
+            const MetroFace* faces = scast<const MetroFace*>(gd.faces) + gd.mesh->facesCount;
+            for (size_t i = 0; i < gd.mesh->shadowFacesCount; ++i) {
+                fbxMesh->BeginPolygon();
+                fbxMesh->AddPolygon(scast<int>(faces[i].a));
+                fbxMesh->AddPolygon(scast<int>(faces[i].b));
+                fbxMesh->AddPolygon(scast<int>(faces[i].c));
+                fbxMesh->EndPolygon();
+            }
+
+            FbxNode* meshNode = FbxNode::Create(scene, meshName.c_str());
+            meshNode->SetNodeAttribute(fbxMesh);
+
+            fbxModel.root->AddChild(meshNode);
+            fbxModel.shadowMeshes.push_back(fbxMesh);
+            fbxModel.shadowNodes.push_back(meshNode);
+        }
     }
 }
 
@@ -439,13 +534,14 @@ static void FBXE_AddAnimTrackToScene(FbxScene* scene, const MetroMotion* motion,
 }
 
 static bool FBXE_SaveFBXScene(FbxManager* mgr, FbxScene* scene, FbxIOSettings* ios, const fs::path& path, const bool saveMesh, const bool saveAnim) {
-    // now export all this
-    FbxGlobalSettings& settings = scene->GetGlobalSettings();
-    settings.SetAxisSystem(FbxAxisSystem(FbxAxisSystem::eMayaYUp));
-    settings.SetOriginalUpAxis(FbxAxisSystem(FbxAxisSystem::eMayaYUp));
-    settings.SetSystemUnit(FbxSystemUnit::m);
+    //FbxAxisSystem::DirectX.ConvertScene(scene);
+    FbxNode* rootNode = scene->GetRootNode();
+    for (int i = 0, numChild = rootNode->GetChildCount(); i < numChild; ++i) {
+        FbxNode* childNode = rootNode->GetChild(i);
+        childNode->LclRotation.Set(FbxDouble3(0.0, 180.0, 0.0));
+        childNode->LclScaling.Set(FbxDouble3(-1.0, 1.0, 1.0));
+    }
 
-    // export
     FbxExporter* exp = FbxExporter::Create(mgr, "");
     const int format = mgr->GetIOPluginRegistry()->GetNativeWriterFormat();
 
@@ -479,6 +575,8 @@ ExporterFBX::ExporterFBX()
     : mExcludeCollision(false)
     , mExportMesh(true)
     , mExportSkeleton(false)
+    , mExportShadowGeometry(false)
+    , mExportLODs(false)
     , mExportAnimation(false)
     , mExportMotionIdx(kInvalidValue)
 {
@@ -508,6 +606,14 @@ void ExporterFBX::SetExportSkeleton(const bool b) {
     mExportSkeleton = b;
 }
 
+void ExporterFBX::SetExportShadowGeometry(const bool b) {
+    mExportShadowGeometry = b;
+}
+
+void ExporterFBX::SetExportLODs(const bool b) {
+    mExportLODs = b;
+}
+
 void ExporterFBX::SetExportAnimation(const bool b) {
     mExportAnimation = b;
 }
@@ -529,12 +635,18 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
     mgr->SetIOSettings(ios);
 
     FbxScene* scene = FbxScene::Create(mgr, "Metro model");
+    FbxGlobalSettings& settings = scene->GetGlobalSettings();
+    //const FbxAxisSystem myAxisSys = FbxAxisSystem(FbxAxisSystem::eYAxis, FbxAxisSystem::eParityEven, FbxAxisSystem::eRightHanded);
+    //settings.SetAxisSystem(myAxisSys);
+    //settings.SetOriginalUpAxis(myAxisSys);
+    settings.SetSystemUnit(FbxSystemUnit::m);
+
     FbxDocumentInfo* info = scene->GetSceneInfo();
     if (info) {
         info->Original_ApplicationVendor = FbxString("iOrange");
-        info->Original_ApplicationName = FbxString(mExporterName.data());
+        info->Original_ApplicationName = FbxString(mExporterName.c_str());
         info->mTitle = FbxString("Metro model");
-        info->mComment = FbxString(CharString("Exported using ").append(mExporterName).append(" created by iOrange").data());
+        info->mComment = FbxString(CharString("Exported using ").append(mExporterName).append(" created by iOrange").c_str());
     }
 
     MyFbxMeshModel fbxMeshModel;
@@ -542,6 +654,23 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
     if (mExportMesh) {
         FBXE_CreateMeshModel(mgr, scene, model, modelName, fbxMeshModel, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
         scene->GetRootNode()->AddChild(fbxMeshModel.root);
+    }
+
+    if (mExportShadowGeometry) {
+        FBXE_CreateMeshShadowModel(mgr, scene, model, modelName, fbxMeshModel);
+    }
+
+    MyFbxMeshModel fbxMeshModelLOD1, fbxMeshModelLOD2;
+    if (mExportLODs && model.GetLodCount() > 0) {
+        auto lod1 = model.GetLod(0);
+        FBXE_CreateMeshModel(mgr, scene, *lod1, modelName + kLOD1Suffix, fbxMeshModelLOD1, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
+        scene->GetRootNode()->AddChild(fbxMeshModelLOD1.root);
+
+        if (model.GetLodCount() > 1) {
+            auto lod2 = model.GetLod(1);
+            FBXE_CreateMeshModel(mgr, scene, *lod2, modelName + kLOD2Suffix, fbxMeshModelLOD2, fbxMaterials, mTexturesFolder, mTexturesExtension, mExcludeCollision);
+            scene->GetRootNode()->AddChild(fbxMeshModelLOD2.root);
+        }
     }
 
     MyArray<FbxNode*> boneNodes;
@@ -646,6 +775,11 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
     mgr->SetIOSettings(ios);
 
     FbxScene* scene = FbxScene::Create(mgr, "Metro level");
+    FbxGlobalSettings& settings = scene->GetGlobalSettings();
+    settings.SetAxisSystem(FbxAxisSystem::DirectX);
+    settings.SetOriginalUpAxis(FbxAxisSystem::DirectX);
+    settings.SetSystemUnit(FbxSystemUnit::m);
+
     FbxDocumentInfo* info = scene->GetSceneInfo();
     if (info) {
         info->Original_ApplicationVendor = FbxString("iOrange");

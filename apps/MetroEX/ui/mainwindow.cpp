@@ -726,6 +726,7 @@ void MainWindow::ShowModel(MyHandle file) {
             RefPtr<MetroSkeleton> skeleton = skelMdl->GetSkeleton();
 
             size_t numMotions = 0;
+            size_t numBones = 0;
 
             if (skeleton) {
                 numMotions = skeleton->GetNumMotions();
@@ -733,10 +734,12 @@ void MainWindow::ShowModel(MyHandle file) {
                     const CharString& motionName = skeleton->GetMotionName(i);
                     mModelInfoPanel->AddMotionToList(QString::fromStdString(motionName));
                 }
+
+                numBones = skeleton->GetNumBones();
             }
 
             mModelInfoPanel->SetModelTypeText(tr("Animated"));
-            mModelInfoPanel->SetNumJointsText(QString::number(skelMdl->GetSkeleton()->GetNumBones()));
+            mModelInfoPanel->SetNumJointsText(QString::number(numBones));
             mModelInfoPanel->SetNumAnimationsText(QString::number(numMotions));
         } else {
             mModelInfoPanel->SetModelTypeText(mdl->IsSoft() ? tr("Soft") : tr("Static"));

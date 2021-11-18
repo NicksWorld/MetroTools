@@ -145,6 +145,22 @@ const CharString& MetroContext::GetClothModelExtension(const MetroGameVersion ov
     }
 }
 
+const CharString& MetroContext::GetCFormExtension(const MetroGameVersion overrideVersion) const {
+    static const CharString kLegacyCFormExt = ".nxcform_pc";
+    static const CharString kLastLightCFormExt = ".nxcform_xbox";
+    static const CharString kReduxCFormExt = ".nxcform33x"; // also Arktika.1 and Exodus
+
+    const MetroGameVersion version = (overrideVersion == MetroGameVersion::Unknown) ? mGameVersion : overrideVersion;
+
+    if (version == MetroGameVersion::OG2033) {
+        return kLegacyCFormExt;
+    } else if (version == MetroGameVersion::OGLastLight) {
+        return kLastLightCFormExt;
+    } else {
+        return kReduxCFormExt;
+    }
+}
+
 
 
 void MetroContext::GuessGameVersionFromFS() {

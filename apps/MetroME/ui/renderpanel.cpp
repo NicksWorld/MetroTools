@@ -3,6 +3,7 @@
 #include <QEvent>
 #include <QWheelEvent>
 #include <QApplication>
+#include <QWindow>
 
 #include "metro/MetroModel.h"
 #include "metro/MetroSkeleton.h"
@@ -14,11 +15,9 @@
 #include "engine/Spawner.h"
 #include "engine/ResourcesManager.h"
 #include "engine/scenenodes/ModelNode.h"
+#include "engine/scenenodes/DebugGeoNode.h"
 #include "engine/Animator.h"
 
-
-#pragma comment(lib, "d2d1.lib")
-#pragma comment(lib, "dwrite.lib")
 
 
 RenderPanel::RenderPanel(QWidget* parent)
@@ -27,15 +26,19 @@ RenderPanel::RenderPanel(QWidget* parent)
     , mSwapchain(nullptr)
     , mScene(nullptr)
     , mCamera(nullptr)
+    , mCameraOffset(0.0f)
     // model viewer stuff
     , mModel{}
     , mModelNode(nullptr)
     , mCurrentMotion(nullptr)
     , mAnimPlaying(false)
     //
+    , mDebugGeoNode(nullptr)
+    //
     , mLMBDown(false)
     , mRMBDown(false)
     , mZoom(1.0f)
+    , mShowModel(true)
     , mShowWireframe(false)
     , mShowCollision(false)
     // debug
@@ -45,6 +48,7 @@ RenderPanel::RenderPanel(QWidget* parent)
     , mShowBones(false)
     , mShowBonesLinks(false)
     , mShowBonesNames(false)
+    , mShowPhysics(false)
     // text drawing
     , mD2DFactory(nullptr)
     , mD2DRT(nullptr)
@@ -144,6 +148,9 @@ void RenderPanel::SetModel(const RefPtr<MetroModelBase>& model) {
             mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), -center, true));
         }
 
+        mDebugGeo = nullptr;
+        mDebugGeoNode = nullptr;
+
         this->ResetCamera();
     }
 }
@@ -159,6 +166,15 @@ void RenderPanel::UpdateModelProps() {
 
         mScene->Clear();
         mModelNode = scast<u4a::ModelNode*>(u4a::Spawner::SpawnModel(*mScene, mModel.get(), pos, true));
+    }
+}
+
+void RenderPanel::SetDebugGeo(const RefPtr<u4a::DebugGeo>& debugGeo) {
+    mDebugGeo = debugGeo;
+    if (mDebugGeo) {
+        vec3 pos = (mModelNode == nullptr) ? vec3(0.0f) : mModelNode->GetPosition();
+
+        mDebugGeoNode = scast<u4a::DebugGeoNode*>(u4a::Spawner::SpawnDebugGeoNode(*mScene, mDebugGeo.get(), pos));
     }
 }
 
@@ -215,6 +231,7 @@ void RenderPanel::PlayAnim(const bool play) {
 
 void RenderPanel::ResetCamera() {
     mZoom = 1.5f;
+    mCameraOffset = vec3(0.0f);
 
     if (mModel) {
         const float r = mModel->GetBSphere().radius;
@@ -230,6 +247,10 @@ void RenderPanel::ResetCamera() {
             mModelNode->SetPosition(vec3(0.0f));
         }
     }
+}
+
+void RenderPanel::SetShowModel(const bool show) {
+    mShowModel = show;
 }
 
 void RenderPanel::SetDebugShowBounds(const bool show) {
@@ -258,6 +279,10 @@ void RenderPanel::SetDebugSkeletonShowBonesLinks(const bool show) {
 
 void RenderPanel::SetDebugSkeletonShowBonesNames(const bool show) {
     mShowBonesNames = show;
+}
+
+void RenderPanel::SetDebugShowPhysics(const bool show) {
+    mShowPhysics = show;
 }
 
 
@@ -294,6 +319,10 @@ void RenderPanel::UpdateCamera() {
         const float r = mModel->GetBSphere().radius * mZoom;
         vec3 invDir = -mCamera->GetDirection();
         mCamera->InitArcball(invDir * r, vec3(0.0f));
+        mCamera->SetPosition(mCamera->GetPosition() + mCameraOffset);
+    } else {
+        vec3 invDir = -mCamera->GetDirection();
+        mCamera->InitArcball(invDir * mZoom, vec3(0.0f));
     }
 }
 
@@ -305,7 +334,16 @@ void RenderPanel::Render() {
     if (mSwapchain) {
         u4a::Renderer& renderer = u4a::Renderer::Get();
         renderer.StartFrame(*mSwapchain);
-        renderer.DrawScene(*mScene);
+
+        size_t renderFlags = u4a::Renderer::DF_None;
+        if (!mShowModel) {
+            renderFlags |= u4a::Renderer::DF_SkipModels;
+        }
+        if (!mShowPhysics) {
+            renderFlags |= u4a::Renderer::DF_SkipDebugGeo;
+        }
+
+        renderer.DrawScene(*mScene, renderFlags);
 
         bool showBonesNames = false;
         if (mModel) {
@@ -508,10 +546,31 @@ QPaintEngine* RenderPanel::paintEngine() const {
 void RenderPanel::paintEvent(QPaintEvent* event) {
 }
 
+static QScreen* GetActiveScreen(QWidget* pWidget) {
+    QScreen* pActive = nullptr;
+
+    while (pWidget) {
+        auto w = pWidget->windowHandle();
+        if (w != nullptr) {
+            pActive = w->screen();
+            break;
+        } else {
+            pWidget = pWidget->parentWidget();
+        }
+    }
+
+    return pActive;
+}
+
 void RenderPanel::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 
     qreal pixelRatio = qApp->devicePixelRatio();
+    QScreen* screen = GetActiveScreen(this);
+    if (screen) {
+        pixelRatio = screen->devicePixelRatio();
+    }
+
     const int realWidth = this->width() * pixelRatio;
     const int realHeight = this->height() * pixelRatio;
 
@@ -552,7 +611,8 @@ void RenderPanel::mouseMoveEvent(QMouseEvent* event) {
             vec3 tx = mCamera->GetSide() * deltaX * kModelMoveSpeed * t;
             vec3 ty = mCamera->GetUp() * -deltaY * kModelMoveSpeed * t;
 
-            mModelNode->SetPosition(mModelNode->GetPosition() + tx + ty);
+            mCameraOffset -= (tx + ty);
+            this->UpdateCamera();
         }
     }
 }

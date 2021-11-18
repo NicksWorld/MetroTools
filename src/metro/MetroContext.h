@@ -34,6 +34,7 @@ public:
     const CharString&       GetSkeletonExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
     const CharString&       GetMotionExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
     const CharString&       GetClothModelExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
+    const CharString&       GetCFormExtension(const MetroGameVersion overrideVersion = MetroGameVersion::Unknown) const;
 
 private:
     void                    GuessGameVersionFromFS();

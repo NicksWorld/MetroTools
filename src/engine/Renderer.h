@@ -1,8 +1,7 @@
 #pragma once
 #include <d3d11.h>
 
-#include "mycommon.h"
-#include "mymath.h"
+#include "EngineTypes.h"
 
 namespace u4a {
 
@@ -12,6 +11,7 @@ class SceneNode;
 class Swapchain;
 class ModelNode;
 class LevelGeoNode;
+class DebugGeoNode;
 
 #include "RendererTypes.inl"
 
@@ -34,6 +34,13 @@ public:
         IF_D2D_Support  = 1
     };
 
+    enum DrawFlags : size_t {
+        DF_None         = 0,
+        DF_SkipLevelGeo = 1,
+        DF_SkipModels   = 2,
+        DF_SkipDebugGeo = 4,
+    };
+
     IMPL_SINGLETON(Renderer)
 
 public:
@@ -45,11 +52,12 @@ public:
     ID3D11DeviceContext*        GetContext();
 
     void                        StartFrame(Swapchain& swapchain);
-    void                        DrawScene(Scene& scene);
+    void                        DrawScene(Scene& scene, const size_t flags = Renderer::DF_None);
 
     SceneNode*                  PickObject(Swapchain& swapchain, Scene& scene, const vec2& screenPoint);
 
     void                        BeginDebugDraw();
+    void                        DebugDrawLine(const vec3& pt0, const vec3& pt1, const color4f& color);
     void                        DebugDrawBBox(const AABBox& bbox, const color4f& color);
     void                        DebugDrawRing(const vec3& origin, const vec3& majorAxis, const vec3& minorAxis, const color4f& color);
     void                        DebugDrawBSphere(const BSphere& bsphere, const color4f& color);
@@ -76,6 +84,7 @@ private:
 
     void                        DrawModelNode(ModelNode* node);
     void                        DrawLevelGeoNode(LevelGeoNode* node);
+    void                        DrawDebugGeoNode(DebugGeoNode* node);
 
 private:
     ID3D11Device*               mDevice;
@@ -100,6 +109,7 @@ private:
 
     // Rasterizer states
     ID3D11RasterizerState*      mFillRS;
+    ID3D11RasterizerState*      mFillRSNoCull;
     ID3D11RasterizerState*      mWireframeRS;
 
     // Depth-stencil states
@@ -116,11 +126,15 @@ private:
     ID3D11VertexShader*         mVertexShaderTerrain;
     ID3D11VertexShader*         mVertexShaderFullscreen;
     ID3D11VertexShader*         mVertexShaderDebug;
+    ID3D11VertexShader*         mVertexShaderDebugPassthrough;
+    // gs
+    ID3D11GeometryShader*       mGeometryShaderDebugGenNormals;
     // ps
     ID3D11PixelShader*          mPixelShaderDefault;
     ID3D11PixelShader*          mPixelShaderTerrain;
     ID3D11PixelShader*          mPixelShaderDeferredResolve;
     ID3D11PixelShader*          mPixelShaderDebug;
+    ID3D11PixelShader*          mPixelShaderDebugLit;
     ID3D11PixelShader*          mPixelShaderSelection;
 
     // Vertex input layouts
@@ -148,6 +162,7 @@ private:
 
     MyArray<SceneNode*>         mModelNodes;
     MyArray<SceneNode*>         mLevelGeoNodes;
+    MyArray<SceneNode*>         mDebugGeoNodes;
 
     Frustum                     mFrustum;
     bool                        mUpdateFrustum;

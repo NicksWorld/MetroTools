@@ -4,5 +4,9 @@
         <file>imgs/ImportFile.png</file>
         <file>imgs/BBox.png</file>
         <file>imgs/BSphere.png</file>
+        <file>imgs/metro_icon.png</file>
+        <file>imgs/fbx.svg</file>
+        <file>imgs/gltf.svg</file>
+        <file>imgs/obj.svg</file>
     </qresource>
 </RCC>

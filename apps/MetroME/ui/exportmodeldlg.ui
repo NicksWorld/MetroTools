@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>321</width>
-    <height>300</height>
+    <height>386</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,8 +16,8 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>260</y>
+     <x>140</x>
+     <y>350</y>
      <width>171</width>
      <height>32</height>
     </rect>
@@ -35,7 +35,7 @@
      <x>10</x>
      <y>10</y>
      <width>301</width>
-     <height>131</height>
+     <height>241</height>
     </rect>
    </property>
    <property name="title">
@@ -119,12 +119,90 @@
      <string>Inline skeleton</string>
     </property>
    </widget>
+   <widget class="Line" name="line_2">
+    <property name="geometry">
+     <rect>
+      <x>4</x>
+      <y>130</y>
+      <width>294</width>
+      <height>3</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="chkSavePhysics">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>140</y>
+      <width>171</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Save physics</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="grpPhysicsOptions">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>160</y>
+      <width>281</width>
+      <height>71</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string/>
+    </property>
+    <widget class="QRadioButton" name="optUseMainGeo">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>8</y>
+       <width>211</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Use main geometry</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="optUseLowestLOD">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>28</y>
+       <width>211</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Use lowest LOD</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="optUseCustomGeo">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>48</y>
+       <width>211</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Use custom geometry</string>
+     </property>
+    </widget>
+   </widget>
   </widget>
   <widget class="QCheckBox" name="chkOverrideVersion">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>160</y>
+     <y>260</y>
      <width>161</width>
      <height>20</height>
     </rect>
@@ -140,7 +218,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>190</y>
+     <y>288</y>
      <width>281</width>
      <height>22</height>
     </rect>

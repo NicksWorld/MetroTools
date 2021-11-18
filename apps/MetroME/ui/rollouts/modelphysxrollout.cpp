@@ -26,7 +26,9 @@ void ModelPhysXRollout::FillForTheModel(MetroModelBase* model) {
                 linksString = linksString + s + ',';
             }
         }
-        linksString.pop_back(); // remove trailing ','
+        if (!linksString.empty()) {
+            linksString.pop_back(); // remove trailing ','
+        }
 
         ui->textPhysXLinks->setPlainText(QString::fromStdString(linksString));
     }

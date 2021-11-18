@@ -149,6 +149,7 @@ public:
 
     virtual uint32_t                GetCheckSum() const;
     virtual size_t                  GetLodCount() const;
+    virtual RefPtr<MetroModelBase>  GetLod(const size_t idx) const;
 
     const AABBox&                   GetBBox() const;
     void                            SetBBox(const AABBox& bbox);
@@ -219,9 +220,11 @@ public:
     virtual void            FreeGeometryMem() override;
 
     // model creation
-    void                    CreateMesh(const size_t numVertices, const size_t numFaces);
+    void                    CreateMesh(const size_t numVertices, const size_t numFaces, const size_t numShadowVertices, const size_t numShadowFaces);
     void                    CopyVerticesData(const void* vertices);
     void                    CopyFacesData(const void* faces);
+    void                    CopyShadowVerticesData(const void* shadowVertices);
+    void                    CopyShadowFacesData(const void* shadowFaces);
 
 protected:
     BytesArray              mVerticesData;
@@ -269,35 +272,37 @@ public:
     MetroModelHierarchy();
     virtual ~MetroModelHierarchy();
 
-    virtual bool                Load(MemStream& stream, MetroModelLoadParams& params) override;
-    virtual bool                Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
+    virtual bool                    Load(MemStream& stream, MetroModelLoadParams& params) override;
+    virtual bool                    Save(MemWriteStream& stream, const MetroModelSaveParams& params) override;
 
-    virtual size_t              GetLodCount() const override;
+    virtual size_t                  GetLodCount() const override;
+    virtual RefPtr<MetroModelBase>  GetLod(const size_t idx) const override;
 
-    virtual void                FreeGeometryMem() override;
+    virtual void                    FreeGeometryMem() override;
 
-    virtual void                CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
+    virtual void                    CollectGeomData(MyArray<MetroModelGeomData>& result, const size_t lodIdx = kInvalidValue) const override;
 
-    virtual bool                IsHierarchy() const override { return true; }
-    virtual bool                IsSkinnedHierarchy() const override { return mType == scast<uint16_t>(MetroModelType::Hierarchy2); }
+    virtual bool                    IsHierarchy() const override { return true; }
+    virtual bool                    IsSkinnedHierarchy() const override { return mType == scast<uint16_t>(MetroModelType::Hierarchy2); }
 
-    void                        ApplyTPreset(const CharString& tpresetName);
+    void                            ApplyTPreset(const CharString& tpresetName);
 
-    size_t                      GetChildrenCount() const;
-    RefPtr<MetroModelBase>      GetChild(const size_t idx) const;
+    size_t                          GetChildrenCount() const;
+    RefPtr<MetroModelBase>          GetChild(const size_t idx) const;
 
-    size_t                      GetChildrenRefsCount() const;
-    uint32_t                    GetChildRef(const size_t idx) const;
+    size_t                          GetChildrenRefsCount() const;
+    uint32_t                        GetChildRef(const size_t idx) const;
 
-    uint32_t                    GetSkeletonCRC() const;
-    void                        SetSkeletonCRC(const uint32_t v);
+    uint32_t                        GetSkeletonCRC() const;
+    void                            SetSkeletonCRC(const uint32_t v);
 
-    virtual void                AddChild(const RefPtr<MetroModelBase>& child);
+    virtual void                    AddChild(const RefPtr<MetroModelBase>& child);
+    virtual void                    AddLOD(const RefPtr<MetroModelBase>& lod);
 
 protected:
-    void                        LoadTPresets(const StreamChunker& chunker);
-    void                        SaveTPresets(MemWriteStream& stream, const uint16_t version);
-    virtual void                ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
+    void                            LoadTPresets(const StreamChunker& chunker);
+    void                            SaveTPresets(MemWriteStream& stream, const uint16_t version);
+    virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
 
 protected:
     using ModelPtr = RefPtr<MetroModelBase>;
@@ -353,19 +358,19 @@ protected:
     using ModelPtr = RefPtr<MetroModelBase>;
     using LodMeshesArr = MyArray<ModelPtr>;
 
-    RefPtr<MetroSkeleton>   mSkeleton;
-    MyArray<LodMeshesArr>   mLodMeshes;
-    CharString              mHitPreset;
-    MyArray<BoneMaterial>   mGameMaterials;
-    MyArray<BoneMaterialSet> mGameMaterialsPresets;
-    MyArray<BoneMaterial>   mMeleeMaterials;
-    MyArray<BoneMaterialSet> mMeleeMaterialsPresets;
-    MyArray<BoneMaterial>   mStepMaterials;
-    MyArray<BoneMaterialSet> mStepMaterialsPresets;
-    StringArray             mMotionsFolders;
-    StringArray             mPhysXLinks;
-    CharString              mVoice[3];
-    float                   mVoiceParams[3];
+    RefPtr<MetroSkeleton>       mSkeleton;
+    MyArray<LodMeshesArr>       mLodMeshes;
+    CharString                  mHitPreset;
+    MyArray<BoneMaterial>       mGameMaterials;
+    MyArray<BoneMaterialSet>    mGameMaterialsPresets;
+    MyArray<BoneMaterial>       mMeleeMaterials;
+    MyArray<BoneMaterialSet>    mMeleeMaterialsPresets;
+    MyArray<BoneMaterial>       mStepMaterials;
+    MyArray<BoneMaterialSet>    mStepMaterialsPresets;
+    StringArray                 mMotionsFolders;
+    StringArray                 mPhysXLinks;
+    CharString                  mVoice[3];
+    float                       mVoiceParams[3];
 };
 
 class MetroModelSoft final : public MetroModelBase {

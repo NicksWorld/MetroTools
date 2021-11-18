@@ -10,9 +10,11 @@
 #include "engine/Model.h"
 #include "engine/Animator.h"
 #include "engine/LevelGeo.h"
+#include "engine/DebugGeo.h"
 #include "engine/Scene.h"
 #include "engine/scenenodes/ModelNode.h"
 #include "engine/scenenodes/LevelGeoNode.h"
+#include "engine/scenenodes/DebugGeoNode.h"
 #endif
 
 #include "log.h"
@@ -20,12 +22,6 @@
 #include "shaders/all_shaders.h"
 
 namespace u4a {
-
-PACKED_STRUCT_BEGIN
-struct VertexDebug {
-    vec3        pos;
-    color32u    color;
-} PACKED_STRUCT_END;
 
 vec4 Renderer::kClearColor[] = {
     vec4(40.0f / 255.0f, 113.0f / 255.0f, 134.0f / 255.0f, 1.0f),   // GBuffer Base
@@ -53,6 +49,7 @@ Renderer::Renderer()
     , mSelectionHeight(0)
     // Rasterizer states
     , mFillRS(nullptr)
+    , mFillRSNoCull(nullptr)
     , mWireframeRS(nullptr)
     // Depth-stencil states
     , mDepthStencilState(nullptr)
@@ -67,11 +64,15 @@ Renderer::Renderer()
     , mVertexShaderTerrain(nullptr)
     , mVertexShaderFullscreen(nullptr)
     , mVertexShaderDebug(nullptr)
+    , mVertexShaderDebugPassthrough(nullptr)
+    // gs
+    , mGeometryShaderDebugGenNormals(nullptr)
     // ps
     , mPixelShaderDefault(nullptr)
     , mPixelShaderTerrain(nullptr)
     , mPixelShaderDeferredResolve(nullptr)
     , mPixelShaderDebug(nullptr)
+    , mPixelShaderDebugLit(nullptr)
     , mPixelShaderSelection(nullptr)
     // Vertex input layouts
     , mInputLayoutStatic(nullptr)
@@ -143,7 +144,7 @@ bool Renderer::Initialize() {
 
     D3D11_RASTERIZER_DESC rasterDesc = {};
     rasterDesc.FillMode = D3D11_FILL_SOLID;
-    rasterDesc.CullMode = D3D11_CULL_NONE;
+    rasterDesc.CullMode = D3D11_CULL_BACK;
     rasterDesc.FrontCounterClockwise = FALSE;
     rasterDesc.DepthBias = 0;
     rasterDesc.DepthBiasClamp = 0.0f;
@@ -156,6 +157,13 @@ bool Renderer::Initialize() {
     hr = mDevice->CreateRasterizerState(&rasterDesc, &mFillRS);
     if (FAILED(hr)) {
         LogPrintF(LogLevel::Error, "Failed to create fill rs, hr = %d", hr);
+        return false;
+    }
+
+    rasterDesc.CullMode = D3D11_CULL_NONE;
+    hr = mDevice->CreateRasterizerState(&rasterDesc, &mFillRSNoCull);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create fill (no cull) rs, hr = %d", hr);
         return false;
     }
 
@@ -278,7 +286,7 @@ void Renderer::StartFrame(Swapchain& swapchain) {
     mContext->RSSetViewports(1, &viewport);
 }
 
-void Renderer::DrawScene(Scene& scene) {
+void Renderer::DrawScene(Scene& scene, const size_t flags) {
 #if 1
     Camera* camera = scene.GetCamera();
     if (camera) {
@@ -296,9 +304,17 @@ void Renderer::DrawScene(Scene& scene) {
     mContext->VSSetSamplers(0, 1, samplers);
 
     mModelNodes.resize(0);
-    scene.CollectNodesByType(SceneNode::NodeType::Model, mModelNodes);
+    if (!TestBit<size_t>(flags, Renderer::DF_SkipModels)) {
+        scene.CollectNodesByType(SceneNode::NodeType::Model, mModelNodes);
+    }
     mLevelGeoNodes.resize(0);
-    scene.CollectNodesByType(SceneNode::NodeType::LevelGeo, mLevelGeoNodes);
+    if (!TestBit<size_t>(flags, Renderer::DF_SkipLevelGeo)) {
+        scene.CollectNodesByType(SceneNode::NodeType::LevelGeo, mLevelGeoNodes);
+    }
+    mDebugGeoNodes.resize(0);
+    if (!TestBit<size_t>(flags, Renderer::DF_SkipDebugGeo)) {
+        scene.CollectNodesByType(SceneNode::NodeType::DebugGeo, mDebugGeoNodes);
+    }
 
     // GBuffer fill pass
     {
@@ -326,7 +342,10 @@ void Renderer::DrawScene(Scene& scene) {
     }
 
     this->DrawTools();
-    this->DrawDebug();
+
+    if (!mDebugGeoNodes.empty()) {
+        this->DrawDebug();
+    }
 
 #endif
 }
@@ -490,8 +509,20 @@ SceneNode* Renderer::PickObject(Swapchain& swapchain, Scene& scene, const vec2& 
 void Renderer::BeginDebugDraw() {
 }
 
+void Renderer::DebugDrawLine(const vec3& pt0, const vec3& pt1, const color4f& color) {
+    this->EnsureDebugVertices(2);
+
+    const color32u c = Color4FTo32U(color);
+
+    VertexDebug* vbStart = rcast<VertexDebug*>(mDebugVerticesPtr) + mDebugVerticesCount;
+    vbStart[0] = { pt0, c };
+    vbStart[1] = { pt1, c };
+
+    mDebugVerticesCount += 2;
+}
+
 void Renderer::DebugDrawBBox(const AABBox& bbox, const color4f& color) {
-    static const size_t kNumBoxVertices = 24;
+    constexpr size_t kNumBoxVertices = 24;
 
     this->EnsureDebugVertices(kNumBoxVertices);
 
@@ -528,15 +559,15 @@ void Renderer::DebugDrawBBox(const AABBox& bbox, const color4f& color) {
 void Renderer::DebugDrawRing(const vec3& origin, const vec3& majorAxis, const vec3& minorAxis, const color4f& color) {
     const color32u c = Color4FTo32U(color);
 
-    static const size_t kNumRingSegments = 32;
-    static const size_t kNumRingVertices = kNumRingSegments * 2;
+    constexpr size_t kNumRingSegments = 32;
+    constexpr size_t kNumRingVertices = kNumRingSegments * 2;
 
     this->EnsureDebugVertices(kNumRingVertices);
 
     VertexDebug* vbStart = rcast<VertexDebug*>(mDebugVerticesPtr) + mDebugVerticesCount;
     size_t vbOffset = 0;
 
-    const float angleDelta = MM_TwoPi / scast<float>(kNumRingSegments);
+    constexpr float angleDelta = MM_TwoPi / scast<float>(kNumRingSegments);
     // Instead of calling cos/sin for each segment we calculate
     // the sign of the angle delta and then incrementally calculate sin
     // and cosine from then on.
@@ -579,8 +610,8 @@ void Renderer::DebugDrawBSphere(const BSphere& bsphere, const color4f& color) {
 }
 
 void Renderer::DebugDrawTetrahedron(const vec3& a, const vec3& b, const float r, const color4f& color) {
-    const size_t kNumTetrahedronLines = 6;
-    const size_t kNumTetrahedronVertices = kNumTetrahedronLines * 2;
+    constexpr size_t kNumTetrahedronLines = 6;
+    constexpr size_t kNumTetrahedronVertices = kNumTetrahedronLines * 2;
 
     this->EnsureDebugVertices(kNumTetrahedronVertices);
 
@@ -636,7 +667,7 @@ void Renderer::FlushDebugVertices() {
 
     if (mDebugVerticesCount) {
         mContext->OMSetRenderTargets(1, &mBackBufferRTV, mBackBufferDSV);
-        mContext->RSSetState(mFillRS);
+        mContext->RSSetState(mFillRSNoCull);
         mContext->OMSetDepthStencilState(mDepthStencilStateDebug, 0);
 
         mContext->VSSetShader(mVertexShaderDebug, nullptr, 0);
@@ -823,6 +854,22 @@ bool Renderer::CreateShaders() {
         return false;
     }
 
+    // debug drawing (passthrough)
+    hr = mDevice->CreateVertexShader(sVS_DebugPassthroughDataPtr, sVS_DebugPassthroughDataLen, nullptr, &mVertexShaderDebugPassthrough);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create debug (passthrough) VS, hr = %d", hr);
+        return false;
+    }
+
+    ///// Geometry shaders
+
+    // generate debug geo normals
+    hr = mDevice->CreateGeometryShader(sGS_DebugGenNormalsDataPtr, sGS_DebugGenNormalsDataLen, nullptr, &mGeometryShaderDebugGenNormals);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create debug GS, hr = %d", hr);
+        return false;
+    }
+
     ///// Pixel shaders
 
     // default material
@@ -850,6 +897,13 @@ bool Renderer::CreateShaders() {
     hr = mDevice->CreatePixelShader(sPS_DebugDataPtr, sPS_DebugDataLen, nullptr, &mPixelShaderDebug);
     if (FAILED(hr)) {
         LogPrintF(LogLevel::Error, "Failed to create debug PS, hr = %d", hr);
+        return false;
+    }
+
+    // debug lit drawing
+    hr = mDevice->CreatePixelShader(sPS_DebugLitDataPtr, sPS_DebugLitDataLen, nullptr, &mPixelShaderDebugLit);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create debug lit PS, hr = %d", hr);
         return false;
     }
 
@@ -1090,7 +1144,6 @@ bool Renderer::CreateConstantBuffers() {
 
 // drawing
 void Renderer::DrawFillPass() {
-#if 1
     ID3D11Buffer* vcbuffers[] = { mCBMatrices, mCBSkinned, mCBTerrain };
     ID3D11Buffer* pcbuffers[] = { mCBMatrices, mCBSurfParams };
     mContext->VSSetConstantBuffers(0, scast<UINT>(std::size(vcbuffers)), vcbuffers);
@@ -1102,15 +1155,11 @@ void Renderer::DrawFillPass() {
         this->DrawLevelGeoNode(scast<LevelGeoNode*>(node));
     }
 
-#if 1
     mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
     mContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     for (SceneNode* node : mModelNodes) {
         this->DrawModelNode(scast<ModelNode*>(node));
     }
-#endif
-
-#endif
 }
 
 void Renderer::DrawResolvePass() {
@@ -1131,26 +1180,34 @@ void Renderer::DrawResolvePass() {
 }
 
 void Renderer::DrawTools() {
-
+    this->BeginDebugDraw();
+    this->DebugDrawLine(vec3(0.0), vec3(1.0f, 0.0f, 0.0f), color4f(1.0f, 0.0f, 0.0f, 1.0f));    // X [Red]
+    this->DebugDrawLine(vec3(0.0), vec3(0.0f, 1.0f, 0.0f), color4f(0.0f, 1.0f, 0.0f, 1.0f));    // Y [Green]
+    this->DebugDrawLine(vec3(0.0), vec3(0.0f, 0.0f, 1.0f), color4f(0.0f, 0.0f, 1.0f, 1.0f));    // Z [Blue]
+    this->EndDebugDraw();
 }
 
 void Renderer::DrawDebug() {
-#if 0
-    this->BeginDebugDraw();
+    ID3D11Buffer* gcbuffers[] = { mCBMatrices };
+    mContext->GSSetConstantBuffers(0, scast<UINT>(std::size(gcbuffers)), gcbuffers);
 
-    for (SceneNode* node : mModelNodes) {
-        ModelNode* modelNode = scast<ModelNode*>(node);
-        if (mFrustum.IsAABBoxIn(modelNode->GetAABB())) {
-            this->DebugDrawBBox(modelNode->GetAABB(), color4f(1.0f, 0.85f, 0.0f, 1.0f));
-        }
+    mContext->OMSetRenderTargets(1, &mBackBufferRTV, mBackBufferDSV);
+    mContext->RSSetState(mFillRS);
+    mContext->OMSetDepthStencilState(mDepthStencilState, 0);
+
+    mContext->IASetInputLayout(mInputLayoutDebug);
+    mContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    mContext->VSSetShader(mVertexShaderDebugPassthrough, nullptr, 0);
+    mContext->GSSetShader(mGeometryShaderDebugGenNormals, nullptr, 0);
+    mContext->PSSetShader(mPixelShaderDebugLit, nullptr, 0);
+    for (SceneNode* node : mDebugGeoNodes) {
+        this->DrawDebugGeoNode(scast<DebugGeoNode*>(node));
     }
 
-    this->EndDebugDraw();
-#endif
+    mContext->GSSetShader(nullptr, nullptr, 0);
 }
 
 void Renderer::DrawModelNode(ModelNode* node) {
-#if 1
     if (!mFrustum.IsAABBoxIn(node->GetAABB())) {
         return;
     }
@@ -1232,13 +1289,9 @@ void Renderer::DrawModelNode(ModelNode* node) {
         mContext->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, ibOffset);
         mContext->DrawIndexed(scast<UINT>(section.numIndices), 0, 0);
     }
-
-#endif
 }
 
 void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
-#if 1
-
     LevelGeo* geo = node->GetLevelGeo();
 
     mCBMatricesData.Model = node->GetTransform();
@@ -1251,7 +1304,6 @@ void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
     memcpy(mapped.pData, &mCBMatricesData, sizeof(mCBMatricesData));
     mContext->Unmap(mCBMatrices, 0);
 
-#if 1
     mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
 
     const UINT vertexStride = sizeof(VertexLevel);
@@ -1282,7 +1334,6 @@ void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
             }
         }
     }
-#endif
 
     const size_t numTerrainChunks = geo->GetTerrainNumChunks();
     if (numTerrainChunks) {
@@ -1347,8 +1398,37 @@ void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
 
         mContext->VSSetShaderResources(0, 0, nullptr);
     }
+}
 
-#endif
+void Renderer::DrawDebugGeoNode(DebugGeoNode* node) {
+    DebugGeo* debugGeo = node->GetDebugGeo();
+
+    mCBMatricesData.Model = node->GetTransform();
+    mCBMatricesData.ModelView = mCBMatricesData.View * mCBMatricesData.Model;
+    mCBMatricesData.ModelViewProj = mCBMatricesData.Projection * mCBMatricesData.ModelView;
+    mCBMatricesData.NormalWS = MatTranspose(MatInverse(mCBMatricesData.Model));
+
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    mContext->Map(mCBMatrices, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    memcpy(mapped.pData, &mCBMatricesData, sizeof(mCBMatricesData));
+    mContext->Unmap(mCBMatrices, 0);
+
+    const UINT stride = sizeof(VertexDebug);
+
+    ID3D11Buffer* vb = debugGeo->GetVertexBuffer();
+    ID3D11Buffer* ib = debugGeo->GetIndexBuffer();
+
+    const size_t numSections = debugGeo->GetNumSections();
+    for (size_t i = 0; i < numSections; ++i) {
+        const DebugGeoSection& section = debugGeo->GetSection(i);
+
+        const UINT vbOffset = section.vbOffset;
+        const UINT ibOffset = section.ibOffset;
+
+        mContext->IASetVertexBuffers(0, 1, &vb, &stride, &vbOffset);
+        mContext->IASetIndexBuffer(ib, DXGI_FORMAT_R16_UINT, ibOffset);
+        mContext->DrawIndexed(scast<UINT>(section.numIndices), 0, 0);
+    }
 }
 
 } // namespace u4a

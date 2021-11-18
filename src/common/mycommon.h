@@ -664,6 +664,10 @@ public:
         return mBuffer.data();
     }
 
+    inline void SwapToBytesArray(BytesArray& dst) {
+        mBuffer.swap(dst);
+    }
+
 private:
     BytesArray  mBuffer;
 };
@@ -719,6 +723,20 @@ constexpr uint32_t EndianSwapBytes(const uint32_t x) {
 inline int32_t EndianSwapBytes(const int32_t x) {
     const uint32_t u = EndianSwapBytes(*rcast<const uint32_t*>(&x));
     return *rcast<const int32_t*>(&u);
+}
+
+inline float EndianSwapBytes(const float f) {
+    union {
+        float f;
+        char b[4];
+    } src, dst;
+
+    src.f = f;
+    dst.b[3] = src.b[0];
+    dst.b[2] = src.b[1];
+    dst.b[1] = src.b[2];
+    dst.b[0] = src.b[3];
+    return dst.f;
 }
 
 inline uint64_t EndianSwapBytes(const uint64_t x) {

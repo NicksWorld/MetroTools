@@ -12,6 +12,9 @@ target_sources(engine PRIVATE
     Animator.h
     Camera.cpp
     Camera.h
+    DebugGeo.cpp
+    DebugGeo.h
+    EngineTypes.h
     LevelGeo.cpp
     LevelGeo.h
     Model.cpp
@@ -35,7 +38,9 @@ target_sources(engine PRIVATE
     scenenodes/ModelNode.cpp
     scenenodes/ModelNode.h
     scenenodes/SceneNode.cpp
-    scenenodes/SceneNode.h)
+    scenenodes/SceneNode.h
+    scenenodes/DebugGeoNode.cpp
+    scenenodes/DebugGeoNode.h)
 target_link_libraries(engine PRIVATE
     MetroTools::Common
     MetroTools::Metro

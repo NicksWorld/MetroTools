@@ -3,55 +3,67 @@
 #include "metro/MetroTypes.h"
 
 enum NxuSectionTypes {
-    NxuTypeSDK = 0x0,
-    NxuTypeScene = 0x1,
-    NxuTypeModel = 0x2,
-    NxuTypeActor = 0x3,
-    NxuTypeJoint = 0x4,
-    NxuTypeMaterial = 0x5,
-    NxuTypePairFlag = 0x6,
-    NxuTypeShape = 0x7,
-    NxuTypeTriangleMesh = 0x8,
-    NxuTypeConvexMesh = 0x9,
-    NxuTypeCCDSkeleton = 0xA,
-    NxuTypeEffector = 0xB,
-    NxuTypeFluid = 0xC,
-    NxuTypeCloth = 0xD,
-    NxuTypeFluidEmitter = 0xE,
-    NxuTypeHeightField = 0xF,
-    NxuTypeModelInstance = 0x10,
-    NxuTypeUserData = 0x11,
-    NxuTypeCollisionGroup = 0x12,
-    NxuTypeUnknown = 0x13
+    NxuTypeSDK              = 0x0,
+    NxuTypeScene            = 0x1,
+    NxuTypeModel            = 0x2,
+    NxuTypeActor            = 0x3,
+    NxuTypeJoint            = 0x4,
+    NxuTypeMaterial         = 0x5,
+    NxuTypePairFlag         = 0x6,
+    NxuTypeShape            = 0x7,
+    NxuTypeTriangleMesh     = 0x8,
+    NxuTypeConvexMesh       = 0x9,
+    NxuTypeCCDSkeleton      = 0xA,
+    NxuTypeEffector         = 0xB,
+    NxuTypeFluid            = 0xC,
+    NxuTypeCloth            = 0xD,
+    NxuTypeFluidEmitter     = 0xE,
+    NxuTypeHeightField      = 0xF,
+    NxuTypeModelInstance    = 0x10,
+    NxuTypeUserData         = 0x11,
+    NxuTypeCollisionGroup   = 0x12,
+    NxuTypeUnknown          = 0x13
 };
 
 enum NxuFormatType {
-    BINARY = 0,
-    BINARY_LITTLE_END = 1,
-    BINARY_BIG_END = 2,
-    ASCII = 3,
-    COLLADA = 4
+    BINARY              = 0,
+    BINARY_LITTLE_END   = 1,
+    BINARY_BIG_END      = 2,
+    ASCII               = 3,
+    COLLADA             = 4
 };
 
 class NxuBinaryStream {
 public:
     NxuBinaryStream()
-        : mStream(nullptr)
+        : mReadStream(nullptr)
+        , mWriteStream(nullptr)
         , mStreamName{}
         , mStreamType(0)
         , mStreamFlags(0)
     {}
     ~NxuBinaryStream() {}
 
-    void Start(MemStream* srcStream) {
-        mStream = srcStream;
-        mStreamType = mStream->ReadU8();
-        mStreamFlags = mStream->ReadU32();
+    void StartRead(MemStream* srcStream) {
+        mReadStream = srcStream;
+        mStreamType = mReadStream->ReadU8();
+        mStreamFlags = this->ReadDword();
     }
 
+    void StartWrite(MemWriteStream* dstStream, const bool bigEndian) {
+        mWriteStream = dstStream;
+        mStreamType = scast<uint8_t>(bigEndian);
+        mStreamFlags = 0x00001FDF;
+
+        mWriteStream->WriteU8(scast<uint8_t>(mStreamType));
+        this->WriteDword(mStreamFlags);
+    }
+
+    // R E A D I N G
+
     uint32_t OpenSection() {
-        mStreamType = mStream->ReadU8();
-        mStreamFlags = mStream->ReadU32();
+        mStreamType = mReadStream->ReadU8();
+        mStreamFlags = this->ReadDword();
         mStreamName = this->ReadNameN<64>();
 
         return mStreamType;
@@ -68,25 +80,33 @@ public:
     }
 
     inline bool ReadBool() {
-        return mStream->ReadBool();
+        return mReadStream->ReadBool();
     }
-    inline uint32_t ReadWord() {
-        return mStream->ReadU16();
+    inline uint16_t ReadWord() {
+        const uint16_t val = mReadStream->ReadU16();
+        return (mStreamType == BINARY_LITTLE_END) ? val : EndianSwapBytes(val);
     }
     inline uint32_t ReadDword() {
-        return mStream->ReadU32();
+        const uint32_t val = mReadStream->ReadU32();
+        return (mStreamType == BINARY_LITTLE_END) ? val : EndianSwapBytes(val);
     }
     inline float ReadFloat() {
-        return mStream->ReadF32();
+        const float val = mReadStream->ReadF32();
+        return (mStreamType == BINARY_LITTLE_END) ? val : EndianSwapBytes(val);
     }
     inline vec3 ReadVector() {
         vec3 v;
-        mStream->ReadStruct(v);
+        v.x = this->ReadFloat();
+        v.y = this->ReadFloat();
+        v.z = this->ReadFloat();
         return v;
     }
     inline quat ReadQuat() {
         quat q;
-        mStream->ReadStruct(q);
+        q.x = this->ReadFloat();
+        q.y = this->ReadFloat();
+        q.z = this->ReadFloat();
+        q.w = this->ReadFloat();
         return q;
     }
     inline mat4 ReadMatrix4() {
@@ -98,16 +118,16 @@ public:
         return m;
     }
     inline void ReadBuffer(void* buffer, const size_t numBytes) {
-        mStream->ReadToBuffer(buffer, numBytes);
+        mReadStream->ReadToBuffer(buffer, numBytes);
     }
     inline void Skip(const size_t bytesToSkip) {
-        mStream->SkipBytes(bytesToSkip);
+        mReadStream->SkipBytes(bytesToSkip);
     }
 
     inline CharString ReadString() {
-        const uint32_t stringLen = mStream->ReadU32();
+        const uint32_t stringLen = this->ReadDword();
         CharString str; str.resize(stringLen, 0);
-        mStream->ReadToBuffer(str.data(), stringLen);
+        mReadStream->ReadToBuffer(str.data(), stringLen);
         return str;
     }
 
@@ -115,43 +135,118 @@ public:
     CharString ReadNameN() {
         char s_name[N];
 
-        mStream->ReadToBuffer(s_name, sizeof(s_name));
+        mReadStream->ReadToBuffer(s_name, sizeof(s_name));
 
         return CharString(s_name);
     }
 
+    // W R I T I N G
+
+    void WriteSection(const uint32_t type, const uint32_t flags, const CharString& name) {
+        mStreamType = type;
+        mStreamFlags = flags;
+        mStreamName = name;
+
+        mWriteStream->WriteU8(scast<uint8_t>(type));
+        this->WriteDword(flags);
+        this->WriteNameN<64>(name);
+    }
+
+    inline void WriteBool(const bool b) {
+        return mWriteStream->WriteBool(b);
+    }
+    inline void WriteWord(const uint16_t val) {
+        mWriteStream->WriteU16((mStreamType == BINARY_LITTLE_END) ? val : EndianSwapBytes(val));
+    }
+    inline void WriteDword(const uint32_t val) {
+        mWriteStream->WriteU32((mStreamType == BINARY_LITTLE_END) ? val : EndianSwapBytes(val));
+    }
+    inline void WriteFloat(const float val) {
+        return mWriteStream->WriteF32((mStreamType == BINARY_LITTLE_END) ? val : EndianSwapBytes(val));
+    }
+    inline void WriteVector(const vec3& v) {
+        this->WriteFloat(v.x);
+        this->WriteFloat(v.y);
+        this->WriteFloat(v.z);
+    }
+    inline void WriteQuat(const quat& q) {
+        this->WriteFloat(q.x);
+        this->WriteFloat(q.y);
+        this->WriteFloat(q.z);
+        this->WriteFloat(q.w);
+    }
+    inline void ReadMatrix4(const mat4& m) {
+        this->WriteVector(m[0]);
+        this->WriteVector(m[1]);
+        this->WriteVector(m[2]);
+        this->WriteVector(m[3]);
+    }
+    inline void WriteBuffer(const void* buffer, const size_t numBytes) {
+        mWriteStream->Write(buffer, numBytes);
+    }
+
+    inline void WriteString(const CharString& str) {
+        const uint32_t stringLen = str.length() + 1;
+        this->WriteDword(stringLen);
+        mWriteStream->Write(str.data(), stringLen);
+    }
+
+    template <size_t N>
+    void WriteNameN(const CharString& name) {
+        const size_t nameLen = name.length() + 1;
+
+        mWriteStream->Write(name.data(), nameLen);
+        mWriteStream->WriteDupByte(0, N - nameLen);
+    }
+
 private:
-    MemStream*  mStream;
-    CharString  mStreamName;
-    uint32_t    mStreamType;
-    uint32_t    mStreamFlags;
+    MemStream*      mReadStream;
+    MemWriteStream* mWriteStream;
+    CharString      mStreamName;
+    uint32_t        mStreamType;
+    uint32_t        mStreamFlags;
 };
 
-MetroPhysicsCollection* MetroPhysicsLoadCollectionFromStream(MemStream srcStream) {
+RefPtr<MetroPhysicsCollection> MetroPhysicsLoadCollectionFromStream(MemStream srcStream) {
     NxuBinaryStream stream;
-    stream.Start(&srcStream);
+    stream.StartRead(&srcStream);
 
-    MetroPhysicsCollection* collection = new MetroPhysicsCollection;
+    RefPtr<MetroPhysicsCollection> collection = MakeRefPtr<MetroPhysicsCollection>();
     if (!collection->Load(&stream)) {
-        MySafeDelete(collection);
+        collection = nullptr;
     }
 
     return collection;
 }
 
-MetroPhysicsCForm* MetroPhysicsLoadCFormFromStream(MemStream srcStream, const bool isLevelGeo) {
+RefPtr<MetroPhysicsCForm> MetroPhysicsLoadCFormFromStream(MemStream srcStream, const bool isLevelGeo) {
     NxuBinaryStream stream;
-    stream.Start(&srcStream);
+    stream.StartRead(&srcStream);
 
     const uint32_t formatVer = stream.ReadDword();
     const uint32_t fileCRC = stream.ReadDword();
 
-    MetroPhysicsCForm* cform = new MetroPhysicsCForm;
-    if (!cform->Load(&stream, formatVer, isLevelGeo)) {
-        MySafeDelete(cform);
+    RefPtr<MetroPhysicsCForm> cform = MakeRefPtr<MetroPhysicsCForm>();
+    if (!cform->Read(&stream, formatVer, isLevelGeo)) {
+        cform = nullptr;
     }
 
     return cform;
+}
+
+void MetroPhysicsWriteCFormToStream(const RefPtr<MetroPhysicsCForm>& cform, MemWriteStream& dstStream, const MetroGameVersion gameVersion, const bool isLevelGeo) {
+    const bool isBigEndian = (MetroGameVersion::OGLastLight == gameVersion);
+
+    NxuBinaryStream stream;
+    stream.StartWrite(&dstStream, isBigEndian);
+
+    const uint32_t formatVer = MetroPhysicsCForm::GameVersionToCFormVersion(gameVersion);
+    const uint32_t fileCRC = 0; //#TODO_SK: implement ???
+
+    stream.WriteDword(formatVer);
+    stream.WriteDword(fileCRC);
+
+    cform->Write(&stream, formatVer, isLevelGeo);
 }
 
 void MetroPhysicsSpring::Read(NxuBinaryStream* stream, MetroPhysicsSpring& spring) {
@@ -182,116 +277,7 @@ void MetroPhysicsPairFlag::Read(NxuBinaryStream* stream, MetroPhysicsPairFlag& p
 
 
 
-
-MetroPhysicsCForm::MetroPhysicsCForm() {
-}
-MetroPhysicsCForm::~MetroPhysicsCForm() {
-}
-
-bool MetroPhysicsCForm::Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) {
-    // 2033 formatVer == 5
-
-    const size_t numMeshes = stream->ReadDword();
-
-    if (numMeshes) {
-        mMeshes.reserve(numMeshes);
-        for (size_t i = 0; i < numMeshes; ++i) {
-            MetroPhysicsCMesh* mesh = new MetroPhysicsCMesh;
-            if (!mesh->Load(stream, formatVer, isLevelGeo)) {
-                MySafeDelete(mesh);
-            } else {
-                mMeshes.push_back(mesh);
-            }
-        }
-    }
-
-    return mMeshes.size() == numMeshes;
-}
-
-
-MetroPhysicsCMesh::MetroPhysicsCMesh() {
-}
-MetroPhysicsCMesh::~MetroPhysicsCMesh() {
-}
-
-bool MetroPhysicsCMesh::Load(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) {
-    if (!this->LoadMaterial(stream, formatVer, isLevelGeo)) {
-        return false;
-    }
-
-    // cooked NXTriMesh data
-    const size_t cookedDataSize = stream->ReadDword();
-    mCookedData.resize(cookedDataSize);
-    stream->ReadBuffer(mCookedData.data(), cookedDataSize);
-
-    return true;
-}
-
-bool MetroPhysicsCMesh::LoadMaterial(NxuBinaryStream* stream, const uint32_t formatVer, const bool isLevelGeo) {
-    mIsDummy = stream->ReadBool();
-    if (mIsDummy) {
-        mDummy = stream->ReadWord();
-        return true;
-    }
-
-    bool hasMtlName = false;
-    bool hasSector = false;
-    bool hasColGroup = false;
-    bool hasRaycast = false;
-    bool hasPrimitive = true;
-
-    if (!isLevelGeo) {
-        hasMtlName = (formatVer >= 9);
-        hasSector = (formatVer >= 6);
-        hasColGroup = (formatVer >= 7);
-        hasRaycast = (formatVer >= 8);
-        if (formatVer < 10) {
-            hasPrimitive = false;
-        }
-    } else {
-        hasMtlName = (formatVer >= 14);
-        hasSector = (formatVer >= 9);
-        hasColGroup = (formatVer >= 10);
-        hasRaycast = (formatVer >= 11);
-        hasPrimitive = (formatVer >= 15);
-    }
-
-    mShader = stream->ReadString();
-    mTexList = stream->ReadString();
-    CharString unusedMaterial = stream->ReadString();
-    if (hasMtlName) {
-        mMaterialName = stream->ReadString();
-    }
-
-    //mGameMaterial = GameMtlByTexture();
-
-    if (hasSector) {
-        mSector = stream->ReadWord();
-    } else {
-        mSector = 0xFFFF;
-    }
-
-    if (hasColGroup) {
-        mCollisionGroup = stream->ReadWord();
-    } else {
-        mCollisionGroup = 0xFFFF;
-    }
-
-    if (hasRaycast) {
-        mIsRaycast = stream->ReadBool();
-    } else {
-        mIsRaycast = true;
-    }
-
-    if (hasPrimitive) {
-        mIsPrimitive = stream->ReadBool();
-    } else {
-        mIsPrimitive = false;
-    }
-
-    return true;
-}
-
+#include "MetroPhysicsCForm.inl"
 
 
 

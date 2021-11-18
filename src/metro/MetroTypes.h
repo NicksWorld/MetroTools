@@ -364,6 +364,13 @@ inline MetroVertex ConvertVertex<VertexStatic>(const VertexStatic& v) {
 }
 
 template <>
+inline MetroVertex ConvertVertex<VertexStaticShadow>(const VertexStaticShadow& v) {
+    MetroVertex result = {};
+    result.pos = v.pos;
+    return result;
+}
+
+template <>
 inline MetroVertex ConvertVertex<VertexSkinned>(const VertexSkinned& v) {
     const float posDequant = 1.0f / 32767.0f;
     const float uvDequant = 1.0f / 2048.0f;
@@ -381,6 +388,23 @@ inline MetroVertex ConvertVertex<VertexSkinned>(const VertexSkinned& v) {
     MetroSwizzle(result.weights);
     result.uv0 = vec2(scast<float>(v.uv[0]) * uvDequant,
                       scast<float>(v.uv[1]) * uvDequant);
+    return result;
+}
+
+template <>
+inline MetroVertex ConvertVertex<VertexSkinnedShadow>(const VertexSkinnedShadow& v) {
+    const float posDequant = 1.0f / 32767.0f;
+
+    MetroVertex result = {};
+
+    result.pos = vec3(scast<float>(v.pos[0]) * posDequant,
+                      scast<float>(v.pos[1]) * posDequant,
+                      scast<float>(v.pos[2]) * posDequant);
+    *rcast<uint32_t*>(result.bones) = *rcast<const uint32_t*>(v.bones);
+    MetroSwizzle(result.bones);
+    *rcast<uint32_t*>(result.weights) = *rcast<const uint32_t*>(v.weights);
+    MetroSwizzle(result.weights);
+
     return result;
 }
 

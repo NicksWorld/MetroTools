@@ -8,5 +8,6 @@
         <file>imgs/fbx.svg</file>
         <file>imgs/gltf.svg</file>
         <file>imgs/obj.svg</file>
+        <file>imgs/hammer.svg</file>
     </qresource>
 </RCC>

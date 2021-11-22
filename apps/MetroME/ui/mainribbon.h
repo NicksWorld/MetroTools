@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QSpinBox>
+#include <QPushButton>
 
 
 class SimpleRibbon;
@@ -46,6 +47,8 @@ signals:
     void    SignalFileExportMetroSkeleton();
     void    SignalFileExportFBXSkeleton();
     //
+    void    SignalPhysicsBuildClicked(int physicsSource);
+    //
     void    Signal3DViewShowBoundsChecked(bool checked);
     void    Signal3DViewBoundsTypeChanged(int index);
     void    Signal3DViewSubmodelsBoundsChecked(bool checked);
@@ -71,6 +74,8 @@ private slots:
     void    OnFileImportFBXSkeletonCommand(bool checked);
     void    OnFileExportMetroSkeletonCommand(bool checked);
     void    OnFileExportFBXSkeletonCommand(bool checked);
+    //
+    void    OnPhysicsBuildButtonClicked();
     //
     void    On3DViewShowBoundsChecked(int state);
     void    On3DViewBoundsTypeChanged(int index);
@@ -102,11 +107,17 @@ private:
     SimpleRibbonGroup*  mGroupModelFile;
     // skeleton groups
     SimpleRibbonGroup*  mGroupSkeletonFile;
+    // animation groups
+    // physics groups
+    SimpleRibbonGroup*  mGroupPhysicsTools;
     // 3d view groups
     SimpleRibbonGroup*  mGroup3DViewBounds;
     SimpleRibbonGroup*  mGroup3DViewSkeleton;
     SimpleRibbonGroup*  mGroup3DViewModel;
     SimpleRibbonGroup*  mGroup3DViewPhysics;
+    // physics controls
+    QComboBox*          mComboPhysicsSource;
+    QPushButton*        mBuildPhysicsButton;
     // 3d view controls
     QComboBox*          mComboBoundsType;
     QCheckBox*          mCheckSubmodelBounds;

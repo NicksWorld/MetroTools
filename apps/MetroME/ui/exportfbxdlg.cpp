@@ -19,7 +19,7 @@ ExportFBXDlg::~ExportFBXDlg() {
 void ExportFBXDlg::SetModel(MetroModelBase* model) {
     const MetroGameVersion gameVersion = MetroModelBase::GetGameVersionFromModelVersion(model->GetModelVersion());
 
-    if (model->IsHierarchy() && !model->IsSkinnedHierarchy()) {
+    if (!model->IsSkeleton()) {
         ui->chkExportSkeleton->setEnabled(false);
         ui->chkExportSkeleton->setChecked(false);
     } else {

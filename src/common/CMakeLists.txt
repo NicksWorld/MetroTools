@@ -16,7 +16,8 @@ target_sources(common PRIVATE
     mycommon.h
     mymath.h
     mex_settings.cpp
-    mex_settings.h)
+    mex_settings.h
+    random.cpp)
 target_link_libraries(common
     PUBLIC
         Bc7enc16::Bc7enc16

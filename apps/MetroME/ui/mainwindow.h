@@ -38,6 +38,7 @@ public:
 
     void    UpdateUIForTheModel(MetroModelBase* model);
     void    UpdatePhysicsFromTheModel(MetroModelBase* model, const fs::path& modelPath);
+    void    UpdatePhysicsFromCForm(RefPtr<MetroPhysicsCForm>& cform);
 
 public slots:
     void    OnWindowLoaded();
@@ -56,6 +57,8 @@ public slots:
     void    OnImportFBXSkeleton();
     void    OnExportMetroSkeleton();
     void    OnExportFBXSkeleton();
+    //
+    void    OnPhysicsBuild(int physicsSource);
     //
     void    OnShowBounds(bool checked);
     void    OnBoundsTypeChanged(int index);

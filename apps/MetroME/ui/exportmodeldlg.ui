@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>321</width>
-    <height>386</height>
+    <height>332</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>140</x>
-     <y>350</y>
+     <y>292</y>
      <width>171</width>
      <height>32</height>
     </rect>
@@ -35,7 +35,7 @@
      <x>10</x>
      <y>10</y>
      <width>301</width>
-     <height>241</height>
+     <height>171</height>
     </rect>
    </property>
    <property name="title">
@@ -145,64 +145,12 @@
      <string>Save physics</string>
     </property>
    </widget>
-   <widget class="QGroupBox" name="grpPhysicsOptions">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>160</y>
-      <width>281</width>
-      <height>71</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string/>
-    </property>
-    <widget class="QRadioButton" name="optUseMainGeo">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>8</y>
-       <width>211</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Use main geometry</string>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="optUseLowestLOD">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>28</y>
-       <width>211</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Use lowest LOD</string>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="optUseCustomGeo">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>48</y>
-       <width>211</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Use custom geometry</string>
-     </property>
-    </widget>
-   </widget>
   </widget>
   <widget class="QCheckBox" name="chkOverrideVersion">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>260</y>
+     <y>202</y>
      <width>161</width>
      <height>20</height>
     </rect>
@@ -218,7 +166,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>288</y>
+     <y>230</y>
      <width>281</width>
      <height>22</height>
     </rect>

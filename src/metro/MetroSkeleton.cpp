@@ -908,7 +908,7 @@ void MetroSkeleton::Serialize(MetroReflectionStream& stream) {
                     METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*proceduralSection, param_bones);
                 }
 
-                if (stream.IsIn()) {
+                if (stream.IsIn() && (proceduralSection != skeletonSection)) {
                     assert(proceduralSection->GetRemains() == 0);
                 }
                 skeletonSection->CloseSection(proceduralSection);

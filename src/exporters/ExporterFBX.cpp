@@ -30,10 +30,10 @@ static MyArray<MetroVertex> MakeCommonVertices(const MetroModelGeomData& gd) {
             dstVerts->pos *= gd.mesh->verticesScale;
 
             //#NOTE_SK: need to remap bones
-            dstVerts->bones[0] = gd.mesh->bonesRemap[srcVerts->bones[0] / 3];
-            dstVerts->bones[1] = gd.mesh->bonesRemap[srcVerts->bones[1] / 3];
-            dstVerts->bones[2] = gd.mesh->bonesRemap[srcVerts->bones[2] / 3];
-            dstVerts->bones[3] = gd.mesh->bonesRemap[srcVerts->bones[3] / 3];
+            dstVerts->bones[0] = gd.mesh->bonesRemap[dstVerts->bones[0] / 3];
+            dstVerts->bones[1] = gd.mesh->bonesRemap[dstVerts->bones[1] / 3];
+            dstVerts->bones[2] = gd.mesh->bonesRemap[dstVerts->bones[2] / 3];
+            dstVerts->bones[3] = gd.mesh->bonesRemap[dstVerts->bones[3] / 3];
 
             ++srcVerts;
             ++dstVerts;
@@ -374,8 +374,8 @@ static void FBXE_CollectClusters(const MyArray<MetroVertex>& vertices, const Met
     }
 }
 
-static FbxNode* FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* skeleton, MyArray<FbxNode*>& boneNodes) {
-    const size_t numBones = skeleton->GetNumAttachPoints();
+static void FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* skeleton, MyArray<FbxNode*>& boneNodes) {
+    const size_t numBones = skeleton->GetNumBones();//GetNumAttachPoints();
     boneNodes.reserve(numBones);
 
     for (size_t i = 0; i < numBones; ++i) {
@@ -395,7 +395,6 @@ static FbxNode* FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* ske
         boneNodes.push_back(node);
     }
 
-    FbxNode* rootNode = nullptr;
     for (size_t i = 0; i < numBones; ++i) {
         FbxNode* node = boneNodes[i];
         const size_t parentIdx = skeleton->GetBoneParentIdx(i);
@@ -408,12 +407,8 @@ static FbxNode* FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* ske
 
         if (kInvalidValue != parentIdx) {
             boneNodes[parentIdx]->AddChild(node);
-        } else {
-            rootNode = node;
         }
     }
-
-    return rootNode;
 }
 
 static void FBXE_AddAnimTrackToScene(FbxScene* scene, const MetroMotion* motion, const CharString& animName, MyArray<FbxNode*>& skelNodes) {
@@ -678,8 +673,13 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
         const MetroModelSkeleton& skelModel = scast<const MetroModelSkeleton&>(model);
         RefPtr<MetroSkeleton> skeleton = skelModel.GetSkeleton();
         if (skeleton) {
-            FbxNode* rootBoneNode = FBXE_CreateFBXSkeleton(scene, skeleton.get(), boneNodes);
-            scene->GetRootNode()->AddChild(rootBoneNode);
+            FBXE_CreateFBXSkeleton(scene, skeleton.get(), boneNodes);
+            for (FbxNode* node : boneNodes) {
+                FbxSkeleton* attribute = static_cast<FbxSkeleton*>(node->GetNodeAttribute());
+                if (attribute->GetSkeletonType() == FbxSkeleton::eRoot) {
+                    scene->GetRootNode()->AddChild(node);
+                }
+            }
 
             FbxPose* bindPose = FbxPose::Create(scene, "BindPose");
             bindPose->SetIsBindPose(true);
@@ -694,6 +694,10 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
 
                 size_t meshIdx = 0;
                 for (auto& gd : gds) {
+                    FbxMesh* fbxMesh = fbxMeshModel.meshes[meshIdx];
+                    FbxNode* meshNode = fbxMeshModel.nodes[meshIdx];
+                    FbxAMatrix meshXMatrix = meshNode->EvaluateGlobalTransform();
+
                     MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
 
                     MyArray<ClusterInfo> clusters;
@@ -710,15 +714,12 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
                             for (size_t j = 0; j < cluster.vertexIdxs.size(); ++j) {
                                 fbxCluster->AddControlPointIndex(cluster.vertexIdxs[j], cluster.weigths[j]);
                             }
-                            //fbxCluster->SetTransformMatrix(meshXMatrix);
+                            fbxCluster->SetTransformMatrix(meshXMatrix);
                             fbxCluster->SetTransformLinkMatrix(linkNode->EvaluateGlobalTransform());
                             skin->AddCluster(fbxCluster);
                         }
                     }
 
-                    FbxMesh* fbxMesh = fbxMeshModel.meshes[meshIdx];
-                    FbxNode* meshNode = fbxMeshModel.nodes[meshIdx];
-                    FbxAMatrix meshXMatrix = meshNode->EvaluateGlobalTransform();
                     fbxMesh->AddDeformer(skin);
                     bindPose->Add(meshNode, meshXMatrix);
 

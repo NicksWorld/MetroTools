@@ -13,7 +13,10 @@ struct MetroModelLoadParams {
         LoadSkeleton    = 4,
         LoadTPresets    = 8,
 
-        LoadForceSkinH  = 0x10000,
+        LoadForceSkin   = 0x10000,
+        LoadForceSkinH  = 0x20000,
+
+        ClearLoadForceMask = ~(LoadForceSkin | LoadForceSkinH),
 
         LoadEverything  = 0xF
     };

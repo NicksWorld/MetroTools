@@ -11,6 +11,7 @@
 #include <functional>
 #include <cassert>
 #include <cuchar>
+#include <random>
 
 
 #ifdef min
@@ -992,3 +993,8 @@ bool                OSPathIsFolder(const fs::path& pathToCheck);
 MyArray<fs::path>   OSPathGetEntriesList(const fs::path& pathToCheck, const bool recursive, const bool onlyFiles, const fs::path& ext = fs::path());
 
 #include "log.h"
+
+// random
+int RandomIntRange(const int left, const int right);
+float RandomFloatRange(const float left, const float right);
+float RandomFloat01();

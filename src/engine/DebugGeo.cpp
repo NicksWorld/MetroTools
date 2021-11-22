@@ -1,14 +1,10 @@
 #include "DebugGeo.h"
-#include <random>
 
 #include "engine/Renderer.h"
 
 #include <d3d11.h>
 
 namespace u4a {
-
-static std::mt19937 sRandomEngine;;
-
 
 DebugGeo::DebugGeo()
     : mVertexBuffer(nullptr)
@@ -25,12 +21,7 @@ void DebugGeo::AddSection(const vec3* vertices, const size_t numVertices, const 
     DebugInputSection& inputSection = mInputSections.back();
     inputSection.indices.assign(indices, indices + numIndices);
 
-    std::uniform_real_distribution<double> probability(0, 1);
-    const double f0 = probability(sRandomEngine);
-    const double f1 = probability(sRandomEngine);
-    const double f2 = probability(sRandomEngine);
-
-    const color32u c = Color4FTo32U(color4f(scast<float>(f0), scast<float>(f1), scast<float>(f2), 1.0f));
+    const color32u c = Color4FTo32U(color4f(RandomFloat01(), RandomFloat01(), RandomFloat01(), 1.0f));
 
     inputSection.vertices.resize(numVertices);
     for (size_t i = 0; i < numVertices; ++i) {

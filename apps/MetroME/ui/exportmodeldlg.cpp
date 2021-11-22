@@ -28,23 +28,17 @@ ExportModelDlg::~ExportModelDlg() {
 }
 
 
-void ExportModelDlg::SetModel(const MetroModelBase* model) {
+void ExportModelDlg::SetModel(const MetroModelBase* model, const bool physicsAvailable) {
     mModel = model;
     if (mModel) {
         if (mModel->IsSkeleton()) {
             ui->radioModelTypeAnimated->setChecked(true);
             ui->chkInlineSkeleton->setEnabled(true);
             ui->chkSavePhysics->setEnabled(false);
-            ui->grpPhysicsOptions->setEnabled(false);
         } else {
             ui->radioModelTypeStatic->setChecked(true);
-            ui->chkSavePhysics->setEnabled(true);
-            ui->chkSavePhysics->setChecked(true);
-            ui->grpPhysicsOptions->setEnabled(true);
-
-            ui->optUseCustomGeo->setEnabled(false);
-            ui->optUseLowestLOD->setEnabled(model->GetLodCount() > 0);
-            ui->optUseMainGeo->setChecked(true);
+            ui->chkSavePhysics->setEnabled(physicsAvailable);
+            ui->chkSavePhysics->setChecked(physicsAvailable);
         }
 
         const MetroGameVersion gameVersion = MetroModelBase::GetGameVersionFromModelVersion(mModel->GetModelVersion());
@@ -68,18 +62,6 @@ bool ExportModelDlg::IsExportSkeletonInlined() const {
 
 bool ExportModelDlg::IsSavePhysics() const {
     return ui->chkSavePhysics->isChecked();
-}
-
-bool ExportModelDlg::IsPhysicsUseMainGeometry() const {
-    return ui->optUseMainGeo->isChecked();
-}
-
-bool ExportModelDlg::IsPhysicsUseLowestLOD() const {
-    return ui->optUseLowestLOD->isChecked();
-}
-
-bool ExportModelDlg::IsPhysicsUseCustomGeometry() const {
-    return ui->optUseCustomGeo->isChecked();
 }
 
 bool ExportModelDlg::IsOverrideModelVersion() const {
@@ -139,9 +121,5 @@ void ExportModelDlg::on_buttonBox_accepted() {
 
 void ExportModelDlg::on_buttonBox_rejected() {
     QDialog::reject();
-}
-
-void ExportModelDlg::on_chkSavePhysics_stateChanged(int state) {
-    ui->grpPhysicsOptions->setEnabled(Qt::Checked == state);
 }
 

@@ -101,12 +101,6 @@ static RefPtr<u4a::DebugGeo> DebugGeoFromCForm(MetroPhysicsCForm* phys, const Me
 RefPtr<MetroPhysicsCForm> MakeCFormFromModel(MetroModelBase* model, const MetroGameVersion gameVersion) {
     RefPtr<MetroPhysicsCForm> result;
 
-    if (model->GetLodCount() > 1) {
-        model = model->GetLod(1).get();
-    } else if (model->GetLodCount() > 0) {
-        model = model->GetLod(0).get();
-    }
-
     MyArray<MetroModelGeomData> gds;
     model->CollectGeomData(gds);
 
@@ -213,6 +207,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::SignalFileExportMetroSkeleton, this, &MainWindow::OnExportMetroSkeleton);
     connect(ui->ribbon, &MainRibbon::SignalFileExportFBXSkeleton, this, &MainWindow::OnExportFBXSkeleton);
     //
+    connect(ui->ribbon, &MainRibbon::SignalPhysicsBuildClicked, this, &MainWindow::OnPhysicsBuild);
+    //
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBoundsChecked, this, &MainWindow::OnShowBounds);
     connect(ui->ribbon, &MainRibbon::Signal3DViewBoundsTypeChanged, this, &MainWindow::OnBoundsTypeChanged);
     connect(ui->ribbon, &MainRibbon::Signal3DViewSubmodelsBoundsChecked, this, &MainWindow::OnSubmodelBounds);
@@ -289,19 +285,24 @@ void MainWindow::UpdatePhysicsFromTheModel(MetroModelBase* model, const fs::path
 
     if (model->IsHierarchy() && !model->IsSkinnedHierarchy()) {
         fs::path physPath = modelPath;
-        const MetroGameVersion gameVersion = MetroContext::Get().GetGameVersion();
         const CharString& cformExt = MetroContext::Get().GetCFormExtension();
         physPath.replace_extension(cformExt);
         MemStream physStream = OSReadFile(physPath);
         if (physStream) {
-            mModelPhysx = MetroPhysicsLoadCFormFromStream(physStream, false);
-            if (mModelPhysx) {
-                RefPtr<u4a::DebugGeo> debugGeo = DebugGeoFromCForm(mModelPhysx.get(), gameVersion);
-                if (debugGeo) {
-                    mRenderPanel->SetDebugGeo(debugGeo);
-                }
-            }
+            RefPtr<MetroPhysicsCForm> cform = MetroPhysicsLoadCFormFromStream(physStream, false);
+            this->UpdatePhysicsFromCForm(cform);
+            
         }
+    }
+}
+
+void MainWindow::UpdatePhysicsFromCForm(RefPtr<MetroPhysicsCForm>& cform) {
+    mModelPhysx = cform;
+    if (mModelPhysx) {
+        RefPtr<u4a::DebugGeo> debugGeo = DebugGeoFromCForm(mModelPhysx.get(), MetroContext::Get().GetGameVersion());
+        mRenderPanel->SetDebugGeo(debugGeo);
+    } else {
+        mRenderPanel->SetDebugGeo(nullptr);
     }
 }
 
@@ -422,7 +423,7 @@ void MainWindow::OnExportMetroModel() {
         QString name = QFileDialog::getSaveFileName(this, tr("Where to export Metro model..."), QString(), tr("Metro Model file (*.model);;All files (*.*)"));
         if (!name.isEmpty()) {
             ExportModelDlg dlg(this);
-            dlg.SetModel(model.get());
+            dlg.SetModel(model.get(), mModelPhysx != nullptr);
             if (QDialog::Accepted == dlg.exec()) {
                 fs::path fullPath = name.toStdWString();
 
@@ -602,6 +603,26 @@ void MainWindow::OnExportFBXSkeleton() {
                 expFbx.ExportModel(*model, fullPath);
             }
         }
+    }
+}
+
+//
+void MainWindow::OnPhysicsBuild(int physicsSource) {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        if (physicsSource == 1) {
+            if (model->GetLodCount() == 0) {
+                const int answer = QMessageBox::question(this, this->windowTitle(), tr("The model doesn't have LODs, use main geometry instead?"), QMessageBox::Yes, QMessageBox::No);
+                if (QMessageBox::No == answer) {
+                    return;
+                }
+            } else {
+                model = model->GetLod(model->GetLodCount() - 1);
+            }
+        }
+
+        auto cform = MakeCFormFromModel(model.get(), MetroContext::Get().GetGameVersion());
+        this->UpdatePhysicsFromCForm(cform);
     }
 }
 

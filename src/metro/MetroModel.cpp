@@ -785,12 +785,19 @@ bool MetroModelHierarchy::Load(MemStream& stream, MetroModelLoadParams& params) 
 
                 result = true;
 
+                //#NOTE_SK: hacky-hack to workaround Metro bug when the model/mesh file has improper type
+                //          it has ZERO while it should have proper type
+                MetroModelLoadParams childrenLoadParams = params;
+                if (this->IsSkinnedHierarchy()) {
+                    childrenLoadParams.loadFlags |= MetroModelLoadParams::LoadForceSkin;
+                }
+
                 mChildren.reserve(childrenChunksCount);
                 for (size_t i = 0; i < childrenChunksCount; ++i) {
                     const size_t childChunkId = childrenChunks.GetChunkIDByIdx(i);
                     if (childChunkId == i) {
                         MemStream childStream = childrenChunks.GetChunkStreamByIdx(i);
-                        RefPtr<MetroModelBase> child = MetroModelFactory::CreateModelFromStream(childStream, params);
+                        RefPtr<MetroModelBase> child = MetroModelFactory::CreateModelFromStream(childStream, childrenLoadParams);
                         if (child) {
                             bool skipChild = false;
                             if (!TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadCollision) && child->IsCollisionModel()) {
@@ -1071,7 +1078,7 @@ bool MetroModelSkeleton::Load(MemStream& stream, MetroModelLoadParams& params) {
 
     MetroModelLoadParams meshesLoadParams = params;
 
-    //#NOTE_SK: only in original 2033 models, later versions ue tpresets
+    //#NOTE_SK: only in original 2033 models, later versions use tpresets
     MemStream textureReplacementsStream = chunker.GetChunkStream(MC_TexturesReplacements);
     if (textureReplacementsStream) {
         CharString textureReplacementsString = textureReplacementsStream.ReadStringZ();
@@ -1782,13 +1789,18 @@ RefPtr<MetroModelBase> MetroModelFactory::CreateModelFromStream(MemStream& strea
         MdlHeader hdr;
         headerStream.ReadStruct(hdr);
 
-        if (!hdr.type && TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkinH)) {
-            hdr.type = scast<uint8_t>(MetroModelType::Hierarchy2);
+        if (!hdr.type) {
+            if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkin)) {
+                hdr.type = scast<uint8_t>(MetroModelType::Skin);
+            } else if (TestBit<uint32_t>(params.loadFlags, MetroModelLoadParams::LoadForceSkinH)) {
+                hdr.type = scast<uint8_t>(MetroModelType::Hierarchy2);
+            }
         }
 
         result = MetroModelFactory::CreateModelFromType(scast<MetroModelType>(hdr.type));
         if (result) {
             MetroModelLoadParams loadParams = params;
+            loadParams.loadFlags &= MetroModelLoadParams::ClearLoadForceMask;
             loadParams.formatVersion = hdr.version;
 
             const bool success = result->Load(stream, loadParams);

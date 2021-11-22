@@ -16,15 +16,12 @@ public:
     explicit ExportModelDlg(QWidget* parent = nullptr);
     ~ExportModelDlg();
 
-    void    SetModel(const MetroModelBase* model);
+    void    SetModel(const MetroModelBase* model, const bool physicsAvailable);
 
     bool    IsExportAsStatic() const;
     bool    IsExportMeshesInlined() const;
     bool    IsExportSkeletonInlined() const;
     bool    IsSavePhysics() const;
-    bool    IsPhysicsUseMainGeometry() const;
-    bool    IsPhysicsUseLowestLOD() const;
-    bool    IsPhysicsUseCustomGeometry() const;
     bool    IsOverrideModelVersion() const;
     int     GetOverrideModelVersion() const;
 
@@ -38,7 +35,6 @@ private slots:
     void    on_comboOverrideVersion_currentIndexChanged(int index);
     void    on_buttonBox_accepted();
     void    on_buttonBox_rejected();
-    void    on_chkSavePhysics_stateChanged(int state);
 
 private:
     Ui::ExportModelDlg*     ui;

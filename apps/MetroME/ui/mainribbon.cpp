@@ -24,11 +24,16 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mGroupModelFile(nullptr)
     // skeleton groups
     , mGroupSkeletonFile(nullptr)
+    // physics groups
+    , mGroupPhysicsTools(nullptr)
     // 3d view groups
     , mGroup3DViewBounds(nullptr)
     , mGroup3DViewSkeleton(nullptr)
     , mGroup3DViewModel(nullptr)
     , mGroup3DViewPhysics(nullptr)
+    // physics controls
+    , mComboPhysicsSource(nullptr)
+    , mBuildPhysicsButton(nullptr)
     // 3d view controls
     , mComboBoundsType(nullptr)
     , mCheckSubmodelBounds(nullptr)
@@ -120,6 +125,11 @@ void MainRibbon::OnFileExportFBXSkeletonCommand(bool) {
 }
 
 //
+void MainRibbon::OnPhysicsBuildButtonClicked() {
+    emit SignalPhysicsBuildClicked(mComboPhysicsSource->currentIndex());
+}
+
+//
 void MainRibbon::On3DViewShowBoundsChecked(int state) {
     const bool checked = (Qt::Checked == state);
 
@@ -185,6 +195,7 @@ void MainRibbon::BuildRibbon() {
     this->BuildModelTab();
     this->BuildSkeletonTab();
     this->BuildAnimationTab();
+    this->BuildPhysicsTab();
     this->Build3DViewTab();
 
     connect(mRibbon, &SimpleRibbon::currentChanged, this, &MainRibbon::OnCurrentTabChanged);
@@ -287,6 +298,33 @@ void MainRibbon::BuildAnimationTab() {
 }
 
 void MainRibbon::BuildPhysicsTab() {
+    mGroupPhysicsTools = mTabPhysics->AddRibbonGroup(tr("Tools"));
+
+    // tools
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        QLabel* label = new QLabel();
+        label->setText(tr("Build physics from:"));
+
+        mComboPhysicsSource = new QComboBox();
+        mComboPhysicsSource->addItem(tr("Model geometry"));
+        mComboPhysicsSource->addItem(tr("Lowest LOD"));
+        mComboPhysicsSource->setEditable(false);
+
+        mBuildPhysicsButton = new QPushButton();
+        mBuildPhysicsButton->setText(tr("Build physics"));
+        mBuildPhysicsButton->setIcon(QPixmap(":/imgs/hammer.svg"));
+        connect(mBuildPhysicsButton, &QPushButton::clicked, this, &MainRibbon::OnPhysicsBuildButtonClicked);
+
+        vbar->AddWidget(label);
+        vbar->AddWidget(mComboPhysicsSource);
+        vbar->AddWidget(mBuildPhysicsButton);
+        mGroupPhysicsTools->AddWidget(vbar);
+    }
+
+    // file
+    {
+    }
 }
 
 void MainRibbon::Build3DViewTab() {

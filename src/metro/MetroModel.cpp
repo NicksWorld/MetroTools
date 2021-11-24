@@ -1463,7 +1463,7 @@ void MetroModelSkeleton::SetPhysXLinks(const StringArray& newLinks) {
 }
 
 void MetroModelSkeleton::AddChildEx(const RefPtr<MetroModelBase>& child) {
-    if (mLodMeshes[0].empty()) {
+    if (mLodMeshes.empty()) {
         RefPtr<MetroModelHierarchy> lodMesh = MakeRefPtr<MetroModelHierarchy>();
         lodMesh->SetModelType(MetroModelType::Hierarchy2);
         mLodMeshes.push_back({ lodMesh });

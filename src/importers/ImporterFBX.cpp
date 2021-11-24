@@ -392,11 +392,15 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
         const bool success = fbxImporter->Initialize(filePath.u8string().c_str(), -1, ios);
         if (success && fbxImporter->IsFBX()) {
             if (fbxImporter->Import(fbxScene)) {
-                const FbxAxisSystem ourAxis = FbxAxisSystem::DirectX;
+                //const FbxAxisSystem ourAxis = FbxAxisSystem::DirectX;
 
-                FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
-                if (fileAxis != ourAxis) {
-                    ourAxis.ConvertScene(fbxScene);
+                //FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
+                //if (fileAxis != ourAxis) {
+                //    ourAxis.ConvertScene(fbxScene);
+                //}
+
+                if (FbxSystemUnit::m != fbxScene->GetGlobalSettings().GetSystemUnit()) {
+                    FbxSystemUnit::m.ConvertScene(fbxScene);
                 }
 
                 FbxMeshesFounder foundMeshes;
@@ -427,22 +431,22 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
                 const bool hasShadowGeometry = (foundMeshes.shadowMeshes.size() == foundMeshes.meshes.size());
 
                 for (size_t i = 0, numMeshes = foundMeshes.meshes.size(); i < numMeshes; ++i) {
-                    this->AddMeshToModel(result, foundMeshes.meshes[i], hasShadowGeometry ? foundMeshes.shadowMeshes[i] : nullptr);
+                    this->AddMeshToModel(result, foundMeshes.nodes[i], foundMeshes.meshes[i], hasShadowGeometry ? foundMeshes.shadowMeshes[i] : nullptr);
                 }
 
                 if (mSkeleton == nullptr) {
                     if (!foundMeshes.lod1Meshes.empty()) {
                         RefPtr<MetroModelBase> lod1Model = MakeRefPtr<MetroModelHierarchy>();
-                        for (fbxsdk::FbxMesh* mesh : foundMeshes.lod1Meshes) {
-                            this->AddMeshToModel(lod1Model, mesh, nullptr);
+                        for (size_t i = 0, numMeshes = foundMeshes.lod1Meshes.size(); i < numMeshes; ++i) {
+                            this->AddMeshToModel(lod1Model, foundMeshes.lod1Nodes[i], foundMeshes.lod1Meshes[i], nullptr);
                         }
                         // add LOD1
                         SCastRefPtr<MetroModelHierarchy>(result)->AddLOD(lod1Model);
 
                         if (!foundMeshes.lod2Meshes.empty()) {
                             RefPtr<MetroModelBase> lod2Model = MakeRefPtr<MetroModelHierarchy>();
-                            for (fbxsdk::FbxMesh* mesh : foundMeshes.lod2Meshes) {
-                                this->AddMeshToModel(lod2Model, mesh, nullptr);
+                            for (size_t i = 0, numMeshes = foundMeshes.lod2Meshes.size(); i < numMeshes; ++i) {
+                                this->AddMeshToModel(lod2Model, foundMeshes.lod2Nodes[i], foundMeshes.lod2Meshes[i], nullptr);
                             }
                             // add LOD2
                             SCastRefPtr<MetroModelHierarchy>(result)->AddLOD(lod2Model);
@@ -486,10 +490,13 @@ void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMesh
         } else {
             const int lodType = FBXI_IsLODMesh(rootNode);
             if (1 == lodType) {
+                foundMeshes.lod1Nodes.push_back(rootNode);
                 foundMeshes.lod1Meshes.push_back(mesh);
             } else if (2 == lodType) {
+                foundMeshes.lod2Nodes.push_back(rootNode);
                 foundMeshes.lod2Meshes.push_back(mesh);
             } else {
+                foundMeshes.nodes.push_back(rootNode);
                 foundMeshes.meshes.push_back(mesh);
             }
         }
@@ -500,7 +507,10 @@ void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMesh
     }
 }
 
-void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh) {
+void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode* fbxNode, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh) {
+    FbxAMatrix meshXMatrix = fbxNode->EvaluateGlobalTransform();
+    quat meshRotation = FbxQuatToQuat(meshXMatrix.GetQ());
+
     const int numControlPoints = fbxMesh->GetControlPointsCount();
     const FbxVector4* controlPoints = fbxMesh->GetControlPoints();
 
@@ -508,7 +518,7 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
     MyArray<ControlPoint> myControlPoints(numControlPoints);
     for (int i = 0; i < numControlPoints; ++i) {
         ControlPoint& ctrlPt = myControlPoints[i];
-        ctrlPt.pos = controlPoints[i];
+        ctrlPt.pos = meshXMatrix.MultT(controlPoints[i]);
     }
 
     MyArray<vec3> myShadowPoints;
@@ -517,7 +527,7 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
         const FbxVector4* shadowPoints = fbxShadowMesh->GetControlPoints();
         myShadowPoints.resize(numShadowPoints);
         for (int i = 0; i < numShadowPoints; ++i) {
-            myShadowPoints[i] = FbxVecToVec3(shadowPoints[i]);
+            myShadowPoints[i] = FbxVecToVec3(meshXMatrix.MultT(shadowPoints[i]));
         }
     }
 
@@ -591,16 +601,16 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
             vertex.pos = pos;
 
             FbxVector4 normal = GetNormalFromElement(fbxNormals, idx, vertexIdx);
-            vertex.normal = FbxVecToVec3(normal);
+            vertex.normal = QuatRotate(meshRotation, FbxVecToVec3(normal));
 
             if (fbxTangents) {
                 FbxVector4 tangent = GetNormalFromElement(fbxTangents, idx, vertexIdx);
-                vertex.tangent = FbxVecToVec3(tangent);
+                vertex.tangent = QuatRotate(meshRotation, FbxVecToVec3(tangent));
             }
 
             if (fbxBitangents) {
                 FbxVector4 bitangent = GetNormalFromElement(fbxBitangents, idx, vertexIdx);
-                vertex.bitangent = FbxVecToVec3(bitangent);
+                vertex.bitangent = QuatRotate(meshRotation, FbxVecToVec3(bitangent));
             }
 
             FbxVector2 uv;
@@ -780,9 +790,18 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
         metroBone.name = joint.fbxNode->GetNameOnly().Buffer();
         metroBone.parent = joint.fbxParentNode ? joint.fbxParentNode->GetNameOnly().Buffer() : kEmptyString;
 
-        FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
-        metroBone.q = FbxQuatToQuat(transform.GetQ());
-        metroBone.t = FbxVecToVec3(transform.GetT());
+        //FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
+        //metroBone.q = FbxQuatToQuat(transform.GetQ());
+        //metroBone.t = FbxVecToVec3(transform.GetT());
+        FbxAMatrix localTransform;
+        if (!joint.fbxParentNode) {
+            localTransform = joint.fbxNode->EvaluateGlobalTransform();
+        } else {
+            fbxsdk::FbxAMatrix parentInvert = joint.fbxParentNode->EvaluateGlobalTransform().Inverse();
+            localTransform = joint.fbxNode->EvaluateGlobalTransform() * parentInvert;
+        }
+        metroBone.q = FbxQuatToQuat(localTransform.GetQ());
+        metroBone.t = FbxVecToVec3(localTransform.GetT());
     }
     skeleton->SetBones(metroBones);
 

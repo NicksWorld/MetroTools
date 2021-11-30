@@ -6,7 +6,6 @@
 #include <QSettings>
 #include <QMimeData>
 #include <QDragEnterEvent>
-#include <QTimer>
 
 #include "../metropackunpack.h"
 
@@ -23,16 +22,19 @@ static bool IsPathMetroPackFile(const fs::path& filePath) {
 }
 
 
+constexpr int kMaximumProgressValue = 10000;
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , mProgressDlg(nullptr)
+    , mProgressCancelled(true)
 {
     this->setWindowFlags(this->windowFlags() &= (~Qt::WindowMaximizeButtonHint));
+    this->setWindowFlags(this->windowFlags() | Qt::MSWindowsFixedSizeDialogHint);
 
     ui->setupUi(this);
-
-    QTimer::singleShot(0, this, SLOT(OnWindowLoaded()));
 }
 
 MainWindow::~MainWindow() {
@@ -43,20 +45,20 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-
-void MainWindow::OnWindowLoaded() {
-    this->setMinimumSize(this->size());
-    this->setMaximumSize(this->size());
+bool MainWindow::IsProgressCancelled() const {
+    return mProgressCancelled;
 }
 
+
 void MainWindow::ThreadedExtractionMethod(fs::path archivePath, fs::path outputFolderPath) {
-    IProgressDialog* progressDlg = mProgressDlg;
+    QProgressDialog* progressDlg = mProgressDlg;
+    MainWindow* wnd = this;
 
-    auto progressCallback = [progressDlg](float f)->bool {
-        const DWORD value = scast<DWORD>(f * 1000.0f);
-        progressDlg->SetProgress(value, 1000u);
+    auto progressCallback = [progressDlg, wnd](float f)->bool {
+        const int value = scast<int>(f * kMaximumProgressValue);
+        QMetaObject::invokeMethod(progressDlg, "setValue", Qt::QueuedConnection, Q_ARG(int, value));
 
-        if (progressDlg->HasUserCancelled() == TRUE) {
+        if (wnd->IsProgressCancelled()) {
             return false;
         } else {
             return true;
@@ -65,10 +67,9 @@ void MainWindow::ThreadedExtractionMethod(fs::path archivePath, fs::path outputF
 
     MetroPackUnpack::UnpackArchive(archivePath, outputFolderPath, progressCallback);
 
-    if (mProgressDlg) {
-        mProgressDlg->StopProgressDialog();
-        MySafeRelease(mProgressDlg);
-    }
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(50ms);  // give it a bit for the last QMetaObject::invokeMethod to be processed
+    QMetaObject::invokeMethod(this, "onProgressFinished", Qt::QueuedConnection);
 }
 
 void MainWindow::OnMetroPackSelected(const fs::path& archivePath) {
@@ -79,14 +80,17 @@ void MainWindow::OnMetroPackSelected(const fs::path& archivePath) {
 
         QString name = QFileDialog::getExistingDirectory(this, tr("Choose output folder..."), dir);
         if (!name.isEmpty()) {
-            HRESULT hr = ::CoCreateInstance(CLSID_ProgressDialog, nullptr, CLSCTX_INPROC_SERVER, __uuidof(IProgressDialog), (void**)&mProgressDlg);
-            if (SUCCEEDED(hr)) {
-                mProgressDlg->SetTitle(L"Extracting files...");
-                mProgressDlg->SetLine(0, L"Please wait while your files are being extracted...", FALSE, nullptr);
-                mProgressDlg->StartProgressDialog(rcast<HWND>(this->winId()), nullptr,
-                    PROGDLG_NORMAL | PROGDLG_MODAL | PROGDLG_AUTOTIME | PROGDLG_NOMINIMIZE,
-                    nullptr);
-            }
+            this->onProgressFinished();
+
+            mProgressDlg = new QProgressDialog(this);
+            mProgressDlg->setWindowTitle(tr("Extracting files..."));
+            mProgressDlg->setLabelText(tr("Please wait while your files are being extracted..."));
+            mProgressDlg->setMinimum(0);
+            mProgressDlg->setMaximum(kMaximumProgressValue);
+            mProgressDlg->setAutoClose(false);
+            mProgressDlg->setWindowModality(Qt::WindowModal);
+            mProgressCancelled = false;
+            connect(mProgressDlg, &QProgressDialog::canceled, this, &MainWindow::onProgressCancelled);
 
             if (mThread.joinable()) {
                 mThread.join();
@@ -94,18 +98,21 @@ void MainWindow::OnMetroPackSelected(const fs::path& archivePath) {
 
             fs::path outputFolder = name.toStdWString();
             mThread = std::thread(&MainWindow::ThreadedExtractionMethod, this, archivePath, outputFolder);
+
+            mProgressDlg->show();
         }
     }
 }
 
 void MainWindow::ThreadedPack2033Method(fs::path contentPath, fs::path archivePath, const bool useCompression) {
-    IProgressDialog* progressDlg = mProgressDlg;
+    QProgressDialog* progressDlg = mProgressDlg;
+    MainWindow* wnd = this;
 
-    auto progressCallback = [progressDlg](float f)->bool {
-        const DWORD value = scast<DWORD>(f * 1000.0f);
-        progressDlg->SetProgress(value, 1000u);
+    auto progressCallback = [progressDlg, wnd](float f)->bool {
+        const int value = scast<int>(f * kMaximumProgressValue);
+        QMetaObject::invokeMethod(progressDlg, "setValue", Qt::QueuedConnection, Q_ARG(int, value));
 
-        if (progressDlg->HasUserCancelled() == TRUE) {
+        if (wnd->IsProgressCancelled()) {
             return false;
         } else {
             return true;
@@ -114,10 +121,9 @@ void MainWindow::ThreadedPack2033Method(fs::path contentPath, fs::path archivePa
 
     MetroPackUnpack::PackArchive2033(contentPath, archivePath, useCompression, progressCallback);
 
-    if (mProgressDlg) {
-        mProgressDlg->StopProgressDialog();
-        MySafeRelease(mProgressDlg);
-    }
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(50ms);  // give it a bit for the last QMetaObject::invokeMethod to be processed
+    QMetaObject::invokeMethod(this, "onProgressFinished", Qt::QueuedConnection);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
@@ -174,22 +180,26 @@ void MainWindow::on_btnPack2033_clicked() {
             if (!name.isEmpty()) {
                 fs::path archivePath = name.toStdWString();
 
-                HRESULT hr = ::CoCreateInstance(CLSID_ProgressDialog, nullptr, CLSCTX_INPROC_SERVER, __uuidof(IProgressDialog), (void**)&mProgressDlg);
-                if (SUCCEEDED(hr)) {
-                    mProgressDlg->SetTitle(L"Creating Metro 2033 archive...");
-                    mProgressDlg->SetLine(0, L"Please wait while your files are being archived...", FALSE, nullptr);
-                    mProgressDlg->StartProgressDialog(rcast<HWND>(this->winId()), nullptr,
-                        PROGDLG_NORMAL | PROGDLG_MODAL | PROGDLG_AUTOTIME | PROGDLG_NOMINIMIZE,
-                        nullptr);
-                }
+                this->onProgressFinished();
+
+                mProgressDlg = new QProgressDialog(this);
+                mProgressDlg->setWindowTitle(tr("Creating Metro 2033 archive..."));
+                mProgressDlg->setLabelText(tr("Please wait while your files are being archived..."));
+                mProgressDlg->setMinimum(0);
+                mProgressDlg->setMaximum(kMaximumProgressValue);
+                mProgressDlg->setAutoClose(false);
+                mProgressDlg->setWindowModality(Qt::WindowModal);
+                mProgressCancelled = false;
+                connect(mProgressDlg, &QProgressDialog::canceled, this, &MainWindow::onProgressCancelled);
 
                 if (mThread.joinable()) {
                     mThread.join();
                 }
 
                 const bool useCompression = ui->chkCompressFiles->isChecked();
-
                 mThread = std::thread(&MainWindow::ThreadedPack2033Method, this, contentPath, archivePath, useCompression);
+
+                mProgressDlg->show();
             }
         }
     }
@@ -202,4 +212,17 @@ void MainWindow::on_btnPackRedux_clicked() {
 }
 
 void MainWindow::on_btnPackExodus_clicked() {
+}
+
+void MainWindow::onProgressCancelled() {
+    mProgressCancelled = true;
+}
+
+void MainWindow::onProgressFinished() {
+    if (mProgressDlg) {
+        disconnect(mProgressDlg, &QProgressDialog::canceled, this, &MainWindow::onProgressCancelled);
+        mProgressDlg->close();
+        MySafeDelete(mProgressDlg);
+    }
+    mProgressCancelled = true;
 }

@@ -2,8 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <shlobj_core.h>    // IProgressDialog
+#include <QProgressDialog>
 #include <thread>           // std::thread
+#include <atomic>
 
 #include "mycommon.h"
 
@@ -18,8 +19,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-public slots:
-    void OnWindowLoaded();
+    bool IsProgressCancelled() const;
 
 private:
     void ThreadedExtractionMethod(fs::path archivePath, fs::path outputFolderPath);
@@ -38,11 +38,14 @@ private slots:
     void on_btnPackLastLight_clicked();
     void on_btnPackRedux_clicked();
     void on_btnPackExodus_clicked();
+    void onProgressCancelled();
+    void onProgressFinished();
 
 private:
     Ui::MainWindow*     ui;
-    IProgressDialog*    mProgressDlg;
+    QProgressDialog*    mProgressDlg;
     std::thread         mThread;
+    std::atomic_bool    mProgressCancelled;
 };
 
 #endif // MAINWINDOW_H

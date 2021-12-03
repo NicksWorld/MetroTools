@@ -1305,7 +1305,7 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
 
             stream.WriteU32(3);
             for (size_t i = 0; i < 3; ++i) {
-                if (!mLodMeshes[i].empty()) {
+                if (mLodMeshes.size() > i && !mLodMeshes[i].empty()) {
                     fs::path commonLodMeshesBasePath = params.dstFile;
                     commonLodMeshesBasePath.replace_extension(kEmptyString);
 

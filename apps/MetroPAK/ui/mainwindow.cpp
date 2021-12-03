@@ -35,6 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
     this->setWindowFlags(this->windowFlags() | Qt::MSWindowsFixedSizeDialogHint);
 
     ui->setupUi(this);
+
+    mProgressDlg = new QProgressDialog(this);
 }
 
 MainWindow::~MainWindow() {
@@ -43,6 +45,7 @@ MainWindow::~MainWindow() {
     }
 
     delete ui;
+    delete mProgressDlg;
 }
 
 bool MainWindow::IsProgressCancelled() const {
@@ -67,8 +70,6 @@ void MainWindow::ThreadedExtractionMethod(fs::path archivePath, fs::path outputF
 
     MetroPackUnpack::UnpackArchive(archivePath, outputFolderPath, progressCallback);
 
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(50ms);  // give it a bit for the last QMetaObject::invokeMethod to be processed
     QMetaObject::invokeMethod(this, "onProgressFinished", Qt::QueuedConnection);
 }
 
@@ -82,7 +83,6 @@ void MainWindow::OnMetroPackSelected(const fs::path& archivePath) {
         if (!name.isEmpty()) {
             this->onProgressFinished();
 
-            mProgressDlg = new QProgressDialog(this);
             mProgressDlg->setWindowTitle(tr("Extracting files..."));
             mProgressDlg->setLabelText(tr("Please wait while your files are being extracted..."));
             mProgressDlg->setMinimum(0);
@@ -121,8 +121,6 @@ void MainWindow::ThreadedPack2033Method(fs::path contentPath, fs::path archivePa
 
     MetroPackUnpack::PackArchive2033(contentPath, archivePath, useCompression, progressCallback);
 
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(50ms);  // give it a bit for the last QMetaObject::invokeMethod to be processed
     QMetaObject::invokeMethod(this, "onProgressFinished", Qt::QueuedConnection);
 }
 
@@ -182,7 +180,6 @@ void MainWindow::on_btnPack2033_clicked() {
 
                 this->onProgressFinished();
 
-                mProgressDlg = new QProgressDialog(this);
                 mProgressDlg->setWindowTitle(tr("Creating Metro 2033 archive..."));
                 mProgressDlg->setLabelText(tr("Please wait while your files are being archived..."));
                 mProgressDlg->setMinimum(0);
@@ -222,7 +219,6 @@ void MainWindow::onProgressFinished() {
     if (mProgressDlg) {
         disconnect(mProgressDlg, &QProgressDialog::canceled, this, &MainWindow::onProgressCancelled);
         mProgressDlg->close();
-        MySafeDelete(mProgressDlg);
     }
     mProgressCancelled = true;
 }

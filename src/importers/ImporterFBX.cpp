@@ -4,8 +4,9 @@
 #include "metro/MetroMotion.h"
 #include "metro/MetroModel.h"
 
-#define FBXSDK_NEW_API
-#define FBXSDK_SHARED
+#define FBXSDK_NEW_API 1
+#define FBXSDK_SHARED 1
+#define FBXSDK_NAMESPACE_USING 0
 #include "fbxsdk.h"
 
 #pragma comment(lib, "libfbxsdk.lib")
@@ -44,29 +45,40 @@ static const CharString kLOD2Suffix     = "_lod2";
 //}
 
 struct ControlPoint {
-    FbxVector4 pos;
+    fbxsdk::FbxVector4 pos;
     MyArray<ImporterFBX::UniversalVertex::BoneInfluence> influences;
 };
 
-static FbxAMatrix GetGeometryTransformation(FbxNode* fbxNode) {
-    const FbxVector4 t = fbxNode->GetGeometricTranslation(FbxNode::eSourcePivot);
-    const FbxVector4 r = fbxNode->GetGeometricRotation(FbxNode::eSourcePivot);
-    const FbxVector4 s = fbxNode->GetGeometricScaling(FbxNode::eSourcePivot);
+static fbxsdk::FbxAMatrix GetGeometryTransformation(fbxsdk::FbxNode* fbxNode) {
+    const fbxsdk::FbxVector4 t = fbxNode->GetGeometricTranslation(fbxsdk::FbxNode::eSourcePivot);
+    const fbxsdk::FbxVector4 r = fbxNode->GetGeometricRotation(fbxsdk::FbxNode::eSourcePivot);
+    const fbxsdk::FbxVector4 s = fbxNode->GetGeometricScaling(fbxsdk::FbxNode::eSourcePivot);
 
-    return FbxAMatrix(r, r, s);
+    return fbxsdk::FbxAMatrix(t, r, s);
+}
+
+static fbxsdk::FbxAMatrix GetFixedWorldTransform(fbxsdk::FbxNode* fbxNode) {
+    static fbxsdk::FbxAMatrix sMirrorZAxis(fbxsdk::FbxVector4(0.0, 0.0,  0.0),
+                                           fbxsdk::FbxVector4(0.0, 0.0,  0.0),
+                                           fbxsdk::FbxVector4(1.0, 1.0, -1.0));
+
+    fbxsdk::FbxAMatrix globalTransform = fbxNode->EvaluateGlobalTransform();
+    fbxsdk::FbxAMatrix geometryTransform = GetGeometryTransformation(fbxNode);
+    fbxsdk::FbxAMatrix worldTransform = globalTransform * geometryTransform;
+    return sMirrorZAxis * worldTransform * sMirrorZAxis;
 }
 
 
-vec3 FbxVecToVec3(const FbxVector4& v) {
+vec3 FbxVecToVec3(const fbxsdk::FbxVector4& v) {
     return vec3(scast<float>(v[0]), scast<float>(v[1]), scast<float>(v[2]));
 }
-vec3 FbxDbl3ToVec3(const FbxDouble3& v) {
+vec3 FbxDbl3ToVec3(const fbxsdk::FbxDouble3& v) {
     return vec3(scast<float>(v[0]), scast<float>(v[1]), scast<float>(v[2]));
 }
-quat FbxQuatToQuat(const FbxQuaternion& v) {
+quat FbxQuatToQuat(const fbxsdk::FbxQuaternion& v) {
     return quat(scast<float>(v[3]), scast<float>(v[0]), scast<float>(v[1]), scast<float>(v[2]));
 }
-mat4 FbxMatToMat(const FbxAMatrix& m) {
+mat4 FbxMatToMat(const fbxsdk::FbxAMatrix& m) {
     mat4 result;
 
     const double* ptrD = m;
@@ -80,28 +92,28 @@ mat4 FbxMatToMat(const FbxAMatrix& m) {
 }
 
 
-static FbxVector4 MetroVecToFbxVec(const vec3& v) {
-    return FbxVector4(v.x, v.y, v.z);
+static fbxsdk::FbxVector4 MetroVecToFbxVec(const vec3& v) {
+    return fbxsdk::FbxVector4(v.x, v.y, v.z);
 }
 
-static FbxVector4 MetroRotToFbxRot(const quat& q) {
+static fbxsdk::FbxVector4 MetroRotToFbxRot(const quat& q) {
     vec3 euler = QuatToEuler(q);
-    return FbxVector4(Rad2Deg(euler.x), Rad2Deg(euler.y), Rad2Deg(euler.z));
+    return fbxsdk::FbxVector4(Rad2Deg(euler.x), Rad2Deg(euler.y), Rad2Deg(euler.z));
 }
 
 
 template <typename T>
-static FbxVector4 GetNormalFromElement(T* element, const int controlPointIdx, const int rawVertexIdx) {
-    FbxVector4 normal;
+static fbxsdk::FbxVector4 GetNormalFromElement(T* element, const int controlPointIdx, const int rawVertexIdx) {
+    fbxsdk::FbxVector4 normal;
 
     switch (element->GetMappingMode()) {
-        case FbxGeometryElement::eByControlPoint: {
+        case fbxsdk::FbxGeometryElement::eByControlPoint: {
             switch (element->GetReferenceMode()) {
-                case FbxGeometryElement::eDirect: {
+                case fbxsdk::FbxGeometryElement::eDirect: {
                     normal = element->GetDirectArray().GetAt(controlPointIdx);
                 } break;
 
-                case FbxGeometryElement::eIndexToDirect: {
+                case fbxsdk::FbxGeometryElement::eIndexToDirect: {
                     const int normalIdx = element->GetIndexArray().GetAt(controlPointIdx);
                     normal = element->GetDirectArray().GetAt(normalIdx);
                 } break;
@@ -111,13 +123,13 @@ static FbxVector4 GetNormalFromElement(T* element, const int controlPointIdx, co
             }
         } break;
 
-        case FbxGeometryElement::eByPolygonVertex: {
+        case fbxsdk::FbxGeometryElement::eByPolygonVertex: {
             switch (element->GetReferenceMode()) {
-                case FbxGeometryElement::eDirect: {
+                case fbxsdk::FbxGeometryElement::eDirect: {
                     normal = element->GetDirectArray().GetAt(rawVertexIdx);
                 } break;
 
-                case FbxGeometryElement::eIndexToDirect: {
+                case fbxsdk::FbxGeometryElement::eIndexToDirect: {
                     const int normalIdx = element->GetIndexArray().GetAt(rawVertexIdx);
                     normal = element->GetDirectArray().GetAt(normalIdx);
                 } break;
@@ -187,17 +199,17 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
         return result;
     }
 
-    FbxManager* fbxMgr = FbxManager::Create();
+    fbxsdk::FbxManager* fbxMgr = fbxsdk::FbxManager::Create();
     if (!fbxMgr) {
         return result;
     }
 
-    FbxIOSettings* ios = FbxIOSettings::Create(fbxMgr, IOSROOT);
+    fbxsdk::FbxIOSettings* ios = fbxsdk::FbxIOSettings::Create(fbxMgr, IOSROOT);
     fbxMgr->SetIOSettings(ios);
 
-    FbxScene* fbxScene = FbxScene::Create(fbxMgr, "");
+    fbxsdk::FbxScene* fbxScene = fbxsdk::FbxScene::Create(fbxMgr, "");
     if (fbxScene) {
-        FbxImporter* fbxImporter = FbxImporter::Create(fbxMgr, "");
+        fbxsdk::FbxImporter* fbxImporter = fbxsdk::FbxImporter::Create(fbxMgr, "");
 
         ios->SetBoolProp(IMP_FBX_TEXTURE, false);
         ios->SetBoolProp(IMP_FBX_ANIMATION, true);
@@ -207,25 +219,25 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
         const bool success = fbxImporter->Initialize(path.u8string().data(), -1, ios);
         if (success && fbxImporter->IsFBX()) {
             if (fbxImporter->Import(fbxScene)) {
-                const FbxAxisSystem ourAxis = FbxAxisSystem::MayaYUp;
+                const fbxsdk::FbxAxisSystem ourAxis = fbxsdk::FbxAxisSystem::MayaYUp;
 
-                FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
+                fbxsdk::FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
                 if (fileAxis != ourAxis) {
                     ourAxis.ConvertScene(fbxScene);
                 }
 
-                const int numAnimStacks = fbxScene->GetSrcObjectCount<FbxAnimStack>();
+                const int numAnimStacks = fbxScene->GetSrcObjectCount<fbxsdk::FbxAnimStack>();
                 if (numAnimStacks) {
                     //FbxTakeInfo* takeInfo = fbxImporter->GetTakeInfo(0);
                     //FbxAnimStack* animStack = scast<FbxAnimStack*>(fbxScene->RootProperty.FindSrcObject(FbxCriteria::ObjectType(fbxMgr->FindClass("FbxAnimStack")), takeInfo->mName, 0));
-                    FbxAnimStack* animStack = fbxScene->GetSrcObject<FbxAnimStack>(0);
+                    fbxsdk::FbxAnimStack* animStack = fbxScene->GetSrcObject<fbxsdk::FbxAnimStack>(0);
 
                     fbxScene->SetCurrentAnimationStack(animStack);
 
                     //FbxAnimLayer* animLayer = scast<FbxAnimLayer*>(animStack->RootProperty.GetSrcObject(FbxCriteria::ObjectType(fbxMgr->FindClass("FbxAnimLayer")), 0));
-                    FbxAnimLayer* animLayer = animStack->GetMember<FbxAnimLayer>(0);
+                    fbxsdk::FbxAnimLayer* animLayer = animStack->GetMember<fbxsdk::FbxAnimLayer>(0);
 
-                    FbxNode* rootNode = fbxScene->GetRootNode();
+                    fbxsdk::FbxNode* rootNode = fbxScene->GetRootNode();
 
                     this->CollectFbxBones(rootNode);
 
@@ -247,7 +259,7 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
 
                     const size_t numAnimFrames = animStack->GetLocalTimeSpan().GetDuration().GetFrameCount() + 1;
 
-                    FbxTime startTime = animStack->LocalStart.Get();
+                    fbxsdk::FbxTime startTime = animStack->LocalStart.Get();
 
 #if 0
                     size_t boneIdx = 0;
@@ -260,20 +272,20 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
                         ++boneIdx;
                     }
 #else
-                    FbxTime curTime = startTime;
-                    FbxTime period;
+                    fbxsdk::FbxTime curTime = startTime;
+                    fbxsdk::FbxTime period;
                     period.SetTime(0, 0, 0, 1, 0);
 
                     for (size_t frame = 0; frame < numAnimFrames; ++frame) {
 
                         size_t boneIdx = 0;
                         for (BoneFbxNode& bfn : mFbxBones) {
-                            FbxNode* node = bfn.fbxNode;
+                            fbxsdk::FbxNode* node = bfn.fbxNode;
 
                             AttributeCurve& rotCurve = motion.mBonesRotations[boneIdx];
                             AttributeCurve& posCurve = motion.mBonesPositions[boneIdx];
 
-                            FbxAMatrix transform = node->EvaluateLocalTransform(curTime);
+                            fbxsdk::FbxAMatrix transform = node->EvaluateLocalTransform(curTime);
 
                             //FbxAMatrix transform = node->EvaluateGlobalTransform(curTime);
                             //if (bfn.skeletonAttpParentIdx != kInvalidValue) {
@@ -372,17 +384,17 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
 RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
     RefPtr<MetroModelBase> result = nullptr;
 
-    FbxManager* fbxMgr = FbxManager::Create();
+    fbxsdk::FbxManager* fbxMgr = fbxsdk::FbxManager::Create();
     if (!fbxMgr) {
         return result;
     }
 
-    FbxIOSettings* ios = FbxIOSettings::Create(fbxMgr, IOSROOT);
+    fbxsdk::FbxIOSettings* ios = fbxsdk::FbxIOSettings::Create(fbxMgr, IOSROOT);
     fbxMgr->SetIOSettings(ios);
 
-    FbxScene* fbxScene = FbxScene::Create(fbxMgr, "");
+    fbxsdk::FbxScene* fbxScene = fbxsdk::FbxScene::Create(fbxMgr, "");
     if (fbxScene) {
-        FbxImporter* fbxImporter = FbxImporter::Create(fbxMgr, "");
+        fbxsdk::FbxImporter* fbxImporter = fbxsdk::FbxImporter::Create(fbxMgr, "");
 
         ios->SetBoolProp(IMP_FBX_TEXTURE, false);
         ios->SetBoolProp(IMP_FBX_ANIMATION, true);
@@ -392,19 +404,18 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
         const bool success = fbxImporter->Initialize(filePath.u8string().c_str(), -1, ios);
         if (success && fbxImporter->IsFBX()) {
             if (fbxImporter->Import(fbxScene)) {
-                //const FbxAxisSystem ourAxis = FbxAxisSystem::DirectX;
+                fbxsdk::FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
+                const fbxsdk::FbxAxisSystem workingAxis(fbxsdk::FbxAxisSystem::eYAxis, fbxsdk::FbxAxisSystem::eParityOdd, fbxsdk::FbxAxisSystem::eRightHanded);
+                if (fileAxis != workingAxis) {
+                    workingAxis.ConvertScene(fbxScene);
+                }
 
-                //FbxAxisSystem fileAxis = fbxScene->GetGlobalSettings().GetAxisSystem();
-                //if (fileAxis != ourAxis) {
-                //    ourAxis.ConvertScene(fbxScene);
-                //}
-
-                if (FbxSystemUnit::m != fbxScene->GetGlobalSettings().GetSystemUnit()) {
-                    FbxSystemUnit::m.ConvertScene(fbxScene);
+                if (fbxsdk::FbxSystemUnit::m != fbxScene->GetGlobalSettings().GetSystemUnit()) {
+                    fbxsdk::FbxSystemUnit::m.ConvertScene(fbxScene);
                 }
 
                 FbxMeshesFounder foundMeshes;
-                FbxNode* rootNode = fbxScene->GetRootNode();
+                fbxsdk::FbxNode* rootNode = fbxScene->GetRootNode();
                 this->CollectSceneMeshesRecursive(rootNode, foundMeshes);
 
                 //// try to find the bind pose
@@ -482,7 +493,7 @@ static int FBXI_IsLODMesh(fbxsdk::FbxNode* node) {
 }
 
 void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMeshesFounder& foundMeshes) {
-    if (rootNode->GetNodeAttribute() && rootNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
+    if (rootNode->GetNodeAttribute() && rootNode->GetNodeAttribute()->GetAttributeType() == fbxsdk::FbxNodeAttribute::eMesh) {
         fbxsdk::FbxMesh* mesh = scast<fbxsdk::FbxMesh*>(rootNode->GetNodeAttribute());
         CharString nodeName = rootNode->GetNameOnly().Buffer();
         if (StrEndsWith(nodeName, kShadowSuffix)) {
@@ -508,26 +519,28 @@ void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMesh
 }
 
 void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode* fbxNode, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh) {
-    FbxAMatrix meshXMatrix = fbxNode->EvaluateGlobalTransform();
+    fbxsdk::FbxAMatrix meshXMatrix = GetFixedWorldTransform(fbxNode);
     quat meshRotation = FbxQuatToQuat(meshXMatrix.GetQ());
 
     const int numControlPoints = fbxMesh->GetControlPointsCount();
-    const FbxVector4* controlPoints = fbxMesh->GetControlPoints();
+    const fbxsdk::FbxVector4* controlPoints = fbxMesh->GetControlPoints();
+
+    static fbxsdk::FbxVector4 sFlipVec(1.0, 1.0, -1.0, 1.0);
 
     // collect control points (yes, FBX is weird)
     MyArray<ControlPoint> myControlPoints(numControlPoints);
     for (int i = 0; i < numControlPoints; ++i) {
         ControlPoint& ctrlPt = myControlPoints[i];
-        ctrlPt.pos = meshXMatrix.MultT(controlPoints[i]);
+        ctrlPt.pos = meshXMatrix.MultT(controlPoints[i] * sFlipVec);
     }
 
     MyArray<vec3> myShadowPoints;
     if (fbxShadowMesh) {
         const int numShadowPoints = fbxShadowMesh->GetControlPointsCount();
-        const FbxVector4* shadowPoints = fbxShadowMesh->GetControlPoints();
+        const fbxsdk::FbxVector4* shadowPoints = fbxShadowMesh->GetControlPoints();
         myShadowPoints.resize(numShadowPoints);
         for (int i = 0; i < numShadowPoints; ++i) {
-            myShadowPoints[i] = FbxVecToVec3(meshXMatrix.MultT(shadowPoints[i]));
+            myShadowPoints[i] = FbxVecToVec3(meshXMatrix.MultT(shadowPoints[i] * sFlipVec));
         }
     }
 
@@ -535,14 +548,14 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
     if (mSkeleton) {
         const int numDeformers = fbxMesh->GetDeformerCount();
         for (int i = 0; i < numDeformers; ++i) {
-            FbxDeformer* fbxDeformer = fbxMesh->GetDeformer(i);
-            if (fbxDeformer->GetDeformerType() == FbxDeformer::eSkin) {
-                FbxSkin* fbxSkin = scast<FbxSkin*>(fbxDeformer);
+            fbxsdk::FbxDeformer* fbxDeformer = fbxMesh->GetDeformer(i);
+            if (fbxDeformer->GetDeformerType() == fbxsdk::FbxDeformer::eSkin) {
+                fbxsdk::FbxSkin* fbxSkin = scast<fbxsdk::FbxSkin*>(fbxDeformer);
 
                 const int numClusters = fbxSkin->GetClusterCount();
                 for (int j = 0; j < numClusters; ++j) {
-                    FbxCluster* fbxCluster = fbxSkin->GetCluster(j);
-                    FbxNode* fbxClusterLink = fbxCluster->GetLink();
+                    fbxsdk::FbxCluster* fbxCluster = fbxSkin->GetCluster(j);
+                    fbxsdk::FbxNode* fbxClusterLink = fbxCluster->GetLink();
                     if (fbxClusterLink) {
                         CharString linkName = fbxClusterLink->GetNameOnly().Buffer();
                         const size_t actualBoneIdx = mSkeleton->FindBone(linkName);
@@ -570,6 +583,11 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
     }
 
     fbxsdk::FbxGeometryElementNormal* fbxNormals = fbxMesh->GetElementNormal();
+    if (!fbxNormals) {
+        fbxMesh->GenerateNormals(false, false, false);
+        fbxNormals = fbxMesh->GetElementNormal();
+    }
+
     fbxsdk::FbxGeometryElementTangent* fbxTangents = fbxMesh->GetElementTangent();
     fbxsdk::FbxGeometryElementBinormal* fbxBitangents = fbxMesh->GetElementBinormal();
     fbxsdk::FbxGeometryElementUV* fbxUV = fbxMesh->GetElementUV();
@@ -600,28 +618,28 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
             UniversalVertex vertex;
             vertex.pos = pos;
 
-            FbxVector4 normal = GetNormalFromElement(fbxNormals, idx, vertexIdx);
-            vertex.normal = QuatRotate(meshRotation, FbxVecToVec3(normal));
+            fbxsdk::FbxVector4 normal = GetNormalFromElement(fbxNormals, idx, vertexIdx) * sFlipVec;
+            vertex.normal = Normalize(QuatRotate(meshRotation, FbxVecToVec3(normal)));
 
             if (fbxTangents) {
-                FbxVector4 tangent = GetNormalFromElement(fbxTangents, idx, vertexIdx);
-                vertex.tangent = QuatRotate(meshRotation, FbxVecToVec3(tangent));
+                fbxsdk::FbxVector4 tangent = GetNormalFromElement(fbxTangents, idx, vertexIdx) * sFlipVec;
+                vertex.tangent = Normalize(QuatRotate(meshRotation, FbxVecToVec3(tangent)));
             }
 
             if (fbxBitangents) {
-                FbxVector4 bitangent = GetNormalFromElement(fbxBitangents, idx, vertexIdx);
-                vertex.bitangent = QuatRotate(meshRotation, FbxVecToVec3(bitangent));
+                fbxsdk::FbxVector4 bitangent = GetNormalFromElement(fbxBitangents, idx, vertexIdx) * sFlipVec;
+                vertex.bitangent = Normalize(QuatRotate(meshRotation, FbxVecToVec3(bitangent)));
             }
 
-            FbxVector2 uv;
+            fbxsdk::FbxVector2 uv;
             switch (fbxUV->GetMappingMode()) {
-                case FbxGeometryElement::eByControlPoint: {
+                case fbxsdk::FbxGeometryElement::eByControlPoint: {
                     switch (fbxUV->GetReferenceMode()) {
-                        case FbxGeometryElement::eDirect: {
+                        case fbxsdk::FbxGeometryElement::eDirect: {
                             uv = fbxUV->GetDirectArray().GetAt(idx);
                         } break;
 
-                        case FbxGeometryElement::eIndexToDirect: {
+                        case fbxsdk::FbxGeometryElement::eIndexToDirect: {
                             const int uvIdx = fbxUV->GetIndexArray().GetAt(idx);
                             uv = fbxUV->GetDirectArray().GetAt(uvIdx);
                         } break;
@@ -631,12 +649,12 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
                     }
                 } break;
 
-                case FbxGeometryElement::eByPolygonVertex: {
+                case fbxsdk::FbxGeometryElement::eByPolygonVertex: {
                     const int uvIdx = fbxMesh->GetTextureUVIndex(i, j);
 
                     switch (fbxUV->GetReferenceMode()) {
-                        case FbxGeometryElement::eDirect:
-                        case FbxGeometryElement::eIndexToDirect: {
+                        case fbxsdk::FbxGeometryElement::eDirect:
+                        case fbxsdk::FbxGeometryElement::eIndexToDirect: {
                             uv = fbxUV->GetDirectArray().GetAt(uvIdx);
                         } break;
 
@@ -670,6 +688,10 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
 
     const size_t numVertices = collector.vertices.size();
     const size_t numFaces = collector.indices.size() / 3;
+    // reverse winding because we're flipping verts above
+    for (size_t f = 0; f < numFaces; ++f) {
+        std::swap(collector.indices[f * 3 + 0], collector.indices[f * 3 + 2]);
+    }
 
     VerticesCollector<vec3> shadowCollector;
     for (const vec3& v : myShadowPoints) {
@@ -678,6 +700,10 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
 
     const size_t numShadowVertices = shadowCollector.vertices.size();
     const size_t numShadowFaces = shadowCollector.indices.size() / 3;
+    // reverse winding because we're flipping verts above
+    for (size_t f = 0; f < numShadowFaces; ++f) {
+        std::swap(shadowCollector.indices[f * 3 + 0], shadowCollector.indices[f * 3 + 2]);
+    }
 
     RefPtr<MetroModelBase> mesh;
 
@@ -712,6 +738,12 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode*
         skinnedMesh->CopyVerticesData(skinnedVertices.data());
         skinnedMesh->CopyFacesData(collector.indices.data());
         skinnedMesh->SetBonesRemapTable(bonesRemapTable);
+        MetroOBB identityOBB;
+        identityOBB.matrix = mat3(1.0f);
+        identityOBB.hsize = vec3(0.1f, 0.1f, 0.1f);
+        identityOBB.offset = vec3(0.0f, 0.0f, 0.0f);
+        MyArray<MetroOBB> obbs(bonesRemapTable.size(), identityOBB);
+        skinnedMesh->SetBonesOBB(obbs);
 
         mesh = skinnedMesh;
     } else {
@@ -793,7 +825,7 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
         //FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
         //metroBone.q = FbxQuatToQuat(transform.GetQ());
         //metroBone.t = FbxVecToVec3(transform.GetT());
-        FbxAMatrix localTransform;
+        fbxsdk::FbxAMatrix localTransform;
         if (!joint.fbxParentNode) {
             localTransform = joint.fbxNode->EvaluateGlobalTransform();
         } else {
@@ -816,7 +848,7 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
             metroLocator.name = joint.fbxNode->GetNameOnly().Buffer();
             metroLocator.parent = joint.fbxParentNode ? joint.fbxParentNode->GetNameOnly().Buffer() : kEmptyString;
 
-            FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
+            fbxsdk::FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
             metroLocator.q = FbxQuatToQuat(transform.GetQ());
             metroLocator.t = FbxVecToVec3(transform.GetT());
         }
@@ -853,13 +885,13 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
 }
 
 void ImporterFBX::AddJointRecursive(fbxsdk::FbxNode* fbxNode, fbxsdk::FbxNode* fbxParentNode) {
-    if (fbxNode->GetNodeAttribute() && fbxNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+    if (fbxNode->GetNodeAttribute() && fbxNode->GetNodeAttribute()->GetAttributeType() == fbxsdk::FbxNodeAttribute::eSkeleton) {
         CharString fbxNodeName = fbxNode->GetNameOnly().Buffer();
 
         //#NOTE_SK: fucking Blender's armature >:(
         if (!StrEndsWith(fbxNodeName, "_end")) {
             JointFromFbx joint;
-            if (fbxParentNode->GetNodeAttribute() && fbxParentNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
+            if (fbxParentNode->GetNodeAttribute() && fbxParentNode->GetNodeAttribute()->GetAttributeType() == fbxsdk::FbxNodeAttribute::eSkeleton) {
                 joint.fbxParentNode = fbxParentNode;
             } else {
                 joint.fbxParentNode = nullptr;
@@ -958,15 +990,15 @@ void ImporterFBX::CollectFbxBones(fbxsdk::FbxNode* node) {
 }
 
 void ImporterFBX::GatherRotCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::RotCurve& rotCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames) {
-    FbxAnimCurve* curves[3] = { nullptr };
+    fbxsdk::FbxAnimCurve* curves[3] = { nullptr };
 
     curves[0] = node->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
     curves[1] = node->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
     curves[2] = node->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
 
     if (curves[0] || curves[1] || curves[2]) {
-        FbxTime curTime = startTime;
-        FbxTime period;
+        fbxsdk::FbxTime curTime = startTime;
+        fbxsdk::FbxTime period;
         period.SetTime(0, 0, 0, 1, 0);
 
         for (size_t frame = 0; frame < numFrames; ++frame) {
@@ -994,15 +1026,15 @@ void ImporterFBX::GatherRotCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNod
 }
 
 void ImporterFBX::GatherPosCurve(fbxsdk::FbxAnimLayer* animLayer, fbxsdk::FbxNode* node, AnimCurve::PosCurve& posCurve, const fbxsdk::FbxTime& startTime, const size_t numFrames) {
-    FbxAnimCurve* curves[3] = { nullptr };
+    fbxsdk::FbxAnimCurve* curves[3] = { nullptr };
 
     curves[0] = node->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X, false);
     curves[1] = node->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
     curves[2] = node->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
 
     if (curves[0] || curves[1] || curves[2]) {
-        FbxTime curTime = startTime;
-        FbxTime period;
+        fbxsdk::FbxTime curTime = startTime;
+        fbxsdk::FbxTime period;
         period.SetTime(0, 0, 0, 1, 0);
 
         for (size_t frame = 0; frame < numFrames; ++frame) {

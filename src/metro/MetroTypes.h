@@ -320,6 +320,14 @@ inline void EncodeSkinnedPosition(const vec3& src, int16_t(&dst)[4]) {
     dst[3] = 1;
 }
 
+inline vec3 DecodeSkinnedPosition(int16_t const pos[4]) {
+    const float posDequant = 1.0f / 32767.0f;
+
+    return vec3(scast<float>(pos[0]) * posDequant,
+                scast<float>(pos[1]) * posDequant,
+                scast<float>(pos[2]) * posDequant);
+}
+
 inline void EncodeSkinnedUV(const vec2& src, int16_t(&dst)[2]) {
     assert(src.x <= 16.0f && src.x >= -16.0f);
     assert(src.y <= 16.0f && src.y >= -16.0f);
@@ -372,14 +380,11 @@ inline MetroVertex ConvertVertex<VertexStaticShadow>(const VertexStaticShadow& v
 
 template <>
 inline MetroVertex ConvertVertex<VertexSkinned>(const VertexSkinned& v) {
-    const float posDequant = 1.0f / 32767.0f;
     const float uvDequant = 1.0f / 2048.0f;
 
     MetroVertex result = {};
 
-    result.pos = vec3(scast<float>(v.pos[0]) * posDequant,
-                      scast<float>(v.pos[1]) * posDequant,
-                      scast<float>(v.pos[2]) * posDequant);
+    result.pos = DecodeSkinnedPosition(v.pos);
     *rcast<uint32_t*>(result.bones) = *rcast<const uint32_t*>(v.bones);
     MetroSwizzle(result.bones);
     result.normal = DecodeNormal(v.normal);
@@ -393,13 +398,9 @@ inline MetroVertex ConvertVertex<VertexSkinned>(const VertexSkinned& v) {
 
 template <>
 inline MetroVertex ConvertVertex<VertexSkinnedShadow>(const VertexSkinnedShadow& v) {
-    const float posDequant = 1.0f / 32767.0f;
-
     MetroVertex result = {};
 
-    result.pos = vec3(scast<float>(v.pos[0]) * posDequant,
-                      scast<float>(v.pos[1]) * posDequant,
-                      scast<float>(v.pos[2]) * posDequant);
+    result.pos = DecodeSkinnedPosition(v.pos);
     *rcast<uint32_t*>(result.bones) = *rcast<const uint32_t*>(v.bones);
     MetroSwizzle(result.bones);
     *rcast<uint32_t*>(result.weights) = *rcast<const uint32_t*>(v.weights);

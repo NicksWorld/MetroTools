@@ -226,6 +226,7 @@ bool MetroModelBase::Save(MemWriteStream& stream, const MetroModelSaveParams& pa
         hdr.bsphere.center = mBSphere.center;
         hdr.bsphere.radius = mBSphere.radius;
         hdr.checkSum = mChecksum;
+        hdr.vscale = this->MeshValid() ? mMesh->verticesScale : 12.0f;
         stream.Write(hdr);
     }
 
@@ -664,7 +665,19 @@ bool MetroModelSkin::Save(MemWriteStream& stream, const MetroModelSaveParams& pa
                 stream.WriteU16(scast<uint16_t>(mMesh->shadowVerticesCount));
             }
 
-            stream.Write(mVerticesData.data(), mVerticesData.size());
+            if (version < kModelVersionEarlyArktika1) {
+                // old versions use constant vertex scale of 12
+                const VertexSkinned* skinnedVerts = reinterpret_cast<const VertexSkinned*>(mVerticesData.data());
+
+                for (size_t i = 0; i < mMesh->verticesCount; ++i) {
+                    VertexSkinned vs = skinnedVerts[i];
+                    vec3 pos = DecodeSkinnedPosition(vs.pos);
+                    EncodeSkinnedPosition(pos / 12.0f, vs.pos);
+                    stream.Write(vs);
+                }
+            } else {
+                stream.Write(mVerticesData.data(), mVerticesData.size());
+            }
         }
 
         // faces

@@ -170,13 +170,13 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
 
     MemStream materialsStream = chunker.GetChunkStream(MC_MaterialsChunk);
     if (materialsStream) {
-        mMaterialStrings.resize(4);
+        mMaterialStrings.resize(kMaterialStringNumStrings);
 
-        mMaterialStrings[0] = materialsStream.ReadStringZ();    // texture name
-        mMaterialStrings[1] = materialsStream.ReadStringZ();    // shader name
-        mMaterialStrings[2] = materialsStream.ReadStringZ();    // game material name
+        mMaterialStrings[kMaterialStringTexture] = materialsStream.ReadStringZ();       // texture name
+        mMaterialStrings[kMaterialStringShader] = materialsStream.ReadStringZ();        // shader name
+        mMaterialStrings[kMaterialStringGameMaterial] = materialsStream.ReadStringZ();  // game material name
         if (params.formatVersion >= kModelVersionLastLight) {
-            mMaterialStrings[3] = materialsStream.ReadStringZ();
+            mMaterialStrings[kMaterialStringSrcMaterial] = materialsStream.ReadStringZ();
 
             mMaterialFlags0 = materialsStream.ReadU16();
             mMaterialFlags1 = materialsStream.ReadU16();
@@ -185,9 +185,9 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
             // bool ignore_model = matFlags & 8;
             mIsCollisionModel = (0 != (mMaterialFlags0 & 8));
         } else if (params.formatVersion <= kModelVersion2033) { // original 2033 relies on texture replacemens
-            auto it = params.treplacements.find(mMaterialStrings[0]);
+            auto it = params.treplacements.find(mMaterialStrings[kMaterialStringTexture]);
             if (it != params.treplacements.end()) {
-                mMaterialStrings[0] = it->second;
+                mMaterialStrings[kMaterialStringTexture] = it->second;
             }
         }
     }
@@ -326,12 +326,18 @@ void MetroModelBase::SetBSphere(const BSphere& bsphere) {
 }
 
 const CharString& MetroModelBase::GetMaterialString(const size_t idx) const {
-    return mMaterialStrings[idx];
+    if (kMaterialStringTexture == idx && !mMaterialTexture.empty()) {
+        return mMaterialTexture;
+    } else if (kMaterialStringShader == idx && !mMaterialShader.empty()) {
+        return mMaterialShader;
+    } else {
+        return !mMaterialStrings.empty() ? mMaterialStrings[idx] : kEmptyString;
+    }
 }
 
 void MetroModelBase::SetMaterialString(const CharString& str, const size_t idx) {
     if (mMaterialStrings.empty()) {
-        mMaterialStrings.resize(4);
+        mMaterialStrings.resize(kMaterialStringNumStrings);
     }
 
     if (idx < mMaterialStrings.size()) {
@@ -368,7 +374,6 @@ void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result, const 
         MetroModelGeomData gd = {
             mBBox,
             mBSphere,
-            mMaterialStrings.empty() ? kEmptyString : mMaterialStrings.front(),
             mMesh.get(),
             this,
             this->GetVerticesMemData(),
@@ -381,7 +386,7 @@ void MetroModelBase::CollectGeomData(MyArray<MetroModelGeomData>& result, const 
 
 void MetroModelBase::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
     if (this->MeshValid()) {
-        const CharString& mname = mMaterialStrings[3];
+        const CharString& mname = mMaterialStrings[kMaterialStringSrcMaterial];
         if (!mname.empty()) {
             const auto iit = std::find_if(tpreset.items.begin(), tpreset.items.end(), [&mname](const MetroModelTPreset::Item& item)->bool {
                 return item.mtl_name == mname;
@@ -390,14 +395,19 @@ void MetroModelBase::ApplyTPresetInternal(const MetroModelTPreset& tpreset) {
             if (iit != tpreset.items.end()) {
                 const MetroModelTPreset::Item& item = *iit;
                 if (!item.t_dst.empty()) {
-                    mMaterialStrings[0] = item.t_dst;
+                    mMaterialTexture = item.t_dst;
                 }
                 if (!item.s_dst.empty()) {
-                    mMaterialStrings[1] = item.s_dst;
+                    mMaterialShader = item.s_dst;
                 }
             }
         }
     }
+}
+
+void MetroModelBase::ResetTPresetInternal() {
+    mMaterialTexture.clear();
+    mMaterialShader.clear();
 }
 
 
@@ -922,6 +932,28 @@ void MetroModelHierarchy::CollectGeomData(MyArray<MetroModelGeomData>& result, c
     }
 }
 
+size_t MetroModelHierarchy::GetNumTPresets() const {
+    return mTPresets.size();
+}
+
+MetroModelTPreset& MetroModelHierarchy::GetTPreset(const size_t idx) {
+    return mTPresets[idx];
+}
+
+const MetroModelTPreset& MetroModelHierarchy::GetTPreset(const size_t idx) const {
+    return mTPresets[idx];
+}
+
+void MetroModelHierarchy::AddTPreset(const MetroModelTPreset& tpreset) {
+    mTPresets.push_back(tpreset);
+}
+
+void MetroModelHierarchy::DeleteTPreset(const size_t idx) {
+    if (idx < mTPresets.size()) {
+        mTPresets.erase(mTPresets.begin() + idx);
+    }
+}
+
 void MetroModelHierarchy::ApplyTPreset(const CharString& tpresetName) {
     const auto it = std::find_if(mTPresets.begin(), mTPresets.end(), [&tpresetName](const MetroModelTPreset& p)->bool {
         return p.name == tpresetName;
@@ -930,6 +962,10 @@ void MetroModelHierarchy::ApplyTPreset(const CharString& tpresetName) {
     if (it != mTPresets.end()) {
         this->ApplyTPresetInternal(*it);
     }
+}
+
+void MetroModelHierarchy::ResetTPreset() {
+    this->ResetTPresetInternal();
 }
 
 size_t MetroModelHierarchy::GetChildrenCount() const {
@@ -982,10 +1018,10 @@ void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {
             if (mVersion >= 12) {
                 preset.hit_preset = tpresetsStream.ReadStringZ();
             }
-            if (mVersion >= 21) {
+            if (mVersion > kModelVersionLastLightRelease) {
                 preset.voice = tpresetsStream.ReadStringZ();
             }
-            if (mVersion >= 23) {
+            if (mVersion >= kModelVersionRedux) {
                 preset.flags = tpresetsStream.ReadU32();
             }
 
@@ -1032,8 +1068,18 @@ void MetroModelHierarchy::ApplyTPresetInternal(const MetroModelTPreset& tpreset)
         child->ApplyTPresetInternal(tpreset);
     }
 
-    for (auto& lod : mChildren) {
+    for (auto& lod : mLods) {
         lod->ApplyTPresetInternal(tpreset);
+    }
+}
+
+void MetroModelHierarchy::ResetTPresetInternal() {
+    for (auto& child : mChildren) {
+        child->ResetTPresetInternal();
+    }
+
+    for (auto& lod : mLods) {
+        lod->ResetTPresetInternal();
     }
 }
 

@@ -101,7 +101,7 @@ size_t MetroMotion::ReadMotionDataHeader(const uint8_t* ptr, MetroMotion::Motion
     hdr.numLocators = *rcast<const uint16_t*>(ptr + result);    result += sizeof(uint16_t);
     hdr.numXforms = *rcast<const uint16_t*>(ptr + result);      result += sizeof(uint16_t);
     hdr.totalSize = *rcast<const uint32_t*>(ptr + result);      result += sizeof(uint32_t);
-    hdr.unknown_0 = *rcast<const uint64_t*>(ptr + result);      result += sizeof(uint64_t);
+    memcpy(hdr.twoFloats, ptr + result, sizeof(hdr.twoFloats)); result += sizeof(hdr.twoFloats);
 
     if (version < kMotionVersionArktika1) {
         hdr.bonesMask.dwords[0] = EndianSwapBytes(hdr.bonesMask.dwords[0]);
@@ -112,6 +112,8 @@ size_t MetroMotion::ReadMotionDataHeader(const uint8_t* ptr, MetroMotion::Motion
         hdr.numLocators = EndianSwapBytes(hdr.numLocators);
         hdr.numXforms = EndianSwapBytes(hdr.numXforms);
         hdr.totalSize = EndianSwapBytes(hdr.totalSize);
+        hdr.twoFloats[0] = EndianSwapBytes(hdr.twoFloats[0]);
+        hdr.twoFloats[1] = EndianSwapBytes(hdr.twoFloats[1]);
     }
 
     return result;
@@ -124,6 +126,7 @@ MetroMotion::MetroMotion(const CharString& name)
     , mVersion(0)
     , mBonesCRC(0)
     , mNumBones(0)
+    , mNumLocators(0)
     // info
     , mFlags(0)
     , mSpeed(1.0f)
@@ -134,6 +137,8 @@ MetroMotion::MetroMotion(const CharString& name)
     , mLandFrame(0)
     , mMotionsDataSize(0)
     , mMotionsOffsetsSize(0)
+    // data
+    , mMotionDataHeader{}
 {
     mFramesBitmask.Clear();
     mAffectedBones.Clear();
@@ -146,8 +151,8 @@ bool MetroMotion::LoadHeader(MemStream& stream) {
     size_t chunksFound = 0;
 
     while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
+        const size_t chunkId = stream.ReadU32();
+        const size_t chunkSize = stream.ReadU32();
         const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
         switch (chunkId) {
@@ -174,8 +179,8 @@ bool MetroMotion::LoadFromData(MemStream& stream) {
     bool result = false;
 
     while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
+        const size_t chunkId = stream.ReadU32();
+        const size_t chunkSize = stream.ReadU32();
         const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
         switch (chunkId) {
@@ -213,8 +218,8 @@ bool MetroMotion::LoadHeader_2033(MemStream& stream) {
     size_t chunksFound = 0;
 
     while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
+        const size_t chunkId = stream.ReadU32();
+        const size_t chunkSize = stream.ReadU32();
         const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
         switch (chunkId) {
@@ -241,8 +246,8 @@ bool MetroMotion::LoadFromData_2033(MemStream& stream) {
     bool result = false;
 
     while (!stream.Ended()) {
-        const size_t chunkId = stream.ReadTyped<uint32_t>();
-        const size_t chunkSize = stream.ReadTyped<uint32_t>();
+        const size_t chunkId = stream.ReadU32();
+        const size_t chunkSize = stream.ReadU32();
         const size_t chunkEnd = stream.GetCursor() + chunkSize;
 
         switch (chunkId) {
@@ -452,30 +457,30 @@ size_t MetroMotion::CalcNumOffsetsToBSwap() const {
 }
 
 void MetroMotion::ReadHeaderChunk(MemStream& stream) {
-    mVersion = stream.ReadTyped<uint32_t>();
-    mBonesCRC = stream.ReadTyped<uint32_t>();
-    mNumBones = stream.ReadTyped<uint16_t>();
-    mNumLocators = stream.ReadTyped<uint16_t>();
+    mVersion = stream.ReadU32();
+    mBonesCRC = stream.ReadU32();
+    mNumBones = stream.ReadU16();
+    mNumLocators = stream.ReadU16();
 }
 
 void MetroMotion::ReadInfoChunk(MemStream& stream) {
-    mFlags = stream.ReadTyped<uint16_t>();
+    mFlags = stream.ReadU16();
 
-    mSpeed = stream.ReadTyped<float>();
-    mAccrue = stream.ReadTyped<float>();
-    mFalloff = stream.ReadTyped<float>();
+    mSpeed = stream.ReadF32();
+    mAccrue = stream.ReadF32();
+    mFalloff = stream.ReadF32();
 
-    mNumFrames = stream.ReadTyped<uint32_t>();
-    mJumpFrame = stream.ReadTyped<uint16_t>();
-    mLandFrame = stream.ReadTyped<uint16_t>();
+    mNumFrames = stream.ReadU32();
+    mJumpFrame = stream.ReadU16();
+    mLandFrame = stream.ReadU16();
 
     stream.ReadToBuffer(&mAffectedBones.dwords[0], sizeof(uint32_t[4]));
     if (mVersion >= kMotionVersionArktika1) {
         stream.ReadToBuffer(&mAffectedBones.dwords[4], sizeof(uint32_t[4]));
     }
 
-    mMotionsDataSize = stream.ReadTyped<uint32_t>();
-    mMotionsOffsetsSize = stream.ReadTyped<uint32_t>();
+    mMotionsDataSize = stream.ReadU32();
+    mMotionsOffsetsSize = stream.ReadU32();
 
     stream.ReadToBuffer(&mHighQualityBones.dwords[0], sizeof(uint32_t[4]));
     if (mVersion >= kMotionVersionArktika1) {
@@ -485,9 +490,9 @@ void MetroMotion::ReadInfoChunk(MemStream& stream) {
 
 // Metro 2033 reading
 void MetroMotion::ReadHeaderChunk_2033(MemStream& stream) {
-    mVersion = stream.ReadTyped<uint32_t>();
-    mBonesCRC = stream.ReadTyped<uint32_t>();
-    mNumBones = stream.ReadTyped<uint16_t>();
+    mVersion = stream.ReadU32();
+    mBonesCRC = stream.ReadU32();
+    mNumBones = stream.ReadU16();
 
     if (mVersion > 6) {
         stream.ReadStruct(mFramesBitmask);
@@ -497,21 +502,21 @@ void MetroMotion::ReadHeaderChunk_2033(MemStream& stream) {
 }
 
 void MetroMotion::ReadInfoChunk_2033(MemStream& stream) {
-    mFlags = stream.ReadTyped<uint16_t>();
+    mFlags = stream.ReadU16();
 
     if (mVersion > 6) {
-        mSpeed = stream.ReadTyped<float>();
-        mAccrue = stream.ReadTyped<float>();
-        mFalloff = stream.ReadTyped<float>();
+        mSpeed = stream.ReadF32();
+        mAccrue = stream.ReadF32();
+        mFalloff = stream.ReadF32();
     } else if (mVersion < 3) {
         stream.SkipBytes(sizeof(uint16_t)); // ???
     }
 
-    mNumFrames = stream.ReadTyped<uint32_t>();
+    mNumFrames = stream.ReadU32();
 
     if (mVersion > 3) {
-        mJumpFrame = stream.ReadTyped<uint16_t>();
-        mLandFrame = stream.ReadTyped<uint16_t>();
+        mJumpFrame = stream.ReadU16();
+        mLandFrame = stream.ReadU16();
 
         if (mVersion > 5) {
             stream.ReadToBuffer(&mAffectedBones.dwords[0], sizeof(uint32_t[4]));
@@ -820,9 +825,9 @@ void MetroMotion::ReadBoneCurve_2033(MemStream& stream, AttributeCurve& rotation
     const float secPerFrame = 1.0f / scast<float>(kFrameRate);
     const float normFactor = 0.0000215805f;
 
-    const uint8_t flags = stream.ReadTyped<uint8_t>();
-    const uint32_t curveCrc = stream.ReadTyped<uint32_t>();
-    const uint32_t unknown = stream.ReadTyped<uint32_t>();
+    const uint8_t flags = stream.ReadU8();
+    const uint32_t curveCrc = stream.ReadU32();
+    const uint32_t unknown = stream.ReadU32();
 
     const size_t numRotations = ((flags & MF2033_RotationsPresent) != 0) ? mNumFrames : 1;
 
@@ -831,9 +836,9 @@ void MetroMotion::ReadBoneCurve_2033(MemStream& stream, AttributeCurve& rotation
     for (auto& pt : rotations.points) {
         pt.time = time;
 
-        const int16_t i0 = stream.ReadTyped<int16_t>();
-        const int16_t i1 = stream.ReadTyped<int16_t>();
-        const int16_t i2 = stream.ReadTyped<int16_t>();
+        const int16_t i0 = stream.ReadI16();
+        const int16_t i1 = stream.ReadI16();
+        const int16_t i2 = stream.ReadI16();
 
         if (flags & MF2033_QuatCompressionEx) {
             const int permutation = (i1 & 1) | (2 * (i0 & 1));
@@ -908,7 +913,8 @@ void MetroMotion::WriteMotionData(MemWriteStream& stream) {
         motionDataHdrStream.WriteU16(mMotionDataHeader.numXforms);
         totalSizeOffset = motionDataHdrStream.GetWrittenBytesCount();
         motionDataHdrStream.WriteU32(mMotionDataHeader.totalSize);
-        motionDataHdrStream.WriteU64(mMotionDataHeader.unknown_0);
+        motionDataHdrStream.WriteF32(mMotionDataHeader.twoFloats[0]);
+        motionDataHdrStream.WriteF32(mMotionDataHeader.twoFloats[1]);
     } else {
         for (size_t i = 0; i < 4; ++i) {
             motionDataHdrStream.WriteU32(EndianSwapBytes(mMotionDataHeader.bonesMask.dwords[i]));
@@ -918,7 +924,8 @@ void MetroMotion::WriteMotionData(MemWriteStream& stream) {
         motionDataHdrStream.WriteU16(EndianSwapBytes(mMotionDataHeader.numXforms));
         totalSizeOffset = motionDataHdrStream.GetWrittenBytesCount();
         motionDataHdrStream.WriteU32(EndianSwapBytes(mMotionDataHeader.totalSize));
-        motionDataHdrStream.WriteU64(EndianSwapBytes(mMotionDataHeader.unknown_0));
+        motionDataHdrStream.WriteF32(EndianSwapBytes(mMotionDataHeader.twoFloats[0]));
+        motionDataHdrStream.WriteF32(EndianSwapBytes(mMotionDataHeader.twoFloats[1]));
     }
 
     MemWriteStream curvesDataStream;

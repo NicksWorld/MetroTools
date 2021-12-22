@@ -73,7 +73,7 @@ void CreateGLTFMaterials(const MyArray<MetroModelGeomData>& gds,
                          const CharString& textureExtension) {
     int materialIdx = 0;
     for (auto& gd : gds) {
-        const StringView& gdTexture = gd.texture;
+        const CharString& gdTexture = gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture);
         HashString gdTextureHash(gdTexture);
         if (materialsDict.find(gdTextureHash) == materialsDict.end()) {
             MetroSurfaceDescription surfaceSet = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(gdTexture, false);
@@ -177,7 +177,7 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
     for (auto& gd : gds) {
         MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
 
-        auto materialIt = materialsDict.find(HashString(gd.texture));
+        auto materialIt = materialsDict.find(HashString(gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture)));
         const int materialIdx = (materialIt == materialsDict.end()) ? 0 : materialIt->second;
 
         tinygltf::Buffer gltfIB;

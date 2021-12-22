@@ -5,6 +5,7 @@
 #include "sessionsdlg.h"
 #include "exportmodeldlg.h"
 #include "exportfbxdlg.h"
+#include "edittpresetsdlg.h"
 
 #include <QToolButton>
 #include <QMenu>
@@ -207,6 +208,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::SignalFileExportMetroSkeleton, this, &MainWindow::OnExportMetroSkeleton);
     connect(ui->ribbon, &MainRibbon::SignalFileExportFBXSkeleton, this, &MainWindow::OnExportFBXSkeleton);
     //
+    connect(ui->ribbon, &MainRibbon::SignalModelTPresetChanged, this, &MainWindow::OnTPresetChanged);
+    connect(ui->ribbon, &MainRibbon::SignalModelTPresetEditClicked, this, &MainWindow::OnTPresetsEdit);
+    connect(ui->ribbon, &MainRibbon::SignalModelCalculateAOClicked, this, &MainWindow::OnCalculateAO);
+    //
     connect(ui->ribbon, &MainRibbon::SignalPhysicsBuildClicked, this, &MainWindow::OnPhysicsBuild);
     //
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowBoundsChecked, this, &MainWindow::OnShowBounds);
@@ -218,6 +223,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowModelChecked, this, &MainWindow::OnShowModel);
     connect(ui->ribbon, &MainRibbon::Signal3DViewModelLODValueChanged, this, &MainWindow::OnModelLODValueChanged);
     connect(ui->ribbon, &MainRibbon::Signal3DViewShowPhysicsChecked, this, &MainWindow::OnShowPhysics);
+    connect(ui->ribbon, &MainRibbon::Signal3DViewRendererTypeChanged, this, &MainWindow::OnRendererTypeChanged);
 
     mRenderPanel = new RenderPanel(ui->renderContainer);
     mRenderPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -278,6 +284,18 @@ void MainWindow::UpdateUIForTheModel(MetroModelBase* model) {
     mParamsRollout->FillForTheSkeleton(skeleton);
 
     ui->ribbon->SetLODLimit(scast<int>(model->GetLodCount()));
+
+    MetroModelHierarchy* hierarchy = model->IsHierarchy() ? scast<MetroModelHierarchy*>(model) : nullptr;
+    if (hierarchy && hierarchy->GetNumTPresets() > 0) {
+        StringArray presets; presets.reserve(hierarchy->GetNumTPresets());
+        for (size_t i = 0; i < hierarchy->GetNumTPresets(); ++i) {
+            const MetroModelTPreset& tpreset = hierarchy->GetTPreset(i);
+            presets.push_back(tpreset.name);
+        }
+        ui->ribbon->SetPresets(presets);
+    } else {
+        ui->ribbon->SetPresets({});
+    }
 }
 
 void MainWindow::UpdatePhysicsFromTheModel(MetroModelBase* model, const fs::path& modelPath) {
@@ -291,7 +309,6 @@ void MainWindow::UpdatePhysicsFromTheModel(MetroModelBase* model, const fs::path
         if (physStream) {
             RefPtr<MetroPhysicsCForm> cform = MetroPhysicsLoadCFormFromStream(physStream, false);
             this->UpdatePhysicsFromCForm(cform);
-            
         }
     }
 }
@@ -607,6 +624,48 @@ void MainWindow::OnExportFBXSkeleton() {
 }
 
 //
+void MainWindow::OnTPresetChanged(int index) {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+
+    if (model && model->IsHierarchy()) {
+        RefPtr<MetroModelHierarchy> hierarchy = SCastRefPtr<MetroModelHierarchy>(model);
+
+        if (index <= 0) {
+            hierarchy->ResetTPreset();
+        } else {
+            const MetroModelTPreset& tpreset = hierarchy->GetTPreset(index - 1);
+            hierarchy->ApplyTPreset(tpreset.name);
+        }
+
+        if (mRenderPanel) {
+            mRenderPanel->UpdateModelProps();
+        }
+    }
+}
+
+void MainWindow::OnTPresetsEdit() {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+
+    if (model && model->IsHierarchy()) {
+        RefPtr<MetroModelHierarchy> hierarchy = SCastRefPtr<MetroModelHierarchy>(model);
+
+        EditTPresetsDlg dlg(this);
+        dlg.SetModel(hierarchy);
+        dlg.exec();
+    }
+}
+
+extern "C++" bool CalculateModelAO(RefPtr<MetroModelBase>& model);
+void MainWindow::OnCalculateAO() {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        if (CalculateModelAO(model)) {
+            this->OnModelMeshPropertiesChanged();
+        }
+    }
+}
+
+//
 void MainWindow::OnPhysicsBuild(int physicsSource) {
     RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
     if (model) {
@@ -678,6 +737,12 @@ void MainWindow::OnModelLODValueChanged(int value) {
 void MainWindow::OnShowPhysics(bool checked) {
     if (mRenderPanel) {
         mRenderPanel->SetDebugShowPhysics(checked);
+    }
+}
+
+void MainWindow::OnRendererTypeChanged(MainRibbon::RendererType type) {
+    if (mRenderPanel) {
+        mRenderPanel->SetRendererType(scast<size_t>(type));
     }
 }
 

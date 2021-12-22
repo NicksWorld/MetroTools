@@ -39,3 +39,27 @@ struct PSOutput {
 SamplerState SamplerPoint       : register(s0);
 SamplerState SamplerTrilinear   : register(s1);
 SamplerState SamplerAnisotropic : register(s2);
+
+#ifdef PIXEL_SHADER
+struct GBuffer {
+    float3  albedo;
+    float3  normal;
+    float   metalness;
+    float   roughness;
+    float   ao;
+};
+
+GBuffer UnpackGBuffer(Texture2D tex0, Texture2D tex1, Texture2D tex2, float2 uv) {
+    float4 albedo_ao = tex0.Sample(SamplerPoint, uv);
+    float3 normal = tex1.Sample(SamplerPoint, uv).xyz;
+
+    GBuffer gbuffer;
+    gbuffer.albedo = albedo_ao.xyz;
+    gbuffer.normal = normalize(mad(normal, 2.0f, -1.0f));
+    gbuffer.metalness = 0.0f;
+    gbuffer.roughness = 0.0f;
+    gbuffer.ao = albedo_ao.w;
+
+    return gbuffer;
+}
+#endif // PIXEL_SHADER

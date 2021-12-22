@@ -57,6 +57,8 @@ public:
     void                            SetDebugSkeletonShowBonesNames(const bool show);
     void                            SetDebugShowPhysics(const bool show);
 
+    void                            SetRendererType(const size_t type);
+
 private:
     void                            CreateD2DResources();
     void                            ReleaseD2DResources();

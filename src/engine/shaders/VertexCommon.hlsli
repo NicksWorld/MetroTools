@@ -47,7 +47,8 @@ struct VertexCommon {
 #define FromMetroV3(v)  ((v).xyz)
 #define FromMetroV4(v)  ((v).xyzw)
 
-#define UnpackNormal(v) mad((v).xyz, 2.0f, -1.0f)
+// Metro keeps it as BGRA so need to swap
+#define UnpackNormal(v) mad((v).zyx, 2.0f, -1.0f)
 
 #if defined(VTX_TYPE_STATIC)
 

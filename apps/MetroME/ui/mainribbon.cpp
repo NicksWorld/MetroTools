@@ -10,7 +10,15 @@
 #include "simpleribbon/SimpleRibbonVBar.h"
 #include "simpleribbon/SimpleRibbonButton.h"
 
-
+constexpr const char* sRendererTypesNames[scast<size_t>(MainRibbon::RendererType::NumRendererTypes)] = {
+    "Regular",
+    "Wireframe",
+    "Albedo",
+    "Normal",
+    "Gloss",
+    "Roughness",
+    "AO"
+};
 
 MainRibbon::MainRibbon(QWidget* parent)
     : QWidget(parent)
@@ -22,6 +30,8 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mTab3DView(nullptr)
     // model groups
     , mGroupModelFile(nullptr)
+    , mGroupModelPreset(nullptr)
+    , mGroupModelAO(nullptr)
     // skeleton groups
     , mGroupSkeletonFile(nullptr)
     // physics groups
@@ -31,6 +41,10 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mGroup3DViewSkeleton(nullptr)
     , mGroup3DViewModel(nullptr)
     , mGroup3DViewPhysics(nullptr)
+    , mGroup3DViewRenderer(nullptr)
+    // model controls
+    , mComboTPreset(nullptr)
+    , mCalculateAOButton(nullptr)
     // physics controls
     , mComboPhysicsSource(nullptr)
     , mBuildPhysicsButton(nullptr)
@@ -42,6 +56,7 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mCheckShowPhysics(nullptr)
     , mCheckShowModel(nullptr)
     , mModelLod(nullptr)
+    , mRendererType(nullptr)
 {
     QHBoxLayout* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -72,6 +87,20 @@ void MainRibbon::EnableTab(const TabType tab, const bool enable) {
 void MainRibbon::SetLODLimit(const int limit) {
     mModelLod->setMinimum(0);
     mModelLod->setMaximum(limit);
+}
+
+void MainRibbon::SetPresets(const StringArray& presets) {
+    mComboTPreset->clear();
+
+    if (presets.empty()) {
+        mComboTPreset->setEnabled(false);
+    } else {
+        mComboTPreset->setEnabled(true);
+        mComboTPreset->addItem("- None -"); // reset preset
+        for (const CharString& p : presets) {
+            mComboTPreset->addItem(QString::fromStdString(p));
+        }
+    }
 }
 
 
@@ -125,6 +154,20 @@ void MainRibbon::OnFileExportFBXSkeletonCommand(bool) {
 }
 
 //
+void MainRibbon::OnModelTPresetChanged(int index) {
+    emit SignalModelTPresetChanged(index);
+}
+
+void MainRibbon::OnModelTPresetEditClicked() {
+    emit SignalModelTPresetEditClicked();
+}
+
+void MainRibbon::OnModelCalculateAOClicked() {
+    emit SignalModelCalculateAOClicked();
+}
+
+
+//
 void MainRibbon::OnPhysicsBuildButtonClicked() {
     emit SignalPhysicsBuildClicked(mComboPhysicsSource->currentIndex());
 }
@@ -176,6 +219,10 @@ void MainRibbon::On3DViewShowPhysicsChecked(int state) {
     emit Signal3DViewShowPhysicsChecked(Qt::Checked == state);
 }
 
+void MainRibbon::On3DViewRendererTypeChanged(int index) {
+    emit Signal3DViewRendererTypeChanged(index >= 0 ? scast<RendererType>(index) : RendererType::Regular);
+}
+
 
 void MainRibbon::BuildRibbon() {
     mRibbon = new SimpleRibbon(this);
@@ -203,6 +250,8 @@ void MainRibbon::BuildRibbon() {
 
 void MainRibbon::BuildModelTab() {
     mGroupModelFile = mTabModel->AddRibbonGroup(tr("File"));
+    mGroupModelPreset = mTabModel->AddRibbonGroup(tr("Presets"));
+    mGroupModelAO = mTabModel->AddRibbonGroup(tr("AO"));
 
     SimpleRibbonButton* importModelButton = new SimpleRibbonButton;
     importModelButton->SetText(tr("Import..."));
@@ -253,6 +302,44 @@ void MainRibbon::BuildModelTab() {
         connect(exportToGLTFAction, &QAction::triggered, this, &MainRibbon::OnFileExportGLTFModelCommand);
     }
     mGroupModelFile->AddWidget(exportModelButton);
+
+    // tpresets
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        QLabel* label = new QLabel();
+        label->setText(tr("Apply preset:"));
+
+        mComboTPreset = new QComboBox();
+        mComboTPreset->setEditable(false);
+        mComboTPreset->setEnabled(false);
+        connect(mComboTPreset, &QComboBox::currentIndexChanged, this, &MainRibbon::OnModelTPresetChanged);
+
+        QPushButton* editBtn = new QPushButton();
+        editBtn->setText(tr("Edit..."));
+        connect(editBtn, &QPushButton::clicked, this, &MainRibbon::OnModelTPresetEditClicked);
+
+        vbar->AddWidget(label);
+        vbar->AddWidget(mComboTPreset);
+        vbar->AddWidget(editBtn);
+
+        mGroupModelPreset->AddWidget(vbar);
+    }
+
+    // AO
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        QLabel* label = new QLabel();
+        label->setText(tr("Vertex AO"));
+        label->setAlignment(Qt::AlignHCenter);
+
+        mCalculateAOButton = new QPushButton();
+        mCalculateAOButton->setText(tr("Calculate"));
+        connect(mCalculateAOButton, &QPushButton::clicked, this, &MainRibbon::OnModelCalculateAOClicked);
+
+        vbar->AddWidget(label);
+        vbar->AddWidget(mCalculateAOButton);
+        mGroupModelAO->AddWidget(vbar);
+    }
 }
 
 void MainRibbon::BuildSkeletonTab() {
@@ -332,6 +419,7 @@ void MainRibbon::Build3DViewTab() {
     mGroup3DViewSkeleton = mTab3DView->AddRibbonGroup(tr("Skeleton"));
     mGroup3DViewModel = mTab3DView->AddRibbonGroup(tr("Model"));
     mGroup3DViewPhysics = mTab3DView->AddRibbonGroup(tr("Physics"));
+    mGroup3DViewRenderer = mTab3DView->AddRibbonGroup(tr("Renderer"));
 
     // Bounds
     {
@@ -407,5 +495,22 @@ void MainRibbon::Build3DViewTab() {
 
         vbar->AddWidget(mCheckShowPhysics);
         mGroup3DViewPhysics->AddWidget(vbar);
+    }
+    // Renderer
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        QLabel* label = new QLabel();
+        label->setText(tr("Renderer type:"));
+
+        mRendererType = new QComboBox();
+        for (const char* s : sRendererTypesNames) {
+            mRendererType->addItem(QString(s));
+        }
+        mRendererType->setEditable(false);
+        connect(mRendererType, &QComboBox::currentIndexChanged, this, &MainRibbon::On3DViewRendererTypeChanged);
+
+        vbar->AddWidget(label);
+        vbar->AddWidget(mRendererType);
+        mGroup3DViewRenderer->AddWidget(vbar);
     }
 }

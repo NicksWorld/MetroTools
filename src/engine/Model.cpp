@@ -118,7 +118,7 @@ bool Model::Create(const MetroModelBase* mdl) {
             totalVertices += rms.numVertices;
             totalIndices += rms.numIndices;
 
-            lod.surfaces.push_back(ResourcesManager::Get().GetSurface(gd.texture));
+            lod.surfaces.push_back(ResourcesManager::Get().GetSurface(gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture)));
 
             if (i == 0) {
                 mBBox.Absorb(gd.bbox);

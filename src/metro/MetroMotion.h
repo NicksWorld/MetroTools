@@ -12,13 +12,14 @@ struct AttributeCurve {
 
 class MetroMotion {
     PACKED_STRUCT_BEGIN
-    struct MotionDataHeader {   // size = 48 bytes
+    struct MotionDataHeader {       // size = 48 bytes
         Bitset256   bonesMask;
         uint16_t    numLocators;
         uint16_t    numXforms;
         uint32_t    totalSize;
-        uint64_t    unknown_0;
+        float       twoFloats[2];   // always 1.0f, 1.0f ???
     } PACKED_STRUCT_END;
+    static_assert(sizeof(MotionDataHeader) == 48);
 
     static size_t ReadMotionDataHeader(const uint8_t* ptr, MotionDataHeader& hdr, const size_t version);
 

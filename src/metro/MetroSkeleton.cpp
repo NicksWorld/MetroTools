@@ -933,6 +933,29 @@ void MetroSkeleton::Serialize(MetroReflectionStream& stream) {
         METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, params);
         METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*skeletonSection, mcolls);
 
+        //#NOTE_SK: only in original Last Light !!!
+        if (this->ver == 5) {
+            //dbg_show_obbs, u32_array
+            MyArray<uint32_t> dbg_show_obbs;
+            METRO_SERIALIZE_ARRAY_MEMBER(*skeletonSection, dbg_show_obbs);
+
+            //dbg_show_bones, u32_array
+            MyArray<uint32_t> dbg_show_bones;
+            METRO_SERIALIZE_ARRAY_MEMBER(*skeletonSection, dbg_show_bones);
+
+            //dbg_show_names, u32_array
+            MyArray<uint32_t> dbg_show_names;
+            METRO_SERIALIZE_ARRAY_MEMBER(*skeletonSection, dbg_show_names);
+
+            //dbg_show_axis, u32_array
+            MyArray<uint32_t> dbg_show_axis;
+            METRO_SERIALIZE_ARRAY_MEMBER(*skeletonSection, dbg_show_axis);
+
+            //dbg_show_links, u32_array
+            MyArray<uint32_t> dbg_show_links;
+            METRO_SERIALIZE_ARRAY_MEMBER(*skeletonSection, dbg_show_links);
+        }
+
         stream.CloseSection(skeletonSection);
     }
     if (stream.IsIn()) {

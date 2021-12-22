@@ -20,6 +20,7 @@ set(PIXEL_SHADERS
     PS_DebugLit.hlsl
     PS_Default.hlsl
     PS_DeferredResolve.hlsl
+    PS_DeferredDebug.hlsl
     PS_Selection.hlsl
     PS_Terrain.hlsl)
 set_property(SOURCE ${PIXEL_SHADERS} PROPERTY VS_TOOL_OVERRIDE "None")
@@ -45,18 +46,18 @@ set(SHADER_INCLUDES
     VertexCommon.hlsli)
 
 foreach(ps ${PIXEL_SHADERS})
-  CompileHLSLShader(${ps} "ps_5_0" "main" out SHADER_INCLUDES)
-  list(APPEND compiled_shaders ${out})
+    CompileHLSLShader(${ps} "ps_5_0" "main" out SHADER_INCLUDES)
+    list(APPEND compiled_shaders ${out})
 endforeach()
 
 foreach(gs ${GEOMETRY_SHADERS})
-  CompileHLSLShader(${gs} "gs_5_0" "main" out SHADER_INCLUDES)
-  list(APPEND compiled_shaders ${out})
+    CompileHLSLShader(${gs} "gs_5_0" "main" out SHADER_INCLUDES)
+    list(APPEND compiled_shaders ${out})
 endforeach()
 
 foreach(vs ${VERTEX_SHADERS})
-  CompileHLSLShader(${vs} "vs_5_0" "main" out SHADER_INCLUDES)
-  list(APPEND compiled_shaders ${out})
+    CompileHLSLShader(${vs} "vs_5_0" "main" out SHADER_INCLUDES)
+    list(APPEND compiled_shaders ${out})
 endforeach()
 
 add_custom_target(compile_shaders DEPENDS ${compiled_shaders} SOURCES ${PIXEL_SHADERS} ${GEOMETRY_SHADERS} ${VERTEX_SHADERS} ${SHADER_INCLUDESS})

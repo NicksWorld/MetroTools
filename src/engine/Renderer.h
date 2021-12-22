@@ -41,6 +41,18 @@ public:
         DF_SkipDebugGeo = 4,
     };
 
+    enum class RendererType : size_t {
+        Regular,
+        Wireframe,
+        Albedo,
+        Normal,
+        Gloss,
+        Roughness,
+        AO,
+
+        NumRendererTypes
+    };
+
     IMPL_SINGLETON(Renderer)
 
 public:
@@ -55,6 +67,8 @@ public:
     void                        DrawScene(Scene& scene, const size_t flags = Renderer::DF_None);
 
     SceneNode*                  PickObject(Swapchain& swapchain, Scene& scene, const vec2& screenPoint);
+
+    void                        SetRendererType(const RendererType type);
 
     void                        BeginDebugDraw();
     void                        DebugDrawLine(const vec3& pt0, const vec3& pt1, const color4f& color);
@@ -133,6 +147,7 @@ private:
     ID3D11PixelShader*          mPixelShaderDefault;
     ID3D11PixelShader*          mPixelShaderTerrain;
     ID3D11PixelShader*          mPixelShaderDeferredResolve;
+    ID3D11PixelShader*          mPixelShaderDeferredDebug;
     ID3D11PixelShader*          mPixelShaderDebug;
     ID3D11PixelShader*          mPixelShaderDebugLit;
     ID3D11PixelShader*          mPixelShaderSelection;
@@ -166,6 +181,8 @@ private:
 
     Frustum                     mFrustum;
     bool                        mUpdateFrustum;
+
+    RendererType                mRendererType;
 
     // Debug draw
     ID3D11Buffer*               mDebugVertexBuffer;

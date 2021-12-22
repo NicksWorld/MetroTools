@@ -57,15 +57,24 @@ static fbxsdk::FbxAMatrix GetGeometryTransformation(fbxsdk::FbxNode* fbxNode) {
     return fbxsdk::FbxAMatrix(t, r, s);
 }
 
-static fbxsdk::FbxAMatrix GetFixedWorldTransform(fbxsdk::FbxNode* fbxNode) {
-    static fbxsdk::FbxAMatrix sMirrorZAxis(fbxsdk::FbxVector4(0.0, 0.0,  0.0),
-                                           fbxsdk::FbxVector4(0.0, 0.0,  0.0),
-                                           fbxsdk::FbxVector4(1.0, 1.0, -1.0));
+static fbxsdk::FbxAMatrix sMirrorZAxis(fbxsdk::FbxVector4(0.0, 0.0, 0.0),
+                                       fbxsdk::FbxVector4(0.0, 0.0, 0.0),
+                                       fbxsdk::FbxVector4(1.0, 1.0, -1.0));
 
+static fbxsdk::FbxAMatrix GetFixedFbxMatrix(const fbxsdk::FbxAMatrix& fbxMatrix) {
+    // why the hell is this method non-const ???????
+    if (const_cast<fbxsdk::FbxAMatrix&>(fbxMatrix).IsIdentity()) {
+        return fbxMatrix;
+    } else {
+        return sMirrorZAxis * fbxMatrix * sMirrorZAxis;
+    }
+}
+
+static fbxsdk::FbxAMatrix GetFixedWorldTransform(fbxsdk::FbxNode* fbxNode) {
     fbxsdk::FbxAMatrix globalTransform = fbxNode->EvaluateGlobalTransform();
     fbxsdk::FbxAMatrix geometryTransform = GetGeometryTransformation(fbxNode);
     fbxsdk::FbxAMatrix worldTransform = globalTransform * geometryTransform;
-    return sMirrorZAxis * worldTransform * sMirrorZAxis;
+    return GetFixedFbxMatrix(worldTransform);
 }
 
 
@@ -362,7 +371,8 @@ bool ImporterFBX::ImportAnimation(const fs::path& path, MetroMotion& motion) {
 
                     motion.mMotionDataHeader.numLocators = 0;
                     motion.mMotionDataHeader.numXforms = 0;
-                    motion.mMotionDataHeader.unknown_0 = 0x3F8000003F800000;
+                    motion.mMotionDataHeader.twoFloats[0] = 1.0f;
+                    motion.mMotionDataHeader.twoFloats[1] = 1.0f;
 #endif
                 }
             }
@@ -442,14 +452,14 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
                 const bool hasShadowGeometry = (foundMeshes.shadowMeshes.size() == foundMeshes.meshes.size());
 
                 for (size_t i = 0, numMeshes = foundMeshes.meshes.size(); i < numMeshes; ++i) {
-                    this->AddMeshToModel(result, foundMeshes.nodes[i], foundMeshes.meshes[i], hasShadowGeometry ? foundMeshes.shadowMeshes[i] : nullptr);
+                    this->AddMeshToModel(result, foundMeshes.meshes[i], hasShadowGeometry ? foundMeshes.shadowMeshes[i] : nullptr);
                 }
 
                 if (mSkeleton == nullptr) {
                     if (!foundMeshes.lod1Meshes.empty()) {
                         RefPtr<MetroModelBase> lod1Model = MakeRefPtr<MetroModelHierarchy>();
                         for (size_t i = 0, numMeshes = foundMeshes.lod1Meshes.size(); i < numMeshes; ++i) {
-                            this->AddMeshToModel(lod1Model, foundMeshes.lod1Nodes[i], foundMeshes.lod1Meshes[i], nullptr);
+                            this->AddMeshToModel(lod1Model, foundMeshes.lod1Meshes[i], nullptr);
                         }
                         // add LOD1
                         SCastRefPtr<MetroModelHierarchy>(result)->AddLOD(lod1Model);
@@ -457,7 +467,7 @@ RefPtr<MetroModelBase> ImporterFBX::ImportModel(const fs::path& filePath) {
                         if (!foundMeshes.lod2Meshes.empty()) {
                             RefPtr<MetroModelBase> lod2Model = MakeRefPtr<MetroModelHierarchy>();
                             for (size_t i = 0, numMeshes = foundMeshes.lod2Meshes.size(); i < numMeshes; ++i) {
-                                this->AddMeshToModel(lod2Model, foundMeshes.lod2Nodes[i], foundMeshes.lod2Meshes[i], nullptr);
+                                this->AddMeshToModel(lod2Model, foundMeshes.lod2Meshes[i], nullptr);
                             }
                             // add LOD2
                             SCastRefPtr<MetroModelHierarchy>(result)->AddLOD(lod2Model);
@@ -501,13 +511,10 @@ void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMesh
         } else {
             const int lodType = FBXI_IsLODMesh(rootNode);
             if (1 == lodType) {
-                foundMeshes.lod1Nodes.push_back(rootNode);
                 foundMeshes.lod1Meshes.push_back(mesh);
             } else if (2 == lodType) {
-                foundMeshes.lod2Nodes.push_back(rootNode);
                 foundMeshes.lod2Meshes.push_back(mesh);
             } else {
-                foundMeshes.nodes.push_back(rootNode);
                 foundMeshes.meshes.push_back(mesh);
             }
         }
@@ -518,7 +525,10 @@ void ImporterFBX::CollectSceneMeshesRecursive(fbxsdk::FbxNode* rootNode, FbxMesh
     }
 }
 
-void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxNode* fbxNode, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh) {
+void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh* fbxMesh, fbxsdk::FbxMesh* fbxShadowMesh) {
+    fbxsdk::FbxNode* fbxNode = fbxMesh->GetNode();
+    assert(fbxNode != nullptr);
+
     fbxsdk::FbxAMatrix meshXMatrix = GetFixedWorldTransform(fbxNode);
     quat meshRotation = FbxQuatToQuat(meshXMatrix.GetQ());
 
@@ -822,9 +832,6 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
         metroBone.name = joint.fbxNode->GetNameOnly().Buffer();
         metroBone.parent = joint.fbxParentNode ? joint.fbxParentNode->GetNameOnly().Buffer() : kEmptyString;
 
-        //FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
-        //metroBone.q = FbxQuatToQuat(transform.GetQ());
-        //metroBone.t = FbxVecToVec3(transform.GetT());
         fbxsdk::FbxAMatrix localTransform;
         if (!joint.fbxParentNode) {
             localTransform = joint.fbxNode->EvaluateGlobalTransform();
@@ -832,6 +839,8 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
             fbxsdk::FbxAMatrix parentInvert = joint.fbxParentNode->EvaluateGlobalTransform().Inverse();
             localTransform = joint.fbxNode->EvaluateGlobalTransform() * parentInvert;
         }
+        localTransform = GetFixedFbxMatrix(localTransform);
+
         metroBone.q = FbxQuatToQuat(localTransform.GetQ());
         metroBone.t = FbxVecToVec3(localTransform.GetT());
     }
@@ -848,40 +857,22 @@ RefPtr<MetroSkeleton> ImporterFBX::TryToImportSkeleton(fbxsdk::FbxNode* fbxRootN
             metroLocator.name = joint.fbxNode->GetNameOnly().Buffer();
             metroLocator.parent = joint.fbxParentNode ? joint.fbxParentNode->GetNameOnly().Buffer() : kEmptyString;
 
-            fbxsdk::FbxAMatrix transform = joint.fbxNode->EvaluateLocalTransform();
-            metroLocator.q = FbxQuatToQuat(transform.GetQ());
-            metroLocator.t = FbxVecToVec3(transform.GetT());
+            fbxsdk::FbxAMatrix localTransform;
+            if (!joint.fbxParentNode) {
+                localTransform = joint.fbxNode->EvaluateGlobalTransform();
+            } else {
+                fbxsdk::FbxAMatrix parentInvert = joint.fbxParentNode->EvaluateGlobalTransform().Inverse();
+                localTransform = joint.fbxNode->EvaluateGlobalTransform() * parentInvert;
+            }
+            localTransform = GetFixedFbxMatrix(localTransform);
+
+            metroLocator.q = FbxQuatToQuat(localTransform.GetQ());
+            metroLocator.t = FbxVecToVec3(localTransform.GetT());
         }
         skeleton->SetLocators(metroLocators);
     }
 
     return skeleton;
-
-    //const int numPoseNodes = fbxPose->GetCount();
-    //MyArray<FbxNode*> fbxBones;
-    //FbxNode* fbxRootBone = nullptr;
-    //MyArray<FbxNode*> fbxLocators;
-    //for (int i = 0; i < numPoseNodes; ++i) {
-    //    FbxNode* fbxNode = fbxPose->GetNode(i);
-    //    if (fbxNode->GetNodeAttribute() && fbxNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
-    //        CharString fbxNodeName = fbxNode->GetNameOnly().Buffer();
-    //        if (StrStartsWith(fbxNodeName, "loc_")) {
-    //            fbxLocators.push_back(fbxNode);
-    //        } else {
-    //            fbxBones.push_back(fbxNode);
-
-    //            FbxSkeleton* fbxSkelAttrib = scast<FbxSkeleton*>(fbxNode->GetNodeAttribute());
-    //            if (fbxSkelAttrib->GetSkeletonType() == FbxSkeleton::eRoot) {
-    //                fbxRootBone = fbxNode;
-    //            }
-    //        }
-    //    }
-    //}
-
-    //if (!fbxBones.empty()) {
-    //    MyArray<MetroBone> bones; bones.reserve(fbxBones.size());
-    //    
-    //}
 }
 
 void ImporterFBX::AddJointRecursive(fbxsdk::FbxNode* fbxNode, fbxsdk::FbxNode* fbxParentNode) {

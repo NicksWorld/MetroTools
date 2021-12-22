@@ -245,7 +245,7 @@ void LevelGeo::AddSectorSuperStaticMesh(LevelGeoSector& sector, const RefPtr<Met
         section.shadowIBOffset = 0;
         section.surfaceIdx = mSurfaces.size();
 
-        mSurfaces.push_back(ResourcesManager::Get().GetSurface(gd.texture));
+        mSurfaces.push_back(ResourcesManager::Get().GetSurface(gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture)));
         sector.bbox.Absorb(gd.bbox);
     }
 }

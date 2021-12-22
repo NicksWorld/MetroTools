@@ -14,6 +14,7 @@ target_sources(MetroME PRIVATE
     main.cpp
     MetroSessions.h
     MetroSessions.cpp
+    ModelAOCalculator.cpp
     ui/mainwindow.cpp
     ui/mainwindow.h
     ui/mainwindow.ui
@@ -30,6 +31,9 @@ target_sources(MetroME PRIVATE
     ui/exportfbxdlg.cpp
     ui/exportfbxdlg.h
     ui/exportfbxdlg.ui
+    ui/edittpresetsdlg.h
+    ui/edittpresetsdlg.cpp
+    ui/edittpresetsdlg.ui
     ui/props/materialstringsprop.h
     ui/props/objectpropertybrowser.cpp
     ui/props/objectpropertybrowser.h
@@ -70,6 +74,9 @@ target_link_libraries(MetroME PRIVATE
     Physx2utils::Physx2utils
     Physx3utils::Physx3utils
 
+    Embree3::Embree3
+
     d2d1.lib
     dwrite.lib
+    embree3.lib
 )

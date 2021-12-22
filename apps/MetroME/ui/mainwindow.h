@@ -58,6 +58,10 @@ public slots:
     void    OnExportMetroSkeleton();
     void    OnExportFBXSkeleton();
     //
+    void    OnTPresetChanged(int index);
+    void    OnTPresetsEdit();
+    void    OnCalculateAO();
+    //
     void    OnPhysicsBuild(int physicsSource);
     //
     void    OnShowBounds(bool checked);
@@ -69,6 +73,7 @@ public slots:
     void    OnShowModel(bool checked);
     void    OnModelLODValueChanged(int value);
     void    OnShowPhysics(bool checked);
+    void    OnRendererTypeChanged(MainRibbon::RendererType type);
 
 private slots:
     // Model rollouts

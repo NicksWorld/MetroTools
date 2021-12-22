@@ -6,6 +6,8 @@
 #include <QSpinBox>
 #include <QPushButton>
 
+#include "mycommon.h"
+
 
 class SimpleRibbon;
 class SimpleRibbonTab;
@@ -25,11 +27,24 @@ public:
         View
     };
 
+    enum class RendererType {
+        Regular,
+        Wireframe,
+        Albedo,
+        Normal,
+        Gloss,
+        Roughness,
+        AO,
+
+        NumRendererTypes
+    };
+
     MainRibbon(QWidget* parent = nullptr);
     ~MainRibbon() override;
 
     void    EnableTab(const TabType tab, const bool enable);
     void    SetLODLimit(const int limit);
+    void    SetPresets(const StringArray& presets);
 
 signals:
     void    SignalCurrentTabChanged(const TabType tab);
@@ -47,6 +62,10 @@ signals:
     void    SignalFileExportMetroSkeleton();
     void    SignalFileExportFBXSkeleton();
     //
+    void    SignalModelTPresetChanged(int index);
+    void    SignalModelTPresetEditClicked();
+    void    SignalModelCalculateAOClicked();
+    //
     void    SignalPhysicsBuildClicked(int physicsSource);
     //
     void    Signal3DViewShowBoundsChecked(bool checked);
@@ -58,6 +77,7 @@ signals:
     void    Signal3DViewShowModelChecked(bool checked);
     void    Signal3DViewModelLODValueChanged(int value);
     void    Signal3DViewShowPhysicsChecked(bool checked);
+    void    Signal3DViewRendererTypeChanged(RendererType type);
 
 private slots:
     void    OnCurrentTabChanged(int index);
@@ -75,6 +95,10 @@ private slots:
     void    OnFileExportMetroSkeletonCommand(bool checked);
     void    OnFileExportFBXSkeletonCommand(bool checked);
     //
+    void    OnModelTPresetChanged(int index);
+    void    OnModelTPresetEditClicked();
+    void    OnModelCalculateAOClicked();
+    //
     void    OnPhysicsBuildButtonClicked();
     //
     void    On3DViewShowBoundsChecked(int state);
@@ -86,6 +110,7 @@ private slots:
     void    On3DViewShowModelChecked(int state);
     void    On3DViewModelLODValueChanged(int value);
     void    On3DViewShowPhysicsChecked(int state);
+    void    On3DViewRendererTypeChanged(int index);
 
 private:
     void    BuildRibbon();
@@ -105,6 +130,8 @@ private:
     SimpleRibbonTab*    mTab3DView;
     // model groups
     SimpleRibbonGroup*  mGroupModelFile;
+    SimpleRibbonGroup*  mGroupModelPreset;
+    SimpleRibbonGroup*  mGroupModelAO;
     // skeleton groups
     SimpleRibbonGroup*  mGroupSkeletonFile;
     // animation groups
@@ -115,6 +142,10 @@ private:
     SimpleRibbonGroup*  mGroup3DViewSkeleton;
     SimpleRibbonGroup*  mGroup3DViewModel;
     SimpleRibbonGroup*  mGroup3DViewPhysics;
+    SimpleRibbonGroup*  mGroup3DViewRenderer;
+    // model controls
+    QComboBox*          mComboTPreset;
+    QPushButton*        mCalculateAOButton;
     // physics controls
     QComboBox*          mComboPhysicsSource;
     QPushButton*        mBuildPhysicsButton;
@@ -126,4 +157,5 @@ private:
     QCheckBox*          mCheckShowPhysics;
     QCheckBox*          mCheckShowModel;
     QSpinBox*           mModelLod;
+    QComboBox*          mRendererType;
 };

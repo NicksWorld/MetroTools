@@ -103,4 +103,9 @@ add_library(tinygltf INTERFACE)
 add_library(Tinygltf::Tinygltf ALIAS tinygltf)
 target_include_directories(tinygltf INTERFACE tinygltf)
 
+add_library(embree3 INTERFACE)
+add_library(Embree3::Embree3 ALIAS embree3)
+target_include_directories(embree3 INTERFACE embree3/include)
+target_link_directories(embree3 INTERFACE embree3/lib)
+
 set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash uninstall PROPERTIES FOLDER "external")

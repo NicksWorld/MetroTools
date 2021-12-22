@@ -1493,7 +1493,7 @@ bool MainWindow::ExtractModel(const FileExtractionCtx& ctx, const fs::path& outP
                 MyArray<MetroModelGeomData> gds;
                 mdl->CollectGeomData(gds);
                 for (auto& gd : gds) {
-                    CharString textureName(gd.texture);
+                    CharString textureName = gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture);
 
                     if (settings.extraction.modelSaveSurfaceSet) {
                         MetroSurfaceDescription surface = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(textureName, false);

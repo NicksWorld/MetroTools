@@ -23,7 +23,7 @@ cbuffer CBuffer_Terrain : register(b2) {
 #elif defined(PIXEL_SHADER)
 
 cbuffer CBuffer_SurfParams : register(b1) {
-    float4           Surf_Params0;  // x - alpha cut
+    float4           Surf_Params0;      // x - alpha cut, w - render mode
 };
 
 #endif

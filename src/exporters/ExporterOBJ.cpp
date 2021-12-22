@@ -132,7 +132,7 @@ bool ExporterOBJ::ExportModel(const MetroModelBase& model, const fs::path& fileP
             for (const auto& gd : gds) {
                 mtlBuilder << "newmtl " << "Material_" << meshIdx << std::endl;
 
-                const StringView& textureName = gd.texture;
+                const StringView& textureName = gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture);
 
                 MetroSurfaceDescription surfaceSet = MetroContext::Get().GetTexturesDB().GetSurfaceSetFromName(textureName, false);
                 const CharString& albedoName = surfaceSet.albedo;

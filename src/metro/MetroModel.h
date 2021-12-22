@@ -100,7 +100,6 @@ class MetroClothModel;
 struct MetroModelGeomData {
     AABBox                  bbox;
     BSphere                 bsphere;
-    StringView              texture;
     const MetroModelMesh*   mesh;
     const MetroModelBase*   model;
     const void*             vertices;
@@ -129,6 +128,13 @@ class MetroModelBase {
     friend class MetroModelHierarchy;
     friend class MetroModelSkeleton;
     friend class MetroModelSoft;
+
+public:
+    static const size_t kMaterialStringTexture      = 0;
+    static const size_t kMaterialStringShader       = 1;
+    static const size_t kMaterialStringGameMaterial = 2;
+    static const size_t kMaterialStringSrcMaterial  = 3;
+    static const size_t kMaterialStringNumStrings   = 4;
 
 public:
     static uint8_t GetModelVersionFromGameVersion(const MetroGameVersion gameVersion);
@@ -187,6 +193,7 @@ public:
 
 protected:
     virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset);
+    virtual void                    ResetTPresetInternal();
 
 protected:
     uint16_t                        mVersion;
@@ -199,6 +206,8 @@ protected:
     BSphere                         mBSphere;
     RefPtr<MetroModelMesh>          mMesh;
     StringArray                     mMaterialStrings;
+    CharString                      mMaterialTexture;
+    CharString                      mMaterialShader;
     uint16_t                        mMaterialFlags0;
     uint16_t                        mMaterialFlags1;
     bool                            mIsCollisionModel;
@@ -288,7 +297,13 @@ public:
     virtual bool                    IsHierarchy() const override { return true; }
     virtual bool                    IsSkinnedHierarchy() const override { return mType == scast<uint16_t>(MetroModelType::Hierarchy2); }
 
+    size_t                          GetNumTPresets() const;
+    MetroModelTPreset&              GetTPreset(const size_t idx);
+    const MetroModelTPreset&        GetTPreset(const size_t idx) const;
+    void                            AddTPreset(const MetroModelTPreset& tpreset);
+    void                            DeleteTPreset(const size_t idx);
     void                            ApplyTPreset(const CharString& tpresetName);
+    void                            ResetTPreset();
 
     size_t                          GetChildrenCount() const;
     RefPtr<MetroModelBase>          GetChild(const size_t idx) const;
@@ -306,6 +321,7 @@ protected:
     void                            LoadTPresets(const StreamChunker& chunker);
     void                            SaveTPresets(MemWriteStream& stream, const uint16_t version);
     virtual void                    ApplyTPresetInternal(const MetroModelTPreset& tpreset) override;
+    virtual void                    ResetTPresetInternal() override;
 
 protected:
     using ModelPtr = RefPtr<MetroModelBase>;

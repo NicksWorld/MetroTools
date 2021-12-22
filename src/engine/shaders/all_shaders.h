@@ -18,6 +18,7 @@ namespace __internal {
 #include "PS_Default.hlsl.h"
 #include "PS_Terrain.hlsl.h"
 #include "PS_DeferredResolve.hlsl.h"
+#include "PS_DeferredDebug.hlsl.h"
 #include "PS_Debug.hlsl.h"
 #include "PS_DebugLit.hlsl.h"
 #include "PS_Selection.hlsl.h"
@@ -52,6 +53,8 @@ static const void*  sPS_TerrainDataPtr              = __internal::sPS_TerrainDat
 constexpr    size_t sPS_TerrainDataLen              = std::size(__internal::sPS_TerrainData);
 static const void*  sPS_DeferredResolveDataPtr      = __internal::sPS_DeferredResolveData;
 constexpr    size_t sPS_DeferredResolveDataLen      = std::size(__internal::sPS_DeferredResolveData);
+static const void*  sPS_DeferredDebugDataPtr        = __internal::sPS_DeferredDebugData;
+constexpr    size_t sPS_DeferredDebugDataLen        = std::size(__internal::sPS_DeferredDebugData);
 static const void*  sPS_DebugDataPtr                = __internal::sPS_DebugData;
 constexpr    size_t sPS_DebugDataLen                = std::size(__internal::sPS_DebugData);
 static const void*  sPS_DebugLitDataPtr             = __internal::sPS_DebugLitData;

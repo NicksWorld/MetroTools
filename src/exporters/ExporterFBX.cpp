@@ -257,7 +257,7 @@ static void FBXE_CreateMeshModel(FbxManager* mgr,
         meshNode->SetNodeAttribute(fbxMesh);
 
         FbxSurfacePhong* material = nullptr;
-        HashString textureName = gd.texture;
+        HashString textureName = gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture);
         auto it = materialsDict.find(textureName);
         if (it != materialsDict.end()) {
             material = it->second;

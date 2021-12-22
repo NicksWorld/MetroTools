@@ -71,6 +71,7 @@ Renderer::Renderer()
     , mPixelShaderDefault(nullptr)
     , mPixelShaderTerrain(nullptr)
     , mPixelShaderDeferredResolve(nullptr)
+    , mPixelShaderDeferredDebug(nullptr)
     , mPixelShaderDebug(nullptr)
     , mPixelShaderDebugLit(nullptr)
     , mPixelShaderSelection(nullptr)
@@ -90,6 +91,9 @@ Renderer::Renderer()
     , mCBSkinned(nullptr)
     , mCBTerrain(nullptr)
     , mCBSurfParams(nullptr)
+    //
+    , mUpdateFrustum(true)
+    , mRendererType(RendererType::Regular)
     // debug
     , mDebugVertexBuffer(nullptr)
     , mDebugVerticesPtr(nullptr)
@@ -167,6 +171,7 @@ bool Renderer::Initialize() {
         return false;
     }
 
+    rasterDesc.CullMode = D3D11_CULL_BACK;
     rasterDesc.FillMode = D3D11_FILL_WIREFRAME;
     hr = mDevice->CreateRasterizerState(&rasterDesc, &mWireframeRS);
     if (FAILED(hr)) {
@@ -318,20 +323,27 @@ void Renderer::DrawScene(Scene& scene, const size_t flags) {
 
     // GBuffer fill pass
     {
-        mContext->OMSetRenderTargets(scast<UINT>(GBuffer_NumLayers), mGBufferRTV, mBackBufferDSV);
-        for (size_t i = 0; i < GBuffer_NumLayers; ++i) {
-            mContext->ClearRenderTargetView(mGBufferRTV[i], &kClearColor[i].x);
-        }
-        mContext->OMSetDepthStencilState(mDepthStencilState, kStencilRefValue);
-        mContext->ClearDepthStencilView(mBackBufferDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+        if (mRendererType != RendererType::Wireframe) {
+            mContext->OMSetRenderTargets(scast<UINT>(GBuffer_NumLayers), mGBufferRTV, mBackBufferDSV);
+            for (size_t i = 0; i < GBuffer_NumLayers; ++i) {
+                mContext->ClearRenderTargetView(mGBufferRTV[i], &kClearColor[i].x);
+            }
+            mContext->OMSetDepthStencilState(mDepthStencilState, kStencilRefValue);
+            mContext->ClearDepthStencilView(mBackBufferDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-        mContext->RSSetState(mFillRS);
+            mContext->RSSetState(mFillRS);
+        } else {
+            mContext->OMSetRenderTargets(1, &mBackBufferRTV, mBackBufferDSV);
+            mContext->ClearRenderTargetView(mBackBufferRTV, &kClearColor[0].x);
+
+            mContext->RSSetState(mWireframeRS);
+        }
 
         this->DrawFillPass();
     }
 
     // Shading resolve pass
-    {
+    if (mRendererType != RendererType::Wireframe) {
         mContext->OMSetRenderTargets(1, &mBackBufferRTV, mBackBufferDSV);
         mContext->ClearRenderTargetView(mBackBufferRTV, &kClearColor[0].x);
 
@@ -504,6 +516,10 @@ SceneNode* Renderer::PickObject(Swapchain& swapchain, Scene& scene, const vec2& 
     }
 
     return result;
+}
+
+void Renderer::SetRendererType(const RendererType type) {
+    mRendererType = type;
 }
 
 void Renderer::BeginDebugDraw() {
@@ -893,6 +909,13 @@ bool Renderer::CreateShaders() {
         return false;
     }
 
+    // deferred debug
+    hr = mDevice->CreatePixelShader(sPS_DeferredDebugDataPtr, sPS_DeferredDebugDataLen, nullptr, &mPixelShaderDeferredDebug);
+    if (FAILED(hr)) {
+        LogPrintF(LogLevel::Error, "Failed to create deferred debug PS, hr = %d", hr);
+        return false;
+    }
+
     // debug drawing
     hr = mDevice->CreatePixelShader(sPS_DebugDataPtr, sPS_DebugDataLen, nullptr, &mPixelShaderDebug);
     if (FAILED(hr)) {
@@ -1149,13 +1172,25 @@ void Renderer::DrawFillPass() {
     mContext->VSSetConstantBuffers(0, scast<UINT>(std::size(vcbuffers)), vcbuffers);
     mContext->PSSetConstantBuffers(0, scast<UINT>(std::size(pcbuffers)), pcbuffers);
 
-    mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
+    if (mRendererType != RendererType::Wireframe) {
+        mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
+    } else {
+        mCBSurfParamsData.param0 = vec4(1.0f);
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        mContext->Map(mCBSurfParams, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        memcpy(mapped.pData, &mCBSurfParamsData, sizeof(mCBSurfParamsData));
+        mContext->Unmap(mCBSurfParams, 0);
+
+        mContext->PSSetShader(mPixelShaderSelection, nullptr, 0);
+    }
 
     for (SceneNode* node : mLevelGeoNodes) {
         this->DrawLevelGeoNode(scast<LevelGeoNode*>(node));
     }
 
-    mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
+    if (mRendererType != RendererType::Wireframe) {
+        mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
+    }
     mContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     for (SceneNode* node : mModelNodes) {
         this->DrawModelNode(scast<ModelNode*>(node));
@@ -1167,7 +1202,20 @@ void Renderer::DrawResolvePass() {
 
     mContext->IASetInputLayout(nullptr);
     mContext->VSSetShader(mVertexShaderFullscreen, nullptr, 0);
-    mContext->PSSetShader(mPixelShaderDeferredResolve, nullptr, 0);
+
+    if (mRendererType == RendererType::Regular) {
+        mContext->PSSetShader(mPixelShaderDeferredResolve, nullptr, 0);
+    } else {
+        mContext->PSSetShader(mPixelShaderDeferredDebug, nullptr, 0);
+
+        const int renderMode = scast<int>(mRendererType) - scast<int>(RendererType::Albedo);
+
+        mCBSurfParamsData.param0.w = scast<float>(renderMode);
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        mContext->Map(mCBSurfParams, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        memcpy(mapped.pData, &mCBSurfParamsData, sizeof(mCBSurfParamsData));
+        mContext->Unmap(mCBSurfParams, 0);
+    }
 
     mContext->PSSetShaderResources(0, scast<UINT>(GBuffer_NumLayers), mGBufferSRV);
 
@@ -1269,18 +1317,20 @@ void Renderer::DrawModelNode(ModelNode* node) {
             mContext->Unmap(mCBSkinned, 0);
         }
 
-        mCBSurfParamsData.param0.x = section.alphaCut;
-        mContext->Map(mCBSurfParams, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        memcpy(mapped.pData, &mCBSurfParamsData, sizeof(mCBSurfParamsData));
-        mContext->Unmap(mCBSurfParams, 0);
+        if (mRendererType != RendererType::Wireframe) {
+            mCBSurfParamsData.param0.x = section.alphaCut;
+            mContext->Map(mCBSurfParams, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            memcpy(mapped.pData, &mCBSurfParamsData, sizeof(mCBSurfParamsData));
+            mContext->Unmap(mCBSurfParams, 0);
 
-        ID3D11ShaderResourceView* srvs[3] = {
-            surface.base->GetSRV(),
-            surface.normal->GetSRV(),
-            surface.bump->GetSRV()
-        };
+            ID3D11ShaderResourceView* srvs[3] = {
+                surface.base->GetSRV(),
+                surface.normal->GetSRV(),
+                surface.bump->GetSRV()
+            };
 
-        mContext->PSSetShaderResources(0, 3, srvs);
+            mContext->PSSetShaderResources(0, 3, srvs);
+        }
 
         const UINT vbOffset = section.vbOffset;
         const UINT ibOffset = section.ibOffset;
@@ -1304,8 +1354,6 @@ void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
     memcpy(mapped.pData, &mCBMatricesData, sizeof(mCBMatricesData));
     mContext->Unmap(mCBMatrices, 0);
 
-    mContext->PSSetShader(mPixelShaderDefault, nullptr, 0);
-
     const UINT vertexStride = sizeof(VertexLevel);
     mContext->IASetInputLayout(mInputLayoutLevelGeo);
     mContext->VSSetShader(mVertexShaderLevelGeo, nullptr, 0);
@@ -1318,15 +1366,17 @@ void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
 
         for (const LevelGeoSection& section : sector.sections) {
             if (section.numIndices) {
-                const Surface& surface = geo->GetSurface(section.surfaceIdx);
+                if (mRendererType != RendererType::Wireframe) {
+                    const Surface& surface = geo->GetSurface(section.surfaceIdx);
 
-                ID3D11ShaderResourceView* srvs[3] = {
-                    surface.base->GetSRV(),
-                    surface.normal->GetSRV(),
-                    surface.bump->GetSRV()
-                };
+                    ID3D11ShaderResourceView* srvs[3] = {
+                        surface.base->GetSRV(),
+                        surface.normal->GetSRV(),
+                        surface.bump->GetSRV()
+                    };
 
-                mContext->PSSetShaderResources(0, 3, srvs);
+                    mContext->PSSetShaderResources(0, 3, srvs);
+                }
 
                 mContext->IASetVertexBuffers(0, 1, &sector.vertexBuffer, &vertexStride, &section.vbOffset);
                 mContext->IASetIndexBuffer(sector.indexBuffer, DXGI_FORMAT_R16_UINT, section.ibOffset);
@@ -1362,18 +1412,20 @@ void Renderer::DrawLevelGeoNode(LevelGeoNode* node) {
 
         mContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        ID3D11ShaderResourceView* psSrvs[] = {
-            geo->GetTerrainDiffuse()->GetSRV(),
-            geo->GetTerrainNormalmap()->GetSRV(),
-            geo->GetTerrainLMap()->GetSRV(),
-            geo->GetTerrainMask()->GetSRV(),
-            geo->GetTerrainDet(0)->GetSRV(),
-            geo->GetTerrainDet(1)->GetSRV(),
-            geo->GetTerrainDet(2)->GetSRV(),
-            geo->GetTerrainDet(3)->GetSRV()
-        };
-        mContext->PSSetShader(mPixelShaderTerrain, nullptr, 0);
-        mContext->PSSetShaderResources(0, scast<UINT>(std::size(psSrvs)), psSrvs);
+        if (mRendererType != RendererType::Wireframe) {
+            ID3D11ShaderResourceView* psSrvs[] = {
+                geo->GetTerrainDiffuse()->GetSRV(),
+                geo->GetTerrainNormalmap()->GetSRV(),
+                geo->GetTerrainLMap()->GetSRV(),
+                geo->GetTerrainMask()->GetSRV(),
+                geo->GetTerrainDet(0)->GetSRV(),
+                geo->GetTerrainDet(1)->GetSRV(),
+                geo->GetTerrainDet(2)->GetSRV(),
+                geo->GetTerrainDet(3)->GetSRV()
+            };
+            mContext->PSSetShader(mPixelShaderTerrain, nullptr, 0);
+            mContext->PSSetShaderResources(0, scast<UINT>(std::size(psSrvs)), psSrvs);
+        }
 
         ID3D11Buffer* vb = geo->GetTerrainVB();
         ID3D11Buffer* ib = geo->GetTerrainIB();

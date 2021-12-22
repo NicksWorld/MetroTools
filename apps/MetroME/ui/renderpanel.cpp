@@ -285,6 +285,10 @@ void RenderPanel::SetDebugShowPhysics(const bool show) {
     mShowPhysics = show;
 }
 
+void RenderPanel::SetRendererType(const size_t type) {
+    u4a::Renderer::Get().SetRendererType(scast<u4a::Renderer::RendererType>(type));
+}
+
 
 
 void RenderPanel::CreateD2DResources() {

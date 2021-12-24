@@ -14,9 +14,8 @@ struct EmbreeFace {
     uint32_t a, b, c;
 } PACKED_STRUCT_END;
 
-constexpr size_t    kNumSamples = 256;
-constexpr float     kSampleWeight = 1.0f / scast<float>(kNumSamples);
 constexpr float     kRayStartBias = 0.001f;
+constexpr float     kAOIntensity  = 1.0f;
 
 
 // Maps a value inside the square [0,1]x[0,1] to a value in a disk of radius 1 using concentric squares.
@@ -78,15 +77,41 @@ static vec3 SampleDirectionHemisphere(float u1, float u2) {
     return vec3(x, y, z);
 }
 
+static void AverageAO(MetroModelGeomData& gd, const MyArray<float>& aos) {
+    const MetroFace* faces = rcast<const MetroFace*>(gd.faces);
+    for (size_t i = 0; i < gd.mesh->facesCount; ++i) {
+        float a = aos[faces[i].a];
+        float b = aos[faces[i].b];
+        float c = aos[faces[i].c];
+
+        const float average = (a + b + c) / 3.0f;
+        a = a + (average - a) * 0.5f;
+        b = b + (average - b) * 0.5f;
+        c = c + (average - c) * 0.5f;
+
+        if (gd.mesh->vertexType == MetroVertexType::Skin) {
+            VertexSkinned* dstVerts = (VertexSkinned*)gd.vertices;
+            dstVerts[faces[i].a].normal = EncodedNormalSetAO(dstVerts[faces[i].a].normal, a);
+            dstVerts[faces[i].b].normal = EncodedNormalSetAO(dstVerts[faces[i].b].normal, b);
+            dstVerts[faces[i].c].normal = EncodedNormalSetAO(dstVerts[faces[i].c].normal, c);
+        } else {
+            VertexStatic* dstVerts = (VertexStatic*)gd.vertices;
+            dstVerts[faces[i].a].normal = EncodedNormalSetAO(dstVerts[faces[i].a].normal, a);
+            dstVerts[faces[i].b].normal = EncodedNormalSetAO(dstVerts[faces[i].b].normal, b);
+            dstVerts[faces[i].c].normal = EncodedNormalSetAO(dstVerts[faces[i].c].normal, c);
+        }
+    }
+}
+
 static float CalcAOForVertex(const vec4& pos, const vec3& normal, const MyArray<vec3>& samples, RTCScene embreeScene) {
-    float result = 0.0f;
+    float occlusion = 0.0f;
 
     vec3 tangent, bitangent;
     OrthonormalBasis(normal, tangent, bitangent);
     mat3 tbn(tangent, bitangent, normal);
 
-    for (size_t i = 0; i < kNumSamples; ++i) {
-        vec3 sample = tbn * samples[i];
+    for (const vec3& s : samples) {
+        vec3 sample = tbn * s;
 
         RTCIntersectContext intersectCtx;
         rtcInitIntersectContext(&intersectCtx);
@@ -104,15 +129,16 @@ static float CalcAOForVertex(const vec4& pos, const vec3& normal, const MyArray<
         ray.tfar = std::numeric_limits<float>::max();
 
         rtcOccluded1(embreeScene, &intersectCtx, &ray);
-        if (ray.tfar > ray.tnear) { // no occlusion
-            result += kSampleWeight;
+        if (ray.tfar <= ray.tnear) { // hit
+            occlusion += 1.0f;  //#TODO_SK: implement distance weighting ??? something simple like clamp(1.0f - (hitDistance / maximumRange))
         }
     }
 
-    return Clamp(result, 0.0f, 1.0f);
+    //#TODO_SK: make intensity configurable
+    return Clamp(1.0f - ((occlusion * kAOIntensity) / scast<float>(samples.size())), 0.0f, 1.0f);
 }
 
-bool CalculateModelAO(RefPtr<MetroModelBase>& model) {
+bool CalculateModelAO(RefPtr<MetroModelBase>& model, const size_t quality) {
     RTCDevice embreeDevice = rtcNewDevice(nullptr);
     RTCScene embreeScene = rtcNewScene(embreeDevice);
 
@@ -160,8 +186,17 @@ bool CalculateModelAO(RefPtr<MetroModelBase>& model) {
 
     rtcCommitScene(embreeScene);
 
-    MyArray<vec3> samples(kNumSamples);
-    for (size_t i = 0; i < kNumSamples; ++i) {
+    size_t numSamples = 256;    // low
+    if (quality == 1) {         // normal
+        numSamples = 512;
+    } else if (quality == 2) {  // high
+        numSamples = 1024;
+    } else if (quality > 0) {   // ultra
+        numSamples = 2048;
+    }
+
+    MyArray<vec3> samples(numSamples);
+    for (size_t i = 0; i < numSamples; ++i) {
         const float u = RandomFloat01();
         const float v = RandomFloat01();
         samples[i] = SampleCosineHemisphere(u, v);//SampleDirectionHemisphere(u, v);
@@ -171,21 +206,23 @@ bool CalculateModelAO(RefPtr<MetroModelBase>& model) {
         MetroModelGeomData& gd = gds[gdIdx];
         const MyArray<EmbreeVertex>& vertices = vertexBuffers[gdIdx];
 
+        MyArray<float> aos(gd.mesh->verticesCount);
+
         if (gd.mesh->vertexType == MetroVertexType::Skin) {
             VertexSkinned* dstVerts = (VertexSkinned*)gd.vertices;
             for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
                 vec3 n = vec3(DecodeNormal(dstVerts[i].normal));
-                const float ao = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
-                dstVerts[i].normal = EncodeNormal(n, ao);
+                aos[i] = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
             }
         } else {
             VertexStatic* dstVerts = (VertexStatic*)gd.vertices;
             for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
                 vec3 n = vec3(DecodeNormal(dstVerts[i].normal));
-                const float ao = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
-                dstVerts[i].normal = EncodeNormal(n, ao);
+                aos[i] = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
             }
         }
+
+        AverageAO(gd, aos);
     }
 
     rtcReleaseScene(embreeScene);

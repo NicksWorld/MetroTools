@@ -283,18 +283,22 @@ static vec4 DecodeNormal(const uint32_t n) {
 
 static uint32_t EncodeNormal(const vec3& normal, const float vao) {
     const vec3 remappedN = normal * 0.5f + 0.5f;
-    const float clampedVao = Clamp(vao, 0.0f, 1.0f);
 
     const uint32_t uX = scast<uint32_t>(Clamp(remappedN.x * 255.0f, 0.0f, 255.0f));
     const uint32_t uY = scast<uint32_t>(Clamp(remappedN.y * 255.0f, 0.0f, 255.0f));
     const uint32_t uZ = scast<uint32_t>(Clamp(remappedN.z * 255.0f, 0.0f, 255.0f));
-    const uint32_t uVao = scast<uint32_t>(Clamp(clampedVao * 255.0f, 0.0f, 255.0f));
+    const uint32_t uVao = scast<uint32_t>(Clamp(vao * 255.0f, 0.0f, 255.0f));
 
     const uint32_t result = (uVao & 0xFF) << 24 |
                             (uX   & 0xFF) << 16 |
                             (uY   & 0xFF) <<  8 |
                             (uZ   & 0xFF);
     return result;
+}
+
+static uint32_t EncodedNormalSetAO(const uint32_t encodedNormal, const float vao) {
+    const uint32_t uVao = scast<uint32_t>(Clamp(vao * 255.0f, 0.0f, 255.0f));
+    return (encodedNormal & 0x00FFFFFF) | (uVao << 24);
 }
 
 static vec4 DecodeTangent(const uint32_t n) {

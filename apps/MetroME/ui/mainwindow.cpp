@@ -655,11 +655,11 @@ void MainWindow::OnTPresetsEdit() {
     }
 }
 
-extern "C++" bool CalculateModelAO(RefPtr<MetroModelBase>& model);
-void MainWindow::OnCalculateAO() {
+extern "C++" bool CalculateModelAO(RefPtr<MetroModelBase>& model, const size_t quality);
+void MainWindow::OnCalculateAO(int quality) {
     RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
     if (model) {
-        if (CalculateModelAO(model)) {
+        if (CalculateModelAO(model, scast<size_t>(quality))) {
             this->OnModelMeshPropertiesChanged();
         }
     }

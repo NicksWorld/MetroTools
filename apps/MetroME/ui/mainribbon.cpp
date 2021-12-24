@@ -163,7 +163,8 @@ void MainRibbon::OnModelTPresetEditClicked() {
 }
 
 void MainRibbon::OnModelCalculateAOClicked() {
-    emit SignalModelCalculateAOClicked();
+    const int idx = mAOCalcQuality->currentIndex();
+    emit SignalModelCalculateAOClicked(idx >= 0 ? idx : 0);
 }
 
 
@@ -329,14 +330,22 @@ void MainRibbon::BuildModelTab() {
     {
         SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
         QLabel* label = new QLabel();
-        label->setText(tr("Vertex AO"));
+        label->setText(tr("AO calc quality:"));
         label->setAlignment(Qt::AlignHCenter);
+
+        mAOCalcQuality = new QComboBox();
+        mAOCalcQuality->addItem(tr("Low (fast)"));
+        mAOCalcQuality->addItem(tr("Normal"));
+        mAOCalcQuality->addItem(tr("High"));
+        mAOCalcQuality->addItem(tr("Ultra"));
+        mAOCalcQuality->setEditable(false);
 
         mCalculateAOButton = new QPushButton();
         mCalculateAOButton->setText(tr("Calculate"));
         connect(mCalculateAOButton, &QPushButton::clicked, this, &MainRibbon::OnModelCalculateAOClicked);
 
         vbar->AddWidget(label);
+        vbar->AddWidget(mAOCalcQuality);
         vbar->AddWidget(mCalculateAOButton);
         mGroupModelAO->AddWidget(vbar);
     }

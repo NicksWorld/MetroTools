@@ -60,7 +60,7 @@ public slots:
     //
     void    OnTPresetChanged(int index);
     void    OnTPresetsEdit();
-    void    OnCalculateAO();
+    void    OnCalculateAO(int quality);
     //
     void    OnPhysicsBuild(int physicsSource);
     //

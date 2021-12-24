@@ -64,7 +64,7 @@ signals:
     //
     void    SignalModelTPresetChanged(int index);
     void    SignalModelTPresetEditClicked();
-    void    SignalModelCalculateAOClicked();
+    void    SignalModelCalculateAOClicked(int quality);
     //
     void    SignalPhysicsBuildClicked(int physicsSource);
     //
@@ -145,6 +145,7 @@ private:
     SimpleRibbonGroup*  mGroup3DViewRenderer;
     // model controls
     QComboBox*          mComboTPreset;
+    QComboBox*          mAOCalcQuality;
     QPushButton*        mCalculateAOButton;
     // physics controls
     QComboBox*          mComboPhysicsSource;

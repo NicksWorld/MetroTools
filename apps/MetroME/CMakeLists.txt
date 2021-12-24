@@ -75,8 +75,10 @@ target_link_libraries(MetroME PRIVATE
     Physx3utils::Physx3utils
 
     Embree3::Embree3
+    Tbb::Tbb
 
     d2d1.lib
     dwrite.lib
     embree3.lib
+    tbb.lib
 )

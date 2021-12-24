@@ -108,4 +108,9 @@ add_library(Embree3::Embree3 ALIAS embree3)
 target_include_directories(embree3 INTERFACE embree3/include)
 target_link_directories(embree3 INTERFACE embree3/lib)
 
+add_library(tbb INTERFACE)
+add_library(Tbb::Tbb ALIAS tbb)
+target_include_directories(tbb INTERFACE tbb/include)
+target_link_directories(tbb INTERFACE tbb/lib/intel64/vc14)
+
 set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash uninstall PROPERTIES FOLDER "external")

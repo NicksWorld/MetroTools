@@ -1,5 +1,10 @@
 #include "metro/MetroModel.h"
 #include <embree3/rtcore.h>
+#include <tbb/tbb.h>
+
+#ifdef max
+#undef max
+#endif
 
 //#NOTE_SK: Embree requires shared vertices to be padded to 16 bytes
 //          so it's easier to just use vec4 aligned (for berret SIMD perf)
@@ -210,16 +215,22 @@ bool CalculateModelAO(RefPtr<MetroModelBase>& model, const size_t quality) {
 
         if (gd.mesh->vertexType == MetroVertexType::Skin) {
             VertexSkinned* dstVerts = (VertexSkinned*)gd.vertices;
-            for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
-                vec3 n = vec3(DecodeNormal(dstVerts[i].normal));
-                aos[i] = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
-            }
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, gd.mesh->verticesCount),
+                [&gd, dstVerts, &vertices, &aos, &samples, embreeScene](const tbb::blocked_range<size_t>& r) {
+                    for (size_t i = r.begin(); i < r.end(); ++i) {
+                        vec3 n = vec3(DecodeNormal(dstVerts[i].normal));
+                        aos[i] = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
+                    }
+                });
         } else {
             VertexStatic* dstVerts = (VertexStatic*)gd.vertices;
-            for (size_t i = 0; i < gd.mesh->verticesCount; ++i) {
-                vec3 n = vec3(DecodeNormal(dstVerts[i].normal));
-                aos[i] = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
-            }
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, gd.mesh->verticesCount),
+                [&gd, dstVerts, &vertices, &aos, &samples, embreeScene](const tbb::blocked_range<size_t>& r) {
+                    for (size_t i = r.begin(); i < r.end(); ++i) {
+                        vec3 n = vec3(DecodeNormal(dstVerts[i].normal));
+                        aos[i] = CalcAOForVertex(vertices[i].pos, n, samples, embreeScene);
+                    }
+                });
         }
 
         AverageAO(gd, aos);

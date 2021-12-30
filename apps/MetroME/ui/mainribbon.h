@@ -65,6 +65,7 @@ signals:
     void    SignalModelTPresetChanged(int index);
     void    SignalModelTPresetEditClicked();
     void    SignalModelCalculateAOClicked(int quality);
+    void    SignalModelBuildLODsClicked();
     //
     void    SignalPhysicsBuildClicked(int physicsSource);
     //
@@ -98,6 +99,7 @@ private slots:
     void    OnModelTPresetChanged(int index);
     void    OnModelTPresetEditClicked();
     void    OnModelCalculateAOClicked();
+    void    OnModelBuildLODsClicked();
     //
     void    OnPhysicsBuildButtonClicked();
     //
@@ -132,6 +134,7 @@ private:
     SimpleRibbonGroup*  mGroupModelFile;
     SimpleRibbonGroup*  mGroupModelPreset;
     SimpleRibbonGroup*  mGroupModelAO;
+    SimpleRibbonGroup*  mGroupModelLODs;
     // skeleton groups
     SimpleRibbonGroup*  mGroupSkeletonFile;
     // animation groups
@@ -147,6 +150,7 @@ private:
     QComboBox*          mComboTPreset;
     QComboBox*          mAOCalcQuality;
     QPushButton*        mCalculateAOButton;
+    QPushButton*        mBuildLODsButton;
     // physics controls
     QComboBox*          mComboPhysicsSource;
     QPushButton*        mBuildPhysicsButton;

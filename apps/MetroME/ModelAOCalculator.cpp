@@ -7,9 +7,8 @@
 #endif
 
 //#NOTE_SK: Embree requires shared vertices to be padded to 16 bytes
-//          so it's easier to just use vec4 aligned (for berret SIMD perf)
-__declspec(align(16))
-struct EmbreeVertex {
+//          so it's easier to just use vec4 aligned (for better SIMD perf)
+struct alignas(16) EmbreeVertex {
     vec4 pos;
 };
 

@@ -15,6 +15,7 @@ target_sources(MetroME PRIVATE
     MetroSessions.h
     MetroSessions.cpp
     ModelAOCalculator.cpp
+    ModelLODBuilder.cpp
     ui/mainwindow.cpp
     ui/mainwindow.h
     ui/mainwindow.ui
@@ -76,6 +77,8 @@ target_link_libraries(MetroME PRIVATE
 
     Embree3::Embree3
     Tbb::Tbb
+
+    meshoptimizer
 
     d2d1.lib
     dwrite.lib

@@ -316,6 +316,7 @@ public:
 
     virtual void                    AddChild(const RefPtr<MetroModelBase>& child);
     virtual void                    AddLOD(const RefPtr<MetroModelBase>& lod);
+    virtual void                    RemoveLODs();
 
 protected:
     void                            LoadTPresets(const StreamChunker& chunker);

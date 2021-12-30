@@ -32,6 +32,7 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mGroupModelFile(nullptr)
     , mGroupModelPreset(nullptr)
     , mGroupModelAO(nullptr)
+    , mGroupModelLODs(nullptr)
     // skeleton groups
     , mGroupSkeletonFile(nullptr)
     // physics groups
@@ -45,6 +46,7 @@ MainRibbon::MainRibbon(QWidget* parent)
     // model controls
     , mComboTPreset(nullptr)
     , mCalculateAOButton(nullptr)
+    , mBuildLODsButton(nullptr)
     // physics controls
     , mComboPhysicsSource(nullptr)
     , mBuildPhysicsButton(nullptr)
@@ -167,6 +169,11 @@ void MainRibbon::OnModelCalculateAOClicked() {
     emit SignalModelCalculateAOClicked(idx >= 0 ? idx : 0);
 }
 
+void MainRibbon::OnModelBuildLODsClicked() {
+    emit SignalModelBuildLODsClicked();
+}
+
+
 
 //
 void MainRibbon::OnPhysicsBuildButtonClicked() {
@@ -253,6 +260,7 @@ void MainRibbon::BuildModelTab() {
     mGroupModelFile = mTabModel->AddRibbonGroup(tr("File"));
     mGroupModelPreset = mTabModel->AddRibbonGroup(tr("Presets"));
     mGroupModelAO = mTabModel->AddRibbonGroup(tr("AO"));
+    mGroupModelLODs = mTabModel->AddRibbonGroup(tr("LODs"));
 
     SimpleRibbonButton* importModelButton = new SimpleRibbonButton;
     importModelButton->SetText(tr("Import..."));
@@ -348,6 +356,22 @@ void MainRibbon::BuildModelTab() {
         vbar->AddWidget(mAOCalcQuality);
         vbar->AddWidget(mCalculateAOButton);
         mGroupModelAO->AddWidget(vbar);
+    }
+
+    // LODs
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        QLabel* label = new QLabel();
+        label->setText(tr("LODs builder:"));
+        label->setAlignment(Qt::AlignHCenter);
+
+        mBuildLODsButton = new QPushButton();
+        mBuildLODsButton->setText(tr("Build LODs"));
+        connect(mBuildLODsButton, &QPushButton::clicked, this, &MainRibbon::OnModelBuildLODsClicked);
+
+        vbar->AddWidget(label);
+        vbar->AddWidget(mBuildLODsButton);
+        mGroupModelLODs->AddWidget(vbar);
     }
 }
 

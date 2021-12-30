@@ -1008,6 +1008,10 @@ void MetroModelHierarchy::AddLOD(const RefPtr<MetroModelBase>& lod) {
     mLods.push_back(lod);
 }
 
+void MetroModelHierarchy::RemoveLODs() {
+    mLods.clear();
+}
+
 void MetroModelHierarchy::LoadTPresets(const StreamChunker& chunker) {
     MemStream tpresetsStream = chunker.GetChunkStream(MC_TexturesPresets);
     if (tpresetsStream) {

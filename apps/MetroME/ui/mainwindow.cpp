@@ -211,6 +211,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::SignalModelTPresetChanged, this, &MainWindow::OnTPresetChanged);
     connect(ui->ribbon, &MainRibbon::SignalModelTPresetEditClicked, this, &MainWindow::OnTPresetsEdit);
     connect(ui->ribbon, &MainRibbon::SignalModelCalculateAOClicked, this, &MainWindow::OnCalculateAO);
+    connect(ui->ribbon, &MainRibbon::SignalModelBuildLODsClicked, this, &MainWindow::OnBuildLODs);
     //
     connect(ui->ribbon, &MainRibbon::SignalPhysicsBuildClicked, this, &MainWindow::OnPhysicsBuild);
     //
@@ -660,6 +661,47 @@ void MainWindow::OnCalculateAO(int quality) {
     RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
     if (model) {
         if (CalculateModelAO(model, scast<size_t>(quality))) {
+            this->OnModelMeshPropertiesChanged();
+        }
+    }
+}
+
+extern "C++" RefPtr<MetroModelBase> BuildModelLOD(RefPtr<MetroModelBase>&model, const float ratio);
+void MainWindow::OnBuildLODs() {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model) {
+        if (model->IsSkeleton() || model->IsSkinnedHierarchy() || model->IsSoft()) {
+            QMessageBox::critical(this, this->windowTitle(), tr("Only static models supported at the moment!"));
+        } else {
+            RefPtr<MetroModelHierarchy> hierarchy = SCastRefPtr<MetroModelHierarchy>(model);
+            hierarchy->RemoveLODs();
+
+            const size_t numChildren = hierarchy->GetChildrenCount();
+
+            for (size_t i = 0; i < 2; ++i) {
+                const float ratio = (i == 0) ? 0.6f : 0.3f;
+
+                MyArray<RefPtr<MetroModelBase>> lodMeshes; lodMeshes.reserve(numChildren);
+                for (size_t i = 0; i < numChildren; ++i) {
+                    RefPtr<MetroModelBase> child = hierarchy->GetChild(i);
+                    if (!child->IsCollisionModel()) {
+                        RefPtr<MetroModelBase> lodMesh = BuildModelLOD(child, ratio);
+                        if (lodMesh) {
+                            lodMeshes.push_back(lodMesh);
+                        }
+                    }
+                }
+
+                if (!lodMeshes.empty()) {
+                    RefPtr<MetroModelHierarchy> lod = MakeRefPtr<MetroModelHierarchy>();
+                    for (auto& lm : lodMeshes) {
+                        lod->AddChild(lm);
+                    }
+
+                    hierarchy->AddLOD(lod);
+                }
+            }
+
             this->OnModelMeshPropertiesChanged();
         }
     }

@@ -113,4 +113,9 @@ add_library(Tbb::Tbb ALIAS tbb)
 target_include_directories(tbb INTERFACE tbb/include)
 target_link_directories(tbb INTERFACE tbb/lib/intel64/vc14)
 
-set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash uninstall PROPERTIES FOLDER "external")
+set(MESHOPT_BUILD_DEMO OFF)
+set(MESHOPT_BUILD_GLTFPACK OFF)
+set(MESHOPT_BUILD_SHARED_LIBS OFF)
+add_subdirectory(meshoptimizer)
+
+set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash meshoptimizer uninstall PROPERTIES FOLDER "external")

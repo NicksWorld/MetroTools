@@ -99,13 +99,13 @@ bool ExporterOBJ::ExportModel(const MetroModelBase& model, const fs::path& fileP
 
             const MetroFace* faces = scast<const MetroFace*>(gd.faces);
             for (size_t i = 0; i < gd.mesh->facesCount; ++i) {
-                const size_t a = faces[i].c + lastIdx + 1;
+                const size_t a = faces[i].a + lastIdx + 1;
                 const size_t b = faces[i].b + lastIdx + 1;
-                const size_t c = faces[i].a + lastIdx + 1;
+                const size_t c = faces[i].c + lastIdx + 1;
 
                 stringBuilder << "f " << a << '/' << a << '/' << a <<
-                    ' ' << b << '/' << b << '/' << b <<
-                    ' ' << c << '/' << c << '/' << c << std::endl;
+                                  ' ' << b << '/' << b << '/' << b <<
+                                  ' ' << c << '/' << c << '/' << c << std::endl;
             }
             stringBuilder << "# " << gd.mesh->facesCount << " faces" << std::endl << std::endl;
 

@@ -78,15 +78,16 @@ struct MetroModelMesh {
         , verticesScale(1.0f)
     { }
 
-    uint32_t    verticesOffset;
-    uint32_t    verticesCount;
-    uint32_t    indicesOffset;
-    uint32_t    facesCount;
-    uint32_t    shadowVerticesCount;
-    uint32_t    shadowFacesCount;
-    uint32_t    vertexType;
-    float       verticesScale;
-    BytesArray  bonesRemap;
+    uint32_t        verticesOffset;
+    uint32_t        verticesCount;
+    uint32_t        indicesOffset;
+    uint32_t        facesCount;
+    uint32_t        shadowVerticesCount;
+    uint32_t        shadowFacesCount;
+    uint32_t        vertexType;
+    float           verticesScale;
+    BytesArray      bonesRemap;
+    MyArray<OBBox>  bonesOBBs;
 };
 
 class MetroModelBase;
@@ -263,16 +264,18 @@ public:
     MetroModelSkeleton*     GetParent() const;
     void                    SetParent(MetroModelSkeleton* parent);
 
+    size_t                  GetNumBonesOBB() const;
+    const OBBox&            GetBoneOBB(const size_t idx) const;
+
     // model creation
     void                    CreateMesh(const size_t numVertices, const size_t numFaces, const float vscale);
     void                    CopyVerticesData(const void* vertices);
     void                    CopyFacesData(const void* faces);
     void                    SetBonesRemapTable(const BytesArray& bonesRemapTable);
-    void                    SetBonesOBB(const MyArray<MetroOBB>& bonesOBB);
+    void                    SetBonesOBB(const MyArray<OBBox>& bonesOBB);
 
 protected:
     MetroModelSkeleton*     mParent;
-    MyArray<MetroOBB>       mBonesOBB;
     BytesArray              mVerticesData;
     BytesArray              mFacesData;
 };

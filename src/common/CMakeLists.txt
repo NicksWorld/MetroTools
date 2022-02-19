@@ -25,4 +25,5 @@ target_link_libraries(common
         pugixml
         Xxhash::Xxhash
     PRIVATE
-        Stb::Stb)
+        Stb::Stb
+        Bcdec::Bcdec)

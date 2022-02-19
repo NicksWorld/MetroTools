@@ -616,8 +616,8 @@ bool MetroModelSkin::Load(MemStream& stream, MetroModelLoadParams& params) {
     mMesh->bonesRemap.resize(numBones);
     verticesStream.ReadToBuffer(mMesh->bonesRemap.data(), numBones);
 
-    mBonesOBB.resize(numBones);
-    verticesStream.ReadToBuffer(mBonesOBB.data(), numBones * sizeof(MetroOBB));
+    mMesh->bonesOBBs.resize(numBones);
+    verticesStream.ReadToBuffer(mMesh->bonesOBBs.data(), numBones * sizeof(OBBox));
 
     mMesh->verticesCount = verticesStream.ReadU32();
     if (params.formatVersion >= kModelVersionEarlyArktika1) {
@@ -668,7 +668,7 @@ bool MetroModelSkin::Save(MemWriteStream& stream, const MetroModelSaveParams& pa
 
             stream.WriteU8(scast<uint8_t>(mMesh->bonesRemap.size() & 0xFF));
             stream.Write(mMesh->bonesRemap.data(), mMesh->bonesRemap.size());
-            stream.Write(mBonesOBB.data(), mBonesOBB.size() * sizeof(MetroOBB));
+            stream.Write(mMesh->bonesOBBs.data(), mMesh->bonesOBBs.size() * sizeof(OBBox));
 
             stream.WriteU32(mMesh->verticesCount);
             if (version >= kModelVersionEarlyArktika1) {
@@ -737,6 +737,15 @@ void MetroModelSkin::SetParent(MetroModelSkeleton* parent) {
     mParent = parent;
 }
 
+size_t MetroModelSkin::GetNumBonesOBB() const {
+    return this->MeshValid() ? mMesh->bonesOBBs.size() : 0;
+}
+
+const OBBox& MetroModelSkin::GetBoneOBB(const size_t idx) const {
+    assert(this->MeshValid());
+    return mMesh->bonesOBBs[idx];
+}
+
 // model creation
 void MetroModelSkin::CreateMesh(const size_t numVertices, const size_t numFaces, const float vscale) {
     mMesh = MakeRefPtr<MetroModelMesh>();
@@ -760,12 +769,13 @@ void MetroModelSkin::CopyFacesData(const void* faces) {
 }
 
 void MetroModelSkin::SetBonesRemapTable(const BytesArray& bonesRemapTable) {
-    assert(mMesh != nullptr);
+    assert(this->MeshValid());
     mMesh->bonesRemap = bonesRemapTable;
 }
 
-void MetroModelSkin::SetBonesOBB(const MyArray<MetroOBB>& bonesOBB) {
-    mBonesOBB = bonesOBB;
+void MetroModelSkin::SetBonesOBB(const MyArray<OBBox>& bonesOBB) {
+    assert(this->MeshValid());
+    mMesh->bonesOBBs = bonesOBB;
 }
 
 

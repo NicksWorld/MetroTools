@@ -67,6 +67,8 @@ signals:
     void    SignalModelCalculateAOClicked(int quality);
     void    SignalModelBuildLODsClicked();
     //
+    void    SignalSkeletonBuildBonesOBBsClicked();
+    //
     void    SignalPhysicsBuildClicked(int physicsSource);
     //
     void    Signal3DViewShowBoundsChecked(bool checked);
@@ -100,6 +102,8 @@ private slots:
     void    OnModelTPresetEditClicked();
     void    OnModelCalculateAOClicked();
     void    OnModelBuildLODsClicked();
+    //
+    void    OnSkeletonBuildBonesOBBsClicked();
     //
     void    OnPhysicsBuildButtonClicked();
     //
@@ -137,6 +141,7 @@ private:
     SimpleRibbonGroup*  mGroupModelLODs;
     // skeleton groups
     SimpleRibbonGroup*  mGroupSkeletonFile;
+    SimpleRibbonGroup*  mGroupSkeletonOBBs;
     // animation groups
     // physics groups
     SimpleRibbonGroup*  mGroupPhysicsTools;
@@ -151,6 +156,8 @@ private:
     QComboBox*          mAOCalcQuality;
     QPushButton*        mCalculateAOButton;
     QPushButton*        mBuildLODsButton;
+    // skeleton controls
+    QPushButton*        mBuildBonesOBBsButton;
     // physics controls
     QComboBox*          mComboPhysicsSource;
     QPushButton*        mBuildPhysicsButton;

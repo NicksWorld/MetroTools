@@ -65,6 +65,8 @@ public slots:
     //
     void    OnPhysicsBuild(int physicsSource);
     //
+    void    OnSkeletonBuildOBBs();
+    //
     void    OnShowBounds(bool checked);
     void    OnBoundsTypeChanged(int index);
     void    OnSubmodelBounds(bool checked);

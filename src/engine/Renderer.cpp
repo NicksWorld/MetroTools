@@ -537,7 +537,7 @@ void Renderer::DebugDrawLine(const vec3& pt0, const vec3& pt1, const color4f& co
     mDebugVerticesCount += 2;
 }
 
-void Renderer::DebugDrawBBox(const AABBox& bbox, const color4f& color) {
+void Renderer::DebugDrawAABBox(const AABBox& aabbox, const color4f& color) {
     constexpr size_t kNumBoxVertices = 24;
 
     this->EnsureDebugVertices(kNumBoxVertices);
@@ -545,14 +545,55 @@ void Renderer::DebugDrawBBox(const AABBox& bbox, const color4f& color) {
     const color32u c = Color4FTo32U(color);
 
     vec3 points[8] = {
-        bbox.minimum,
-        vec3(bbox.maximum.x, bbox.minimum.y, bbox.minimum.z),
-        vec3(bbox.maximum.x, bbox.minimum.y, bbox.maximum.z),
-        vec3(bbox.minimum.x, bbox.minimum.y, bbox.maximum.z),
-        vec3(bbox.minimum.x, bbox.maximum.y, bbox.minimum.z),
-        vec3(bbox.maximum.x, bbox.maximum.y, bbox.minimum.z),
-        bbox.maximum,
-        vec3(bbox.minimum.x, bbox.maximum.y, bbox.maximum.z),
+        aabbox.minimum,
+        vec3(aabbox.maximum.x, aabbox.minimum.y, aabbox.minimum.z),
+        vec3(aabbox.maximum.x, aabbox.minimum.y, aabbox.maximum.z),
+        vec3(aabbox.minimum.x, aabbox.minimum.y, aabbox.maximum.z),
+        vec3(aabbox.minimum.x, aabbox.maximum.y, aabbox.minimum.z),
+        vec3(aabbox.maximum.x, aabbox.maximum.y, aabbox.minimum.z),
+        aabbox.maximum,
+        vec3(aabbox.minimum.x, aabbox.maximum.y, aabbox.maximum.z),
+    };
+
+    VertexDebug* vbStart = rcast<VertexDebug*>(mDebugVerticesPtr) + mDebugVerticesCount;
+    vbStart[ 0] = { points[0], c };  vbStart[ 1] = { points[1], c };
+    vbStart[ 2] = { points[1], c };  vbStart[ 3] = { points[2], c };
+    vbStart[ 4] = { points[2], c };  vbStart[ 5] = { points[3], c };
+    vbStart[ 6] = { points[3], c };  vbStart[ 7] = { points[0], c };
+    vbStart[ 8] = { points[4], c };  vbStart[ 9] = { points[5], c };
+    vbStart[10] = { points[5], c };  vbStart[11] = { points[6], c };
+    vbStart[12] = { points[6], c };  vbStart[13] = { points[7], c };
+    vbStart[14] = { points[7], c };  vbStart[15] = { points[4], c };
+    vbStart[16] = { points[0], c };  vbStart[17] = { points[4], c };
+    vbStart[18] = { points[1], c };  vbStart[19] = { points[5], c };
+    vbStart[20] = { points[2], c };  vbStart[21] = { points[6], c };
+    vbStart[22] = { points[3], c };  vbStart[23] = { points[7], c };
+
+    mDebugVerticesCount += kNumBoxVertices;
+}
+
+void Renderer::DebugDrawOBBox(const OBBox& obbox, const color4f& color) {
+    constexpr size_t kNumBoxVertices = 24;
+
+    this->EnsureDebugVertices(kNumBoxVertices);
+
+    const color32u c = Color4FTo32U(color);
+
+    vec3 product[3] = {
+        obbox.hsize[0] * obbox.matrix[0],
+        obbox.hsize[1] * obbox.matrix[1],
+        obbox.hsize[2] * obbox.matrix[2],
+    };
+
+    vec3 points[8] = {
+        obbox.offset - product[0] - product[1] - product[2],
+        obbox.offset + product[0] - product[1] - product[2],
+        obbox.offset + product[0] - product[1] + product[2],
+        obbox.offset - product[0] - product[1] + product[2],
+        obbox.offset - product[0] + product[1] - product[2],
+        obbox.offset + product[0] + product[1] - product[2],
+        obbox.offset + product[0] + product[1] + product[2],
+        obbox.offset - product[0] + product[1] + product[2]
     };
 
     VertexDebug* vbStart = rcast<VertexDebug*>(mDebugVerticesPtr) + mDebugVerticesCount;

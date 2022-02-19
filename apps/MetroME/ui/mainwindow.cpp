@@ -36,6 +36,14 @@
 #define PHYSX3UTILS_IMPORT 1
 #include "physx/physx3utils/physx3utils.h"
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+#include "Mathematics/ContOrientedBox3.h"
+
 #include "engine/DebugGeo.h"
 
 static RefPtr<u4a::DebugGeo> DebugGeoFromCForm(MetroPhysicsCForm* phys, const MetroGameVersion gameVersion) {
@@ -212,6 +220,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ribbon, &MainRibbon::SignalModelTPresetEditClicked, this, &MainWindow::OnTPresetsEdit);
     connect(ui->ribbon, &MainRibbon::SignalModelCalculateAOClicked, this, &MainWindow::OnCalculateAO);
     connect(ui->ribbon, &MainRibbon::SignalModelBuildLODsClicked, this, &MainWindow::OnBuildLODs);
+    //
+    connect(ui->ribbon, &MainRibbon::SignalSkeletonBuildBonesOBBsClicked, this, &MainWindow::OnSkeletonBuildOBBs);
     //
     connect(ui->ribbon, &MainRibbon::SignalPhysicsBuildClicked, this, &MainWindow::OnPhysicsBuild);
     //
@@ -724,6 +734,46 @@ void MainWindow::OnPhysicsBuild(int physicsSource) {
 
         auto cform = MakeCFormFromModel(model.get(), MetroContext::Get().GetGameVersion());
         this->UpdatePhysicsFromCForm(cform);
+    }
+}
+
+//
+void MainWindow::OnSkeletonBuildOBBs() {
+    RefPtr<MetroModelBase> model = mRenderPanel ? mRenderPanel->GetModel() : nullptr;
+    if (model && model->IsSkeleton()) {
+        RefPtr<MetroModelSkeleton> skelModel = SCastRefPtr<MetroModelSkeleton>(model);
+        const RefPtr<MetroSkeleton>& skeleton = skelModel->GetSkeleton();
+
+        const size_t numChildren = skelModel->GetChildrenCount();
+        for (size_t i = 0; i < numChildren; ++i) {
+            RefPtr<MetroModelBase> child = skelModel->GetChild(i);
+            RefPtr<MetroModelMesh> mesh = child->GetMesh();
+            const size_t numVertices = mesh->verticesCount;
+            const VertexSkinned* vertices = rcast<const VertexSkinned*>(child->GetVerticesMemData());
+            MyArray<MyArray<vec3>> perBoneVertices(mesh->bonesRemap.size());
+            for (size_t j = 0; j < numVertices; ++j) {
+                const size_t boneIdx = vertices[j].bones[2] / 3;    // ZYXW swizzle
+                mat4 boneInvTransform = skeleton->GetBoneFullTransformInv(mesh->bonesRemap[boneIdx]);
+                vec3 vertexPos = boneInvTransform * vec4(DecodeSkinnedPosition(vertices[j].pos) * mesh->verticesScale, 1.0f);
+                perBoneVertices[boneIdx].push_back(vertexPos);
+            }
+
+            MyArray<OBBox> obbs;
+            for (const MyArray<vec3>& boneVerts : perBoneVertices) {
+                gte::OrientedBox3<float> box3;
+                OBBox bbox; bbox.Reset();
+                if (!boneVerts.empty() && gte::GetContainer<float>(scast<int>(boneVerts.size()), rcast<const gte::Vector3<float>*>(boneVerts.data()), box3)) {
+                    bbox.matrix[0] = *rcast<vec3*>(&box3.axis[0]);
+                    bbox.matrix[1] = *rcast<vec3*>(&box3.axis[1]);
+                    bbox.matrix[2] = *rcast<vec3*>(&box3.axis[2]);
+                    bbox.offset = *rcast<vec3*>(&box3.center);
+                    bbox.hsize = *rcast<vec3*>(&box3.extent);
+                }
+                obbs.push_back(bbox);
+            }
+
+            SCastRefPtr<MetroModelSkin>(child)->SetBonesOBB(obbs);
+        }
     }
 }
 

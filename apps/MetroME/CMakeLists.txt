@@ -79,6 +79,7 @@ target_link_libraries(MetroME PRIVATE
     Tbb::Tbb
 
     meshoptimizer
+    Gte::Gte
 
     d2d1.lib
     dwrite.lib

@@ -572,7 +572,7 @@ bool MetroTexture::GetRGBA(BytesArray& imagePixels) const {
         } else if (mFormat == PixelFormat::BC1) {
             imagePixels.resize(mWidth * mHeight * 4);
             memset(imagePixels.data(), 255, imagePixels.size());
-            DDS_DecompressBC1(mData.data(), imagePixels.data(), mWidth, mHeight, 4);
+            DDS_DecompressBC1(mData.data(), imagePixels.data(), mWidth, mHeight);
             result = true;
         }
     }

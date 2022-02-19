@@ -403,6 +403,23 @@ struct BSphere {
     }
 };
 
+struct OBBox {
+    mat3    matrix;
+    vec3    offset;
+    vec3    hsize;
+
+    inline bool Valid() const {
+        return Length(this->hsize) > MM_Epsilon;
+    }
+
+    inline void Reset() {
+        this->matrix = mat3(1.0f);
+        this->offset = vec3(0.0f);
+        this->hsize = vec3(0.0f);
+    }
+};
+static_assert(sizeof(OBBox) == 60);
+
 struct Frustum {
     enum Plane : size_t {
         Left = 0,

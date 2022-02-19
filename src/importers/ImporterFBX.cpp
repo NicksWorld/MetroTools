@@ -748,11 +748,11 @@ void ImporterFBX::AddMeshToModel(RefPtr<MetroModelBase>& model, fbxsdk::FbxMesh*
         skinnedMesh->CopyVerticesData(skinnedVertices.data());
         skinnedMesh->CopyFacesData(collector.indices.data());
         skinnedMesh->SetBonesRemapTable(bonesRemapTable);
-        MetroOBB identityOBB;
+        OBBox identityOBB;
         identityOBB.matrix = mat3(1.0f);
         identityOBB.hsize = vec3(0.1f, 0.1f, 0.1f);
         identityOBB.offset = vec3(0.0f, 0.0f, 0.0f);
-        MyArray<MetroOBB> obbs(bonesRemapTable.size(), identityOBB);
+        MyArray<OBBox> obbs(bonesRemapTable.size(), identityOBB);
         skinnedMesh->SetBonesOBB(obbs);
 
         mesh = skinnedMesh;

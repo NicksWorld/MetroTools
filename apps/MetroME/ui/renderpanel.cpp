@@ -370,7 +370,7 @@ void RenderPanel::Render() {
                             AABBox bbox = gd.bbox;
                             bbox.minimum += modelPos;
                             bbox.maximum += modelPos;
-                            renderer.DebugDrawBBox(bbox, color);
+                            renderer.DebugDrawAABBox(bbox, color);
                         } else {
                             BSphere bsphere = gd.bsphere;
                             bsphere.center += modelPos;
@@ -382,7 +382,7 @@ void RenderPanel::Render() {
                         AABBox bbox = mModel->GetBBox();
                         bbox.minimum += modelPos;
                         bbox.maximum += modelPos;
-                        renderer.DebugDrawBBox(bbox, color);
+                        renderer.DebugDrawAABBox(bbox, color);
                     } else {
                         BSphere bsphere = mModel->GetBSphere();
                         bsphere.center += modelPos;
@@ -464,6 +464,25 @@ void RenderPanel::Render() {
                             renderer.DebugDrawTetrahedron(b, a, r, colorTetsLoc);
                         }
                     }
+
+#if 0
+                    MyArray<MetroModelGeomData> gds;
+                    mModel->CollectGeomData(gds);
+                    const color4f colorOBBs(0.0f, 0.13f, 1.0f, 1.0f);
+                    for (const auto& gd : gds) {
+                        const size_t numBonesOBBs = gd.mesh->bonesOBBs.size();
+                        for (size_t i = 0; i < numBonesOBBs; ++i) {
+                            OBBox box = gd.mesh->bonesOBBs[i];
+                            const mat4& transform = skeleton->GetBoneFullTransform(gd.mesh->bonesRemap[i]);
+                            box.matrix = mat3(transform) * box.matrix;
+                            box.offset = transform * vec4(box.offset, 1.0f);
+
+                            if (box.Valid()) {
+                                renderer.DebugDrawOBBox(box, colorOBBs);
+                            }
+                        }
+                    }
+#endif
                 }
             }
 

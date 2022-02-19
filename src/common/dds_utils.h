@@ -2,7 +2,7 @@
 
 #include "dds_defs.h"
 
-void DDS_DecompressBC1(const void* inputBlocks, void* outPixels, const size_t width, const size_t height, const size_t bpp = 3);
+void DDS_DecompressBC1(const void* inputBlocks, void* outPixels, const size_t width, const size_t height);
 void DDS_DecompressBC2(const void* inputBlocks, void* outPixels, const size_t width, const size_t height);
 void DDS_DecompressBC3(const void* inputBlocks, void* outPixels, const size_t width, const size_t height);
 //void DDS_DecompressBC4(const void* inputBlocks, void* outPixels, const size_t width, const size_t height);

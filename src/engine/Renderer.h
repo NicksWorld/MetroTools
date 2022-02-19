@@ -72,7 +72,8 @@ public:
 
     void                        BeginDebugDraw();
     void                        DebugDrawLine(const vec3& pt0, const vec3& pt1, const color4f& color);
-    void                        DebugDrawBBox(const AABBox& bbox, const color4f& color);
+    void                        DebugDrawAABBox(const AABBox& aabbox, const color4f& color);
+    void                        DebugDrawOBBox(const OBBox& obbox, const color4f& color);
     void                        DebugDrawRing(const vec3& origin, const vec3& majorAxis, const vec3& minorAxis, const color4f& color);
     void                        DebugDrawBSphere(const BSphere& bsphere, const color4f& color);
     void                        DebugDrawTetrahedron(const vec3& a, const vec3& b, const float r, const color4f& color);

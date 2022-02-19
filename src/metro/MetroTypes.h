@@ -162,30 +162,6 @@ struct MetroVertex {
     vec2        uv1;
 } PACKED_STRUCT_END;
 
-PACKED_STRUCT_BEGIN
-struct MetroOBB {           // size = 60
-    mat3    matrix;
-    vec3    offset;
-    vec3    hsize;
-} PACKED_STRUCT_END;
-
-struct MetroMesh {
-    size_t               version;
-    bool                 skinned;
-    bool                 isCollision;
-    size_t               flags;
-    float                vscale;
-    AABBox               bbox;
-    size_t               type;
-    size_t               shaderId;
-    StringArray          materials;
-    MyArray<MetroFace>   faces;
-    BytesArray           rawVB;
-    size_t               numVertices;
-    BytesArray           bonesRemap;
-    MyArray<MetroOBB>    hitBoxes;
-};
-
 
 struct MetroVertexType {
     enum VertexType : uint32_t {

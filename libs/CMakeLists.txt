@@ -118,4 +118,12 @@ set(MESHOPT_BUILD_GLTFPACK OFF)
 set(MESHOPT_BUILD_SHARED_LIBS OFF)
 add_subdirectory(meshoptimizer)
 
+add_library(gte INTERFACE)
+add_library(Gte::Gte ALIAS gte)
+target_include_directories(gte INTERFACE GeometricTools/GTE)
+
+add_library(bcdec INTERFACE)
+add_library(Bcdec::Bcdec ALIAS bcdec)
+target_include_directories(bcdec INTERFACE bcdec)
+
 set_target_properties(bc7enc16 glm_shared glm_static jansson lz4 pugixml quicklz xxhash meshoptimizer uninstall PROPERTIES FOLDER "external")

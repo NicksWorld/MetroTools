@@ -35,6 +35,7 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mGroupModelLODs(nullptr)
     // skeleton groups
     , mGroupSkeletonFile(nullptr)
+    , mGroupSkeletonOBBs(nullptr)
     // physics groups
     , mGroupPhysicsTools(nullptr)
     // 3d view groups
@@ -47,6 +48,8 @@ MainRibbon::MainRibbon(QWidget* parent)
     , mComboTPreset(nullptr)
     , mCalculateAOButton(nullptr)
     , mBuildLODsButton(nullptr)
+    // skeleton controls
+    , mBuildBonesOBBsButton(nullptr)
     // physics controls
     , mComboPhysicsSource(nullptr)
     , mBuildPhysicsButton(nullptr)
@@ -173,7 +176,10 @@ void MainRibbon::OnModelBuildLODsClicked() {
     emit SignalModelBuildLODsClicked();
 }
 
-
+//
+void MainRibbon::OnSkeletonBuildBonesOBBsClicked() {
+    emit SignalSkeletonBuildBonesOBBsClicked();
+}
 
 //
 void MainRibbon::OnPhysicsBuildButtonClicked() {
@@ -412,6 +418,25 @@ void MainRibbon::BuildSkeletonTab() {
     }
     mGroupSkeletonFile->AddWidget(exportSkeletonButton);
 #endif
+
+    mGroupSkeletonOBBs = mTabSkeleton->AddRibbonGroup(tr("OBBs"));
+
+    // OBBs
+    {
+        SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
+        QLabel* label = new QLabel();
+        label->setText(tr("Bones OBBs:"));
+        label->setAlignment(Qt::AlignHCenter);
+
+        mBuildBonesOBBsButton = new QPushButton();
+        mBuildBonesOBBsButton->setText(tr("Build bones OBBs"));
+        mBuildBonesOBBsButton->setIcon(QPixmap(":/imgs/hammer.svg"));
+        connect(mBuildBonesOBBsButton, &QPushButton::clicked, this, &MainRibbon::OnSkeletonBuildBonesOBBsClicked);
+
+        vbar->AddWidget(label);
+        vbar->AddWidget(mBuildBonesOBBsButton);
+        mGroupSkeletonOBBs->AddWidget(vbar);
+    }
 }
 
 void MainRibbon::BuildAnimationTab() {
@@ -425,6 +450,7 @@ void MainRibbon::BuildPhysicsTab() {
         SimpleRibbonVBar* vbar = new SimpleRibbonVBar();
         QLabel* label = new QLabel();
         label->setText(tr("Build physics from:"));
+        label->setAlignment(Qt::AlignHCenter);
 
         mComboPhysicsSource = new QComboBox();
         mComboPhysicsSource->addItem(tr("Model geometry"));

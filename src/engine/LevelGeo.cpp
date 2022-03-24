@@ -128,6 +128,16 @@ bool LevelGeo::Create(const MetroLevel* level) {
     const size_t numSectors = level->GetNumSectors();
     mSectors.resize(numSectors);
 
+    const size_t numMaterials = level->GetNumMaterials();
+    mSurfaces.reserve(numMaterials + 1);
+    for (size_t i = 0; i < numMaterials; ++i) {
+        const LevelMaterial& levelMat = level->GetMaterial(i);
+        mSurfaces.push_back(ResourcesManager::Get().GetSurface(levelMat.texture));
+    }
+
+    // placeholder texture
+    mSurfaces.push_back(ResourcesManager::Get().GetSurface(kEmptyHashString));
+
     D3D11_BUFFER_DESC desc = {};
     D3D11_SUBRESOURCE_DATA subData = {};
     HRESULT hr;
@@ -243,9 +253,8 @@ void LevelGeo::AddSectorSuperStaticMesh(LevelGeoSector& sector, const RefPtr<Met
         section.ibOffset = gd.mesh->indicesOffset * sizeof(uint16_t);
         section.shadowVBOffset = 0;
         section.shadowIBOffset = 0;
-        section.surfaceIdx = mSurfaces.size();
+        section.surfaceIdx = (gd.mesh->materialId == kInvalidValue32) ? (mSurfaces.size() - 1) : gd.mesh->materialId;
 
-        mSurfaces.push_back(ResourcesManager::Get().GetSurface(gd.model->GetMaterialString(MetroModelBase::kMaterialStringTexture)));
         sector.bbox.Absorb(gd.bbox);
     }
 }

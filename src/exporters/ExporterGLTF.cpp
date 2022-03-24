@@ -111,6 +111,68 @@ void CreateGLTFMaterials(const MyArray<MetroModelGeomData>& gds,
     }
 }
 
+void CreateGLTFSkeleton(const RefPtr<MetroSkeleton>& skeleton, tinygltf::Scene& gltfScene, tinygltf::Model& gltfModel) {
+    tinygltf::Skin       gltfSkin;
+    tinygltf::Buffer     gltfInverseBindMatricesBuffer;
+    tinygltf::BufferView gltfInverseBindMatricesBufferView;
+    tinygltf::Accessor   gltfInverseBindMatricesAccessor;
+
+    const size_t numBones = skeleton->GetNumBones();
+
+    gltfInverseBindMatricesBuffer.data.resize(numBones * sizeof(mat4));
+    mat4* dstMatricesPtr = rcast<mat4*>(gltfInverseBindMatricesBuffer.data.data());
+    for (size_t i = 0; i < numBones; ++i) {
+        dstMatricesPtr[i] = skeleton->GetBoneFullTransformInv(i);
+    }
+
+    gltfInverseBindMatricesBufferView.buffer = 0;
+    gltfInverseBindMatricesBufferView.byteOffset = 0;
+    gltfInverseBindMatricesBufferView.byteLength = gltfInverseBindMatricesBuffer.data.size();
+
+    gltfInverseBindMatricesAccessor.bufferView = 0;
+    gltfInverseBindMatricesAccessor.byteOffset = 0;
+    gltfInverseBindMatricesAccessor.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+    gltfInverseBindMatricesAccessor.type = TINYGLTF_TYPE_MAT4;
+    gltfInverseBindMatricesAccessor.count = numBones;
+
+    gltfModel.buffers.push_back(gltfInverseBindMatricesBuffer);
+    gltfModel.bufferViews.push_back(gltfInverseBindMatricesBufferView);
+    gltfModel.accessors.push_back(gltfInverseBindMatricesAccessor);
+
+    gltfSkin.name = "skin_01";
+    gltfSkin.inverseBindMatrices = 0;
+
+    // create bones nodes
+    for (size_t i = 0; i < numBones; ++i) {
+        tinygltf::Node gltfNode;
+        gltfNode.name = skeleton->GetBoneName(i);
+        gltfNode.rotation.push_back(skeleton->GetBoneRotation(i).x);
+        gltfNode.rotation.push_back(skeleton->GetBoneRotation(i).y);
+        gltfNode.rotation.push_back(skeleton->GetBoneRotation(i).z);
+        gltfNode.rotation.push_back(skeleton->GetBoneRotation(i).w);
+
+        gltfNode.translation.push_back(skeleton->GetBonePosition(i).x);
+        gltfNode.translation.push_back(skeleton->GetBonePosition(i).y);
+        gltfNode.translation.push_back(skeleton->GetBonePosition(i).z);
+
+        gltfModel.nodes.push_back(gltfNode);
+        if (skeleton->GetBoneParentIdx(i) == kInvalidValue) { // only root bones
+            gltfScene.nodes.push_back(scast<int>(i));
+        }
+        gltfSkin.joints.push_back(scast<int>(i));
+    }
+
+    // now assign children
+    for (size_t i = 0; i < numBones; ++i) {
+        const size_t parentIdx = skeleton->GetBoneParentIdx(i);
+        if (parentIdx != kInvalidValue) {
+            gltfModel.nodes[parentIdx].children.push_back(scast<int>(i));
+        }
+    }
+
+    gltfModel.skins.push_back(gltfSkin);
+}
+
 
 ExporterGLTF::ExporterGLTF()
     : mExcludeCollision(false)
@@ -152,6 +214,8 @@ void ExporterGLTF::SetExportMotionIdx(const size_t idx) {
 }
 
 bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& filePath) {
+    RefPtr<MetroSkeleton> skeleton = model.IsSkeleton() ? rcast<const MetroModelSkeleton&>(model).GetSkeleton() : nullptr;
+
     tinygltf::Model gltfModel;
     tinygltf::Scene gltfScene;
 
@@ -173,6 +237,13 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
     MyGLTFMaterialsDict materialsDict;
     CreateGLTFMaterials(gds, materialsDict, gltfModel, mTexturesExtension);
 
+    int bufViewAccessAddition = 0;
+    if (skeleton) {
+        CreateGLTFSkeleton(skeleton, gltfScene, gltfModel);
+        // we've added buffer + view + accessor for inverseBindMatrices, so have to offset everything below
+        bufViewAccessAddition = 1;
+    }
+
     int gltfMeshIdx = 0;
     for (auto& gd : gds) {
         MyArray<MetroVertex> vertices = MakeCommonVertices(gd);
@@ -189,52 +260,75 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
         memcpy(gltfVB.data.data(), vertices.data(), gltfVB.data.size());
 
         tinygltf::BufferView gltfIBView;
-        gltfIBView.buffer = gltfMeshIdx * 2;
+        gltfIBView.buffer = gltfMeshIdx * 2 + bufViewAccessAddition;
         gltfIBView.byteOffset = 0;
         gltfIBView.byteLength = gltfIB.data.size();
         gltfIBView.byteStride = 0;
         gltfIBView.target = TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER;
 
         tinygltf::BufferView gltfVBView;
-        gltfVBView.buffer = gltfMeshIdx * 2 + 1;
+        gltfVBView.buffer = gltfMeshIdx * 2 + 1 + bufViewAccessAddition;
         gltfVBView.byteOffset = 0;
         gltfVBView.byteLength = gltfVB.data.size();
         gltfVBView.byteStride = sizeof(MetroVertex);
         gltfVBView.target = TINYGLTF_TARGET_ARRAY_BUFFER;
 
         tinygltf::Accessor gltfIBAccessor;
-        gltfIBAccessor.bufferView = gltfMeshIdx * 2;
+        gltfIBAccessor.bufferView = gltfMeshIdx * 2 + bufViewAccessAddition;
         gltfIBAccessor.byteOffset = 0;
         gltfIBAccessor.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
         gltfIBAccessor.type = TINYGLTF_TYPE_SCALAR;
         gltfIBAccessor.count = scast<size_t>(gd.mesh->facesCount) * 3;
 
         tinygltf::Accessor gltfVBAccessorPos;
-        gltfVBAccessorPos.bufferView = gltfMeshIdx * 2 + 1;
+        gltfVBAccessorPos.bufferView = gltfMeshIdx * 2 + 1 + bufViewAccessAddition;
         gltfVBAccessorPos.byteOffset = 0;
         gltfVBAccessorPos.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
         gltfVBAccessorPos.type = TINYGLTF_TYPE_VEC3;
         gltfVBAccessorPos.count = vertices.size();
 
         tinygltf::Accessor gltfVBAccessorNormal;
-        gltfVBAccessorNormal.bufferView = gltfMeshIdx * 2 + 1;
+        gltfVBAccessorNormal.bufferView = gltfMeshIdx * 2 + 1 + bufViewAccessAddition;
         gltfVBAccessorNormal.byteOffset = offsetof(MetroVertex, normal);
         gltfVBAccessorNormal.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
         gltfVBAccessorNormal.type = TINYGLTF_TYPE_VEC3;
         gltfVBAccessorNormal.count = vertices.size();
 
         tinygltf::Accessor gltfVBAccessorUV;
-        gltfVBAccessorUV.bufferView = gltfMeshIdx * 2 + 1;
+        gltfVBAccessorUV.bufferView = gltfMeshIdx * 2 + 1 + bufViewAccessAddition;
         gltfVBAccessorUV.byteOffset = offsetof(MetroVertex, uv0);
         gltfVBAccessorUV.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
         gltfVBAccessorUV.type = TINYGLTF_TYPE_VEC2;
         gltfVBAccessorUV.count = vertices.size();
 
+        tinygltf::Accessor gltfVBAccessorBones;
+        tinygltf::Accessor gltfVBAccessorWeights;
+        if (skeleton) {
+            gltfVBAccessorBones.bufferView = gltfMeshIdx * 2 + 1 + bufViewAccessAddition;
+            gltfVBAccessorBones.byteOffset = offsetof(MetroVertex, bones);
+            gltfVBAccessorBones.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE;
+            gltfVBAccessorBones.type = TINYGLTF_TYPE_VEC4;
+            gltfVBAccessorBones.count = vertices.size();
+
+            gltfVBAccessorWeights.bufferView = gltfMeshIdx * 2 + 1 + bufViewAccessAddition;
+            gltfVBAccessorWeights.byteOffset = offsetof(MetroVertex, weights);
+            gltfVBAccessorWeights.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE;
+            gltfVBAccessorWeights.normalized = true;
+            gltfVBAccessorWeights.type = TINYGLTF_TYPE_VEC4;
+            gltfVBAccessorWeights.count = vertices.size();
+        }
+
+        const int numAccessors = (skeleton != nullptr) ? 6 : 4;
+
         tinygltf::Primitive gltfPrimitive;
-        gltfPrimitive.indices = gltfMeshIdx * 4;                        // The index of the accessor for the vertex indices
-        gltfPrimitive.attributes["POSITION"] = gltfMeshIdx * 4 + 1;     // The index of the accessor for positions
-        gltfPrimitive.attributes["NORMAL"] = gltfMeshIdx * 4 + 2;       // The index of the accessor for normals
-        gltfPrimitive.attributes["TEXCOORD_0"] = gltfMeshIdx * 4 + 3;   // The index of the accessor for texcoords
+        gltfPrimitive.indices = gltfMeshIdx * numAccessors + bufViewAccessAddition;                         // The index of the accessor for the vertex indices
+        gltfPrimitive.attributes["POSITION"] = gltfMeshIdx * numAccessors + 1 + bufViewAccessAddition;      // The index of the accessor for positions
+        gltfPrimitive.attributes["NORMAL"] = gltfMeshIdx * numAccessors + 2 + bufViewAccessAddition;        // The index of the accessor for normals
+        gltfPrimitive.attributes["TEXCOORD_0"] = gltfMeshIdx * numAccessors + 3 + bufViewAccessAddition;    // The index of the accessor for texcoords
+        if (skeleton) {
+            gltfPrimitive.attributes["JOINTS_0"] = gltfMeshIdx * numAccessors + 4 + bufViewAccessAddition;  // The index of the accessor for bones ids
+            gltfPrimitive.attributes["WEIGHTS_0"] = gltfMeshIdx * numAccessors + 5 + bufViewAccessAddition; // The index of the accessor for bones weights
+        }
         gltfPrimitive.material = materialIdx;
         gltfPrimitive.mode = TINYGLTF_MODE_TRIANGLES;
 
@@ -244,6 +338,9 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
 
         tinygltf::Node gltfNode;
         gltfNode.mesh = gltfMeshIdx;
+        if (skeleton) {
+            gltfNode.skin = 0;
+        }
         gltfScene.nodes.push_back(gltfMeshIdx);
 
         gltfModel.meshes.push_back(gltfMesh);
@@ -256,6 +353,10 @@ bool ExporterGLTF::ExportModel(const MetroModelBase& model, const fs::path& file
         gltfModel.accessors.push_back(gltfVBAccessorPos);
         gltfModel.accessors.push_back(gltfVBAccessorNormal);
         gltfModel.accessors.push_back(gltfVBAccessorUV);
+        if (skeleton) {
+            gltfModel.accessors.push_back(gltfVBAccessorBones);
+            gltfModel.accessors.push_back(gltfVBAccessorWeights);
+        }
 
         gltfMeshIdx++;
     }

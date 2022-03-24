@@ -71,8 +71,8 @@ struct MetroFSPath {
 struct MetroFile {
 public:
     enum : size_t {
-        Flag_Unknown4   = 4,    // patch folders have this one
-        Flag_Folder     = 8,
+        Flag_PatchFolder    = 4,    // means this folder was introduced in the patch
+        Flag_Folder         = 8,    // regular folder (or in case of patch - folder that overrides existing one so will have full path name)
     };
 
 public:
@@ -112,6 +112,10 @@ public:
         return !TestBit<size_t>(this->flags, Flag_Folder);
     }
 
+    inline bool IsPatchFolder() const {
+        return TestBit<size_t>(this->flags, Flag_PatchFolder);
+    }
+
     inline bool ContainsFile(const size_t fileIdx) const {
         return this->IsFile() ? false : (fileIdx >= this->firstFile && fileIdx < (this->firstFile + this->numFiles));
     }
@@ -130,15 +134,21 @@ public:
     size_t      flags;
     CharString  name;
 
-    // file fields
-    size_t      pakIdx;
-    size_t      offset;
-    size_t      sizeUncompressed;
-    size_t      sizeCompressed;
+    union {
+        struct {    // file fields
+            size_t      pakIdx;
+            size_t      offset;
+            size_t      sizeUncompressed;
+            size_t      sizeCompressed;
+        };
 
-    // dir fields
-    size_t      firstFile;
-    size_t      numFiles;
+        struct {    // dir fields
+            size_t      firstFile;
+            size_t      numFiles;
+            size_t      _dirPad0;
+            size_t      _dirPad1;
+        };
+    };
 
     // duplication
     size_t      baseIdx;

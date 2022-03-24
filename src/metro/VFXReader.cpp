@@ -42,8 +42,8 @@ bool VFXReader::LoadFromFile(const fs::path& filePath) {
 
         MemStream stream(fileData.data(), fileData.size());
 
-        mVersion = stream.ReadTyped<uint32_t>();
-        mCompressionType = stream.ReadTyped<uint32_t>();
+        mVersion = stream.ReadU32();
+        mCompressionType = stream.ReadU32();
 
         LogPrint(LogLevel::Info, "vfx version = " + std::to_string(mVersion) + ", compression = " + std::to_string(mCompressionType));
 
@@ -52,9 +52,9 @@ bool VFXReader::LoadFromFile(const fs::path& filePath) {
                 mContentVersion = stream.ReadStringZ();
             }
             stream.ReadStruct(mGUID); // guid, seems to be static across the game
-            const size_t numVFS = stream.ReadTyped<uint32_t>();
-            const size_t numFiles = stream.ReadTyped<uint32_t>();
-            const size_t numDuplicates = stream.ReadTyped<uint32_t>();
+            const size_t numVFS = stream.ReadU32();
+            const size_t numFiles = stream.ReadU32();
+            const size_t numDuplicates = stream.ReadU32();
 
             LogPrint(LogLevel::Info, "vfx content version = " + mContentVersion);
             LogPrintF(LogLevel::Info, "vfx guid = %08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
@@ -72,16 +72,16 @@ bool VFXReader::LoadFromFile(const fs::path& filePath) {
                 pak.name = stream.ReadStringZ();
 
                 if (mIsLastLight) {
-                    const uint32_t vfsSize = stream.ReadTyped<uint32_t>();
+                    const uint32_t vfsSize = stream.ReadU32();
                     LogPrintF(LogLevel::Info, "blob %s, size %lld", pak.name.c_str(), vfsSize);
                 } else {
-                    const uint32_t numStrings = stream.ReadTyped<uint32_t>();
+                    const uint32_t numStrings = stream.ReadU32();
                     pak.levels.resize(numStrings);
                     for (auto& s : pak.levels) {
                         s = stream.ReadStringZ();
                     }
 
-                    pak.chunk = stream.ReadTyped<uint32_t>();
+                    pak.chunk = stream.ReadU32();
                 }
             }
 
@@ -99,6 +99,8 @@ bool VFXReader::LoadFromFile(const fs::path& filePath) {
                 ++fileIdx;
             }
 
+            //#NOTE_SK: reading duplicates is just a waste of time and memory
+#if 0
             const bool weirdDuplicatesSerialization = (mIsLastLight && (mGUID == VFXReader::kGUIDLastLightXBox360_Build_Oct18_2012));
 
             mDuplicates.resize(numDuplicates);
@@ -118,6 +120,7 @@ bool VFXReader::LoadFromFile(const fs::path& filePath) {
 
                 ++duplicateIdx;
             }
+#endif
 
             mBasePath = filePath.parent_path();
             mFileName = filePath.filename().string();
@@ -330,23 +333,23 @@ void VFXReader::AppendFolder(const MetroFile& folder) {
 static CharString ReadEncryptedFileName(MemStream& stream) {
     CharString result;
 
-    const uint16_t stringHeader = stream.ReadTyped<uint16_t>();
+    const uint16_t stringHeader = stream.ReadU16();
     const size_t stringLen = (stringHeader & 0xFF);
     const char xorMask = scast<char>((stringHeader >> 8) & 0xFF);
 
     result.reserve(stringLen);
     for (size_t i = 1; i < stringLen; ++i) {
-        const char ch = stream.ReadTyped<char>();
+        const char ch = stream.ReadI8();
         result.push_back(ch ^ xorMask);
     }
 
-    stream.ReadTyped<char>(); // terminating null
+    stream.SkipBytes(1); // terminating null
 
     return result;
 };
 
 void VFXReader::ReadFileDescription(MetroFile& mf, MemStream& stream, const bool isDuplicate, const bool isLastLight) {
-    mf.flags = stream.ReadTyped<uint16_t>();
+    mf.flags = stream.ReadU16();
 
     if (isLastLight) {
         //#NOTE_SK: in Last Light folder flag is 16 ... make it 8 so it's compatible with later VFX versions
@@ -354,19 +357,19 @@ void VFXReader::ReadFileDescription(MetroFile& mf, MemStream& stream, const bool
     }
 
     if (mf.IsFile()) {
-        mf.pakIdx = stream.ReadTyped<uint16_t>();
-        mf.offset = stream.ReadTyped<uint32_t>();
-        mf.sizeUncompressed = stream.ReadTyped<uint32_t>();
-        mf.sizeCompressed = stream.ReadTyped<uint32_t>();
+        mf.pakIdx = stream.ReadU16();
+        mf.offset = stream.ReadU32();
+        mf.sizeUncompressed = stream.ReadU32();
+        mf.sizeCompressed = stream.ReadU32();
 
         if (isDuplicate) {
-            mf.baseIdx = stream.ReadTyped<uint32_t>();
+            mf.baseIdx = stream.ReadU32();
         }
 
         mf.duplicates = kInvalidValue;
     } else {
-        mf.numFiles = stream.ReadTyped<uint16_t>();
-        mf.firstFile = stream.ReadTyped<uint32_t>();
+        mf.numFiles = stream.ReadU16();
+        mf.firstFile = stream.ReadU32();
     }
 
     if (!isDuplicate) {

@@ -2,6 +2,7 @@
 
 #include "metro/MetroContext.h"
 #include "metro/MetroCompression.h"
+#include "metro/VFXReader.h"
 
 #include <fstream>
 
@@ -61,7 +62,23 @@ void MetroPackUnpack::UnpackArchive(const fs::path& archivePath, const fs::path&
     }
 
     if (ok) {
-        const size_t numFilesTotal = mfs.CountFilesInFolder(mfs.GetRootFolder(), true);
+        const bool isPatch = WStrStartsWith(archivePath.stem().wstring(), L"patch");
+        size_t numPatchFiles = 0;
+        if (isPatch) {
+            const size_t numVfx = mfs.GetNumVFX();
+            for (size_t i = 0; i < numVfx; ++i) {
+                const VFXReader* vfx = mfs.GetVFX(i);
+                const MyArray<size_t>& allFolders = vfx->GetAllFolders();
+                for (const size_t folderIdx : allFolders) {
+                    const MetroFile& folder = vfx->GetFile(folderIdx);
+                    if (!folder.IsPatchFolder() && folder.name != "content") {
+                        numPatchFiles += folder.numFiles;
+                    }
+                }
+            }
+        }
+
+        const size_t numFilesTotal = mfs.CountFilesInFolder(mfs.GetRootFolder(), true) + numPatchFiles;
 
         ExtractContext ctx = {
             &mfs,
@@ -72,6 +89,36 @@ void MetroPackUnpack::UnpackArchive(const fs::path& archivePath, const fs::path&
         };
 
         ExtractFolderComplete(ctx, outputFolderPath);
+
+        if (isPatch) {
+            const size_t numVfx = mfs.GetNumVFX();
+            for (size_t i = 0; i < numVfx; ++i) {
+                const VFXReader* vfx = mfs.GetVFX(i);
+                const MyArray<size_t>& allFolders = vfx->GetAllFolders();
+                for (const size_t folderIdx : allFolders) {
+                    const MetroFile& folder = vfx->GetFile(folderIdx);
+                    if (!folder.IsPatchFolder() && folder.name != "content") {
+                        fs::path fullPath = outputFolderPath / fs::path(folder.name);
+                        fs::create_directories(fullPath);
+
+                        for (auto f : folder) {
+                            const MetroFile& file = vfx->GetFile(f);
+                            if (file.IsFile()) {
+                                fs::path filePath = fullPath / file.name;
+                                MemStream stream = vfx->ExtractFile(file.idx);
+                                OSWriteFile(filePath, stream.Data(), stream.Length());
+
+                                ctx.extractedFiles++;
+                                const bool okToProceed = ctx.progress(scast<float>(ctx.extractedFiles) / scast<float>(ctx.numFilesTotal));
+                                if (!okToProceed) {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -22,11 +22,13 @@ public:
     bool    GetExportLODs() const;
     bool    GetExportShadowGeometry() const;
     bool    GetExportSkeleton() const;
+    bool    GetExportAllAttachPoints() const;
 
 private slots:
     void    on_chkExportLODs_stateChanged(int state);
     void    on_chkExportShadowGeometry_stateChanged(int state);
     void    on_chkExportSkeleton_stateChanged(int state);
+    void    on_chkExportAllAttachPoints_stateChanged(int state);
     void    on_buttonBox_accepted();
 
 private:

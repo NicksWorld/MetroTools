@@ -164,7 +164,7 @@ bool MetroFileSystem::Empty() const {
 }
 
 bool MetroFileSystem::IsSingleArchive() const {
-    return mIsMetro2033FS ? (mLoadedVFX.size() == 1) : (mLoadedVFI.size() == 1);
+    return mIsMetro2033FS ? (mLoadedVFI.size() == 1) : (mLoadedVFX.size() == 1);
 }
 
 const CharString& MetroFileSystem::GetArchiveName(const size_t idx) const {
@@ -519,7 +519,7 @@ MemStream MetroFileSystem::OpenFileStream(const MetroFSPath& entry, const size_t
         }
     }
 
-    return std::move(result);
+    return result;
 }
 
 MemStream MetroFileSystem::OpenFileFromPath(const CharString& fileName) const {
@@ -535,8 +535,17 @@ MemStream MetroFileSystem::OpenFileFromPath(const CharString& fileName) const {
         }
     }
 
-    return std::move(result);
+    return result;
 }
+
+size_t MetroFileSystem::GetNumVFX() const {
+    return mLoadedVFX.size();
+}
+
+const VFXReader* MetroFileSystem::GetVFX(const size_t idx) const {
+    return mLoadedVFX[idx];
+}
+
 
 
 

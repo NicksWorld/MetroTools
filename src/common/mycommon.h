@@ -21,6 +21,9 @@
 #undef max
 #endif
 
+#define rcast reinterpret_cast
+#define scast static_cast
+
 #define STRINGIFY_UTIL_(s) #s
 #define STRINGIFY(s) STRINGIFY_UTIL_(s)
 
@@ -69,15 +72,14 @@ struct EntityLink {
     uint16_t value;
 };
 
-static const uint32_t   kInvalidValue32 = ~0u;
-static const size_t     kInvalidValue = ~0;
-static const MyHandle   kInvalidHandle = ~0;
+constexpr uint16_t      kInvalidValue16 = scast<uint16_t>(-1);
+constexpr uint32_t      kInvalidValue32 = scast<uint32_t>(-1);
+constexpr size_t        kInvalidValue = scast<size_t>(-1);
+constexpr MyHandle      kInvalidHandle = kInvalidValue;
 static const CharString kEmptyString;
 static const char       kPathSeparator = '\\';
 
 
-#define rcast reinterpret_cast
-#define scast static_cast
 
 #ifdef __GNUC__
 #define PACKED_STRUCT_BEGIN

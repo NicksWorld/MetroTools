@@ -374,8 +374,8 @@ static void FBXE_CollectClusters(const MyArray<MetroVertex>& vertices, const Met
     }
 }
 
-static void FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* skeleton, MyArray<FbxNode*>& boneNodes) {
-    const size_t numBones = skeleton->GetNumBones();//GetNumAttachPoints();
+static void FBXE_CreateFBXSkeleton(FbxScene* scene, const MetroSkeleton* skeleton, MyArray<FbxNode*>& boneNodes, const bool exportAllAttachPoints) {
+    const size_t numBones = exportAllAttachPoints ? skeleton->GetNumBones() : skeleton->GetNumAttachPoints();
     boneNodes.reserve(numBones);
 
     for (size_t i = 0; i < numBones; ++i) {
@@ -570,6 +570,7 @@ ExporterFBX::ExporterFBX()
     : mExcludeCollision(false)
     , mExportMesh(true)
     , mExportSkeleton(false)
+    , mExportAllAttachPoints(false)
     , mExportShadowGeometry(false)
     , mExportLODs(false)
     , mExportAnimation(false)
@@ -599,6 +600,10 @@ void ExporterFBX::SetExportMesh(const bool b) {
 
 void ExporterFBX::SetExportSkeleton(const bool b) {
     mExportSkeleton = b;
+}
+
+void ExporterFBX::SetExportAllAttachPoints(const bool b) {
+    mExportAllAttachPoints = b;
 }
 
 void ExporterFBX::SetExportShadowGeometry(const bool b) {
@@ -673,7 +678,9 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
         const MetroModelSkeleton& skelModel = scast<const MetroModelSkeleton&>(model);
         RefPtr<MetroSkeleton> skeleton = skelModel.GetSkeleton();
         if (skeleton) {
-            FBXE_CreateFBXSkeleton(scene, skeleton.get(), boneNodes);
+            const size_t numActualBones = skeleton->GetNumBones();
+
+            FBXE_CreateFBXSkeleton(scene, skeleton.get(), boneNodes, mExportAllAttachPoints);
             for (FbxNode* node : boneNodes) {
                 FbxSkeleton* attribute = static_cast<FbxSkeleton*>(node->GetNodeAttribute());
                 if (attribute->GetSkeletonType() == FbxSkeleton::eRoot) {
@@ -684,8 +691,9 @@ bool ExporterFBX::ExportModel(const MetroModelBase& model, const fs::path& fileP
             FbxPose* bindPose = FbxPose::Create(scene, "BindPose");
             bindPose->SetIsBindPose(true);
 
-            for (FbxNode* node : boneNodes) {
-                bindPose->Add(node, node->EvaluateGlobalTransform());
+            //#NOTE_SK: only adding actual bones to the bind pose, not locators and other attach points
+            for (size_t i = 0; i < numActualBones; ++i) {
+                bindPose->Add(boneNodes[i], boneNodes[i]->EvaluateGlobalTransform());
             }
 
             if (mExportMesh) {

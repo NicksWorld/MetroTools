@@ -51,6 +51,11 @@ bool ExportFBXDlg::GetExportSkeleton() const {
     return ui->chkExportSkeleton->isChecked();
 }
 
+bool ExportFBXDlg::GetExportAllAttachPoints() const {
+    return ui->chkExportAllAttachPoints->isChecked();
+
+}
+
 
 void ExportFBXDlg::on_chkExportLODs_stateChanged(int state) {
 }
@@ -61,10 +66,13 @@ void ExportFBXDlg::on_chkExportShadowGeometry_stateChanged(int state) {
 
 
 void ExportFBXDlg::on_chkExportSkeleton_stateChanged(int state) {
+    ui->chkExportAllAttachPoints->setEnabled(this->GetExportSkeleton());
+}
+
+void ExportFBXDlg::on_chkExportAllAttachPoints_stateChanged(int state) {
 }
 
 
 void ExportFBXDlg::on_buttonBox_accepted() {
     this->accept();
 }
-

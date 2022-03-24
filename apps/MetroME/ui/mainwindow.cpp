@@ -506,6 +506,7 @@ void MainWindow::OnExportFBXModel() {
                 ExporterFBX expFbx;
                 expFbx.SetExportMesh(true);
                 expFbx.SetExportSkeleton(dlg.GetExportSkeleton());
+                expFbx.SetExportSkeleton(dlg.GetExportAllAttachPoints());
                 expFbx.SetExportShadowGeometry(dlg.GetExportShadowGeometry());
                 expFbx.SetExportLODs(dlg.GetExportLODs());
                 expFbx.SetExcludeCollision(true);
@@ -752,7 +753,7 @@ void MainWindow::OnSkeletonBuildOBBs() {
             const VertexSkinned* vertices = rcast<const VertexSkinned*>(child->GetVerticesMemData());
             MyArray<MyArray<vec3>> perBoneVertices(mesh->bonesRemap.size());
             for (size_t j = 0; j < numVertices; ++j) {
-                const size_t boneIdx = vertices[j].bones[2] / 3;    // ZYXW swizzle
+                const size_t boneIdx = vertices[j].bones[2] / 3;    // ZYXW swizzle so bone 2 is the first bone (with bigger weight)
                 mat4 boneInvTransform = skeleton->GetBoneFullTransformInv(mesh->bonesRemap[boneIdx]);
                 vec3 vertexPos = boneInvTransform * vec4(DecodeSkinnedPosition(vertices[j].pos) * mesh->verticesScale, 1.0f);
                 perBoneVertices[boneIdx].push_back(vertexPos);

@@ -126,6 +126,15 @@ bool MetroLevel::LoadFromFileHandle(const MetroFSPath& file) {
     return result;
 }
 
+// materials
+size_t MetroLevel::GetNumMaterials() const {
+    return mMaterials.size();
+}
+
+const LevelMaterial& MetroLevel::GetMaterial(const size_t idx) const {
+    return mMaterials[idx];
+}
+
 // level geo
 size_t MetroLevel::GetNumSectors() const {
     return mSectors.size();
@@ -286,6 +295,14 @@ void MetroLevel::ReadSector(const CharString& sectorName, const CharString& fold
                     } break;
 
                     case SDC_Materials: {
+                        const size_t numMaterials = stream.ReadU16();
+                        mMaterials.resize(numMaterials);
+                        for (auto& mat : mMaterials) {
+                            mat.shader = stream.ReadStringZ();
+                            mat.texture = stream.ReadStringZ();
+                            mat.material = stream.ReadStringZ();
+                            mat.flags = stream.ReadU32();
+                        }
                     } break;
 
                     case SDC_Sections: {
@@ -480,7 +497,9 @@ void MetroLevel::LoadBin(const MetroFSPath& file) {
 
                 METRO_SERIALIZE_STRUCT_MEMBER(*reader, entities_params);
                 reader->SetUserData(entities_params.version);
-                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*reader, entities);
+                if (entities_params.version >= 40) {
+                    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*reader, entities);
+                }
             }
         }
     }

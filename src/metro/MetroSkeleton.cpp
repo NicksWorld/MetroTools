@@ -443,6 +443,8 @@ bool MetroSkeleton::LoadFromData_2033(MemStream& dataStream) {
         assert(this->CalcBonesCRC() == this->crc);
 #endif
 
+        this->CacheMatrices();
+
         this->LoadMotions();
     }
 

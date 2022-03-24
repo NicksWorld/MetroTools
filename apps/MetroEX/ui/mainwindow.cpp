@@ -467,7 +467,7 @@ void MainWindow::UpdateFilesList() {
 }
 
 void MainWindow::AddFoldersRecursive(MyHandle folder, QTreeWidgetItem* rootItem, const MyHandle configBinFile) {
-    const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();;
+    const MetroFileSystem& mfs = MetroContext::Get().GetFilesystem();
 
     // Add root folder
     MyTreeWidgetItem* dirLeafNode = new MyTreeWidgetItem(QStringList(QString::fromStdString(mfs.GetName(MetroFSPath(folder)))));

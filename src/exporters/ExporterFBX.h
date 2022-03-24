@@ -18,6 +18,7 @@ public:
     void                SetExcludeCollision(const bool b);
     void                SetExportMesh(const bool b);
     void                SetExportSkeleton(const bool b);
+    void                SetExportAllAttachPoints(const bool b);
     void                SetExportShadowGeometry(const bool b);
     void                SetExportLODs(const bool b);
     void                SetExportAnimation(const bool b);
@@ -35,6 +36,7 @@ private:
     bool                mExcludeCollision;
     bool                mExportMesh;
     bool                mExportSkeleton;
+    bool                mExportAllAttachPoints;
     bool                mExportShadowGeometry;
     bool                mExportLODs;
     bool                mExportAnimation;

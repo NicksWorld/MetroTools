@@ -68,7 +68,8 @@ struct MetroModelTPreset {
 
 struct MetroModelMesh {
     MetroModelMesh()
-        : verticesOffset(0u)
+        : materialId(kInvalidValue32)
+        , verticesOffset(0u)
         , verticesCount(0u)
         , indicesOffset(0u)
         , facesCount(0u)
@@ -78,6 +79,7 @@ struct MetroModelMesh {
         , verticesScale(1.0f)
     { }
 
+    uint32_t        materialId;
     uint32_t        verticesOffset;
     uint32_t        verticesCount;
     uint32_t        indicesOffset;
@@ -156,6 +158,9 @@ public:
     size_t                          GetModelVersion() const;
     void                            SetModelVersion(const size_t version);
     void                            SetModelVersionBasedOnGameVersion(const MetroGameVersion gameVersion);
+
+    uint32_t                        GetEngineMaterialId() const;
+    void                            SetEngineMaterialId(const uint32_t id);
 
     virtual uint32_t                GetCheckSum() const;
     virtual size_t                  GetLodCount() const;

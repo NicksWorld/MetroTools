@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     mProgressDlg = new QProgressDialog(this);
+    mProgressDlg->close();
 }
 
 MainWindow::~MainWindow() {

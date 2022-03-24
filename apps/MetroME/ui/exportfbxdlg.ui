@@ -102,6 +102,22 @@
      <string>Export skeleton</string>
     </property>
    </widget>
+   <widget class="QCheckBox" name="chkExportAllAttachPoints">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>90</y>
+      <width>201</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Export all attach points</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QLabel" name="label_2">
    <property name="geometry">

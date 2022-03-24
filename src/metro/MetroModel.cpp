@@ -153,7 +153,7 @@ bool MetroModelBase::Load(MemStream& stream, MetroModelLoadParams& params) {
         mVersion = hdr.version;
         mType = hdr.type;
         mFlags = hdr.flags;
-        mEngineMtl = hdr.shaderId;
+        mEngineMtl = (hdr.shaderId == kInvalidValue16) ? kInvalidValue32 : scast<uint32_t>(hdr.shaderId);
         mChecksum = hdr.checkSum;
 
         mBBox.minimum = hdr.bbox.minimum;
@@ -295,6 +295,14 @@ void MetroModelBase::SetModelVersionBasedOnGameVersion(const MetroGameVersion ga
     }
 
     this->SetModelVersion(version);
+}
+
+uint32_t MetroModelBase::GetEngineMaterialId() const {
+    return mEngineMtl;
+}
+
+void MetroModelBase::SetEngineMaterialId(const uint32_t id) {
+    mEngineMtl = id;
 }
 
 uint32_t MetroModelBase::GetCheckSum() const {
@@ -485,8 +493,12 @@ bool MetroModelStd::Load(MemStream& stream, MetroModelLoadParams& params) {
 
     // load base
     const bool baseLoaded = MetroModelBase::Load(stream, params);
-
-    return (mMesh && baseLoaded);
+    if (mMesh && baseLoaded) {
+        mMesh->materialId = mEngineMtl;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool MetroModelStd::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
@@ -555,6 +567,7 @@ void MetroModelStd::CreateMesh(const size_t numVertices, const size_t numFaces, 
     mMesh = MakeRefPtr<MetroModelMesh>();
     memset(mMesh.get(), 0, sizeof(MetroModelMesh));
 
+    mMesh->materialId = kInvalidValue32;
     mMesh->verticesCount = scast<uint32_t>(numVertices);
     mMesh->facesCount = scast<uint32_t>(numFaces);
     mMesh->shadowVerticesCount = scast<uint32_t>(numShadowVertices);
@@ -650,8 +663,12 @@ bool MetroModelSkin::Load(MemStream& stream, MetroModelLoadParams& params) {
 
     // load base
     const bool baseLoaded = MetroModelBase::Load(stream, params);
-
-    return mMesh && baseLoaded;
+    if (mMesh && baseLoaded) {
+        mMesh->materialId = mEngineMtl;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool MetroModelSkin::Save(MemWriteStream& stream, const MetroModelSaveParams& params) {
@@ -1512,7 +1529,7 @@ bool MetroModelSkeleton::Save(MemWriteStream& stream, const MetroModelSaveParams
 }
 
 size_t MetroModelSkeleton::GetLodCount() const {
-    return 0;
+    return mLodMeshes.size();
 }
 
 const RefPtr<MetroSkeleton>& MetroModelSkeleton::GetSkeleton() const {

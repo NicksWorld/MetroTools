@@ -27,6 +27,13 @@ struct LevelSector {
     float                           lmapScale;
 };
 
+struct LevelMaterial {
+    CharString  shader;
+    CharString  texture;
+    CharString  material;
+    uint32_t    flags;
+};
+
 struct MetroTerrain {
     // serialized props
     uint32_t    version;
@@ -69,6 +76,10 @@ public:
 
     bool                        LoadFromFileHandle(const MetroFSPath& file);
 
+    // materials
+    size_t                      GetNumMaterials() const;
+    const LevelMaterial&        GetMaterial(const size_t idx) const;
+
     // level geo
     size_t                      GetNumSectors() const;
     const LevelSector&          GetSector(const size_t idx) const;
@@ -106,6 +117,7 @@ private:
     void                        LoadBin(const MetroFSPath& file);
 
 private:
+    MyArray<LevelMaterial>      mMaterials;
     MyArray<LevelSector>        mSectors;
     MetroEntitiesParams         entities_params;
     MyArray<MetroLevelEntity>   entities;

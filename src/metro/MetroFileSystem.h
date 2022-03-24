@@ -57,7 +57,7 @@ public:
     size_t                  GetUncompressedSize(const MetroFSPath& entry) const;
 
     size_t                  CountFilesInFolder(const MetroFSPath& entry, const bool recursive) const;
-
+    
     MetroFSPath             GetParentFolder(const MetroFSPath& entry) const;
     MetroFSPath             FindFile(const CharString& fileName, const MetroFSPath& inFolder = MetroFSPath(MetroFSPath::Invalid)) const;
     MetroFSPath             FindFolder(const CharString& folderPath, const MetroFSPath& inFolder = MetroFSPath(MetroFSPath::Invalid)) const;
@@ -70,6 +70,9 @@ public:
 
     MemStream               OpenFileStream(const MetroFSPath& entry, const size_t subOffset = kInvalidValue, const size_t subLength = kInvalidValue) const;
     MemStream               OpenFileFromPath(const CharString& fileName) const;
+
+    size_t                  GetNumVFX() const;
+    const VFXReader*        GetVFX(const size_t idx) const;
 
 private:
     bool                    AddVFX(const fs::path& vfxPath);

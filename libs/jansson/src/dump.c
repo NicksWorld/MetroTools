@@ -334,18 +334,18 @@ static int do_dump(const json_t *json, size_t flags, int depth,
 
             if(flags & JSON_SORT_KEYS)
             {
-                const char **keys;
+                char **keys;
                 size_t size, i;
 
                 size = json_object_size(json);
-                keys = (const char **)jsonp_malloc(size * sizeof(const char *));
+                keys = (char **)jsonp_malloc(size * sizeof(char *));
                 if(!keys)
                     return -1;
 
                 i = 0;
                 while(iter)
                 {
-                    keys[i] = json_object_iter_key(iter);
+                    keys[i] = (char *)json_object_iter_key(iter);
                     iter = json_object_iter_next((json_t *)json, iter);
                     i++;
                 }
@@ -355,7 +355,7 @@ static int do_dump(const json_t *json, size_t flags, int depth,
 
                 for(i = 0; i < size; i++)
                 {
-                    const char *key;
+                    char *key;
                     json_t *value;
 
                     key = keys[i];

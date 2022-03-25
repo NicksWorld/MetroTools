@@ -70,7 +70,7 @@ public:
     bool            SaveAsLegacyDDS(const fs::path& filePath);
     bool            SaveAsTGA(const fs::path& filePath);
     bool            SaveAsPNG(const fs::path& filePath);
-    bool            SaveAsMetroTexture(const fs::path& filePath, const PixelFormat format = PixelFormat::BC7, const bool crunched = false);
+    bool            SaveAsMetroTexture(const fs::path& filePath, const PixelFormat format = PixelFormat::BC7);
 
     bool            IsCubemap() const;
     size_t          GetWidth() const;

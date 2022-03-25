@@ -241,7 +241,7 @@ drawNormalLine(QPainter * painter,
 
       if (i == segments / 2)
       {
-        QColor c = normalColorIn; 
+        c = normalColorIn;
         if (selected)
           c = c.darker(200);
 

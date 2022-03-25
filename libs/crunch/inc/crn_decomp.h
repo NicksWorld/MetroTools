@@ -1,6 +1,5 @@
 // File: crn_decomp.h - Fast CRN->DXTc texture transcoder header file library
-// Copyright (c) 2010-2016 Richard Geldreich, Jr. and Binomial LLC
-// See Copyright Notice and license at the end of this file.
+// This software is in the public domain. Please see license.txt.
 //
 // This single header file contains *all* of the code necessary to unpack .CRN files to raw DXTn bits.
 // It does NOT depend on the crn compression library.
@@ -315,7 +314,7 @@ namespace crnd
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef _WIN32
+#ifdef WIN32
 #include <memory.h>
 #else
 #include <malloc.h>
@@ -2424,7 +2423,7 @@ namespace crnd
 
          if (pActual_size)
          {
-#ifdef _WIN32
+#ifdef WIN32
             *pActual_size = p_new ? ::_msize(p_new) : 0;
 #else
             *pActual_size = p_new ? malloc_usable_size(p_new) : 0;
@@ -2442,7 +2441,7 @@ namespace crnd
       else
       {
          void* p_final_block = p;
-#ifdef _WIN32
+#ifdef WIN32
          p_new = ::_expand(p, size);
 #else
          p_new = NULL;
@@ -2460,7 +2459,7 @@ namespace crnd
 
          if (pActual_size)
          {
-#ifdef _WIN32
+#ifdef WIN32
             *pActual_size = ::_msize(p_final_block);
 #else
             *pActual_size = ::malloc_usable_size(p_final_block);
@@ -2474,7 +2473,7 @@ namespace crnd
    static size_t crnd_default_msize(void* p, void* pUser_data)
    {
       pUser_data;
-#ifdef _WIN32
+#ifdef WIN32
       return p ? _msize(p) : 0;
 #else
       return p ? malloc_usable_size(p) : 0;
@@ -2530,7 +2529,7 @@ namespace crnd
          return NULL;
       }
 
-      CRND_ASSERT(((size_t)p_new & (CRND_MIN_ALLOC_ALIGNMENT - 1)) == 0);
+      CRND_ASSERT(((uint32)p_new & (CRND_MIN_ALLOC_ALIGNMENT - 1)) == 0);
 
       return p_new;
    }
@@ -2555,7 +2554,7 @@ namespace crnd
       if (pActual_size)
          *pActual_size = actual_size;
 
-      CRND_ASSERT(((size_t)p_new & (CRND_MIN_ALLOC_ALIGNMENT - 1)) == 0);
+      CRND_ASSERT(((uint32)p_new & (CRND_MIN_ALLOC_ALIGNMENT - 1)) == 0);
 
       return p_new;
    }
@@ -4811,29 +4810,4 @@ namespace crnd
 
 #endif // CRND_HEADER_FILE_ONLY
 
-//------------------------------------------------------------------------------
-//
-// crn_decomp.h uses the ZLIB license:
-// http://opensource.org/licenses/Zlib
-//
-// Copyright (c) 2010-2016 Richard Geldreich, Jr. and Binomial LLC
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-//
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-//
-// 1. The origin of this software must not be misrepresented; you must not
-// claim that you wrote the original software. If you use this software
-// in a product, an acknowledgment in the product documentation would be
-// appreciated but is not required.
-//
-// 2. Altered source versions must be plainly marked as such, and must not be
-// misrepresented as being the original software.
-//
-// 3. This notice may not be removed or altered from any source distribution.
-//
-//------------------------------------------------------------------------------
+

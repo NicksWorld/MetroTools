@@ -168,13 +168,13 @@ normalColor(QString typeId) const
 
   std::size_t const hue_range = 0xFF;
 
-  random.seed(hash);
+  random.seed(static_cast<quint32>(hash));
   std::size_t hue = random.generate() % hue_range;
 
   std::size_t sat = 120 + hash % 129;
 
-  return QColor::fromHsl(hue,
-                         sat,
+  return QColor::fromHsl(static_cast<int>(hue),
+                         static_cast<int>(sat),
                          160);
 }
 

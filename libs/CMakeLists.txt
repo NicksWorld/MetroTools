@@ -89,8 +89,6 @@ target_link_directories(physx34 INTERFACE physx34/lib)
 add_library(crunch INTERFACE)
 add_library(Crunch::Crunch ALIAS crunch)
 target_include_directories(crunch INTERFACE crunch/inc)
-target_link_directories(crunch INTERFACE crunch/lib/VC9)
-target_link_libraries(crunch INTERFACE $<IF:$<CONFIG:Debug>,Debug_DLL/x64/crnlibD_DLL_x64_VC9,Release_DLL/x64/crnlib_DLL_x64_VC9>)
 
 set(BUILD_EXAMPLES ON)
 add_subdirectory(nodeeditor)

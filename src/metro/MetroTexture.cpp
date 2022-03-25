@@ -24,10 +24,7 @@
 #include "stb_image_resize.h"
 
 #ifndef METRO_NO_CRUNCH
-#include <crnlib.h>
-#define CRND_HEADER_FILE_ONLY
 #include <crn_decomp.h>
-#undef CRND_HEADER_FILE_ONLY
 #endif
 
 #include <fstream>
@@ -335,115 +332,80 @@ bool MetroTexture::SaveAsPNG(const fs::path& filePath) {
     return result;
 }
 
-size_t CompressorHelper(BytesArray& outBuffer,
-                        BytesArray& inBuffer,
-                        const size_t resolution,
-                        const MetroTexture::PixelFormat format,
-                        const bool crunched) {
+size_t CompressorHelper(BytesArray& outBuffer, BytesArray& inBuffer, const size_t resolution, const MetroTexture::PixelFormat format) {
     BytesArray workingBuffer;
 
     size_t resultSize = 0;
     const size_t numMips = (resolution == 512) ? 10 : 1;
 
-#ifndef METRO_NO_CRUNCH
-    if (crunched && format != MetroTexture::PixelFormat::BC7) {
-        crn_comp_params compParams; compParams.clear();
-        compParams.m_format = (format == MetroTexture::PixelFormat::BC1) ? cCRNFmtDXT1 : cCRNFmtDXT5;
-        compParams.m_faces = 1;
-        compParams.m_levels = 1;
-        compParams.m_width = scast<crn_uint32>(resolution);
-        compParams.m_height = scast<crn_uint32>(resolution);
-        compParams.m_pImages[0][0] = rcast<const crn_uint32*>(inBuffer.data());
+    switch (format) {
+        case MetroTexture::PixelFormat::BC1: {
+            resultSize = DDS_GetCompressedSizeBC1(resolution, resolution, numMips);
+        } break;
 
-        crn_mipmap_params mipsParams; mipsParams.clear();
-        mipsParams.m_mode = cCRNMipModeGenerateMips;
-
-        void* crnOutput = nullptr;
-        crn_uint32 crnOutputSize = 0;
-        if (numMips == 1) {
-            crnOutput = crn_compress(compParams, crnOutputSize, nullptr, nullptr);
-        } else {
-            crnOutput = crn_compress(compParams, mipsParams, crnOutputSize, nullptr, nullptr);
-        }
-
-        resultSize = scast<size_t>(crnOutputSize);
-        outBuffer.resize(resultSize);
-        std::memcpy(outBuffer.data(), crnOutput, resultSize);
-
-        crn_free_block(crnOutput);
-    } else {
-#endif // METRO_NO_CRUNCH
-        switch (format) {
-            case MetroTexture::PixelFormat::BC1: {
-                resultSize = DDS_GetCompressedSizeBC1(resolution, resolution, numMips);
-            } break;
-
-            case MetroTexture::PixelFormat::BC3:
-            case MetroTexture::PixelFormat::BC7: {
-                resultSize = DDS_GetCompressedSizeBC7(resolution, resolution, numMips);
-            } break;
-        }
-
-        if (resultSize) {
-            workingBuffer.resize(resultSize);
-
-            BytesArray nextMipBuffer; nextMipBuffer.resize(inBuffer.size() / 4);
-
-            uint8_t* bufferA = inBuffer.data();
-            uint8_t* bufferB = nextMipBuffer.data();
-
-            uint8_t* bcBlocks = workingBuffer.data();
-            size_t mipResolution = resolution;
-
-            for (size_t i = 0; i < numMips; ++i) {
-                size_t mipSize = 0;
-
-                switch (format) {
-                    case MetroTexture::PixelFormat::BC1: {
-                        DDS_CompressBC1(bufferA, bcBlocks, mipResolution, mipResolution);
-                        mipSize = DDS_GetCompressedSizeBC1(mipResolution, mipResolution, 1);
-                    } break;
-
-                    case MetroTexture::PixelFormat::BC3: {
-                        DDS_CompressBC3(bufferA, bcBlocks, mipResolution, mipResolution);
-                        mipSize = DDS_GetCompressedSizeBC7(mipResolution, mipResolution, 1);
-                    } break;
-
-                    case MetroTexture::PixelFormat::BC7: {
-                        DDS_CompressBC7(bufferA, bcBlocks, mipResolution, mipResolution);
-                        mipSize = DDS_GetCompressedSizeBC7(mipResolution, mipResolution, 1);
-                    } break;
-                }
-
-                bcBlocks += mipSize;
-
-                if (numMips > 1) {
-                    const size_t nextResolution = std::max<size_t>(4, mipResolution / 2);
-                    if (nextResolution != resolution) { //mip size changed - resample
-                        stbir_resize_uint8(bufferA, scast<int>(mipResolution), scast<int>(mipResolution), 0,
-                                           bufferB, scast<int>(nextResolution), scast<int>(nextResolution), 0, 4);
-
-                        std::swap(bufferA, bufferB);
-                    }
-                    mipResolution = nextResolution;
-                }
-            }
-
-            if (format == MetroTexture::PixelFormat::BC7) {
-                MetroCompression::CompressBlob(workingBuffer.data(), resultSize, outBuffer);
-                resultSize = outBuffer.size();
-            } else {
-                outBuffer.swap(workingBuffer);
-            }
-        }
-#ifndef METRO_NO_CRUNCH
+        case MetroTexture::PixelFormat::BC3:
+        case MetroTexture::PixelFormat::BC7: {
+            resultSize = DDS_GetCompressedSizeBC7(resolution, resolution, numMips);
+        } break;
     }
-#endif // METRO_NO_CRUNCH
+
+    if (resultSize) {
+        workingBuffer.resize(resultSize);
+
+        BytesArray nextMipBuffer; nextMipBuffer.resize(inBuffer.size() / 4);
+
+        uint8_t* bufferA = inBuffer.data();
+        uint8_t* bufferB = nextMipBuffer.data();
+
+        uint8_t* bcBlocks = workingBuffer.data();
+        size_t mipResolution = resolution;
+
+        for (size_t i = 0; i < numMips; ++i) {
+            size_t mipSize = 0;
+
+            switch (format) {
+                case MetroTexture::PixelFormat::BC1: {
+                    DDS_CompressBC1(bufferA, bcBlocks, mipResolution, mipResolution);
+                    mipSize = DDS_GetCompressedSizeBC1(mipResolution, mipResolution, 1);
+                } break;
+
+                case MetroTexture::PixelFormat::BC3: {
+                    DDS_CompressBC3(bufferA, bcBlocks, mipResolution, mipResolution);
+                    mipSize = DDS_GetCompressedSizeBC7(mipResolution, mipResolution, 1);
+                } break;
+
+                case MetroTexture::PixelFormat::BC7: {
+                    DDS_CompressBC7(bufferA, bcBlocks, mipResolution, mipResolution);
+                    mipSize = DDS_GetCompressedSizeBC7(mipResolution, mipResolution, 1);
+                } break;
+            }
+
+            bcBlocks += mipSize;
+
+            if (numMips > 1) {
+                const size_t nextResolution = std::max<size_t>(4, mipResolution / 2);
+                if (nextResolution != resolution) { //mip size changed - resample
+                    stbir_resize_uint8(bufferA, scast<int>(mipResolution), scast<int>(mipResolution), 0,
+                                        bufferB, scast<int>(nextResolution), scast<int>(nextResolution), 0, 4);
+
+                    std::swap(bufferA, bufferB);
+                }
+                mipResolution = nextResolution;
+            }
+        }
+
+        if (format == MetroTexture::PixelFormat::BC7) {
+            MetroCompression::CompressBlob(workingBuffer.data(), resultSize, outBuffer);
+            resultSize = outBuffer.size();
+        } else {
+            outBuffer.swap(workingBuffer);
+        }
+    }
 
     return resultSize;
 }
 
-bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelFormat format, const bool crunched) {
+bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelFormat format) {
     bool result = false;
 
     size_t resolution = scast<size_t>(mWidth);
@@ -453,15 +415,15 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
 
     WideString extensions[4];
     extensions[0] = L".4096";
-    extensions[1] = (crunched ? L".2048c" : L".2048");
-    extensions[2] = (crunched ? L".1024c" : L".1024");
-    extensions[3] = (crunched ? L".512c"  : L".512");
+    extensions[1] = L".2048";
+    extensions[2] = L".1024";
+    extensions[3] = L".512";
 
     if (resolution == 4096) {
         std::ofstream file(filePath.native() + extensions[0], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
-            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format, crunched);
+            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format);
 
             file.write(rcast<const char*>(outBuffer.data()), outSize);
             file.flush();
@@ -479,7 +441,7 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
         std::ofstream file(filePath.native() + extensions[1], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
-            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format, crunched);
+            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format);
 
             file.write(rcast<const char*>(outBuffer.data()), outSize);
             file.flush();
@@ -497,7 +459,7 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
         std::ofstream file(filePath.native() + extensions[2], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
-            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format, crunched);
+            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format);
 
             file.write(rcast<const char*>(outBuffer.data()), outSize);
             file.flush();
@@ -515,7 +477,7 @@ bool MetroTexture::SaveAsMetroTexture(const fs::path& filePath, const PixelForma
         std::ofstream file(filePath.native() + extensions[3], std::ofstream::binary);
         if (file.good()) {
             BytesArray outBuffer;
-            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format, crunched);
+            const size_t outSize = CompressorHelper(outBuffer, mipBuffer, resolution, format);
 
             file.write(rcast<const char*>(outBuffer.data()), outSize);
             file.flush();

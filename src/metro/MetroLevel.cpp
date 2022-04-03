@@ -70,17 +70,19 @@ void MetroEntitiesParams::Serialize(MetroReflectionStream& s) {
 }
 
 void MetroLevelEntity::Serialize(MetroReflectionStream& s) {
+    const size_t entitiesVersion = s.GetUserData();
+
     UObjectInitData initData;
     s >> initData;
 
-    this->uobject = MetroEntityFactory::Get().CreateUObject(initData);
+    this->uobject = GetEntitiesFactoryForVersion(entitiesVersion)->CreateUObject(initData);
     if (this->uobject) {
         s >> (*this->uobject);
 
         mat4 pose = MatFromPose(this->uobject->pose);
         vec3 pos, scale;
         quat rot;
-        MatDecompose(pose, pos, scale, rot);
+        MatDecomposeSimple(pose, pos, scale, rot);
 
         LogPrintF(LogLevel::Info, "%s, id = %d, parent_id = %d, name = %s, visual = %s, pos = (%f, %f, %f)", this->uobject->cls.c_str(),
             this->uobject->initData.id, this->uobject->initData.parent_id, this->uobject->name.empty() ? "" : this->uobject->name.c_str(),
@@ -497,9 +499,7 @@ void MetroLevel::LoadBin(const MetroFSPath& file) {
 
                 METRO_SERIALIZE_STRUCT_MEMBER(*reader, entities_params);
                 reader->SetUserData(entities_params.version);
-                if (entities_params.version >= 40) {
-                    METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*reader, entities);
-                }
+                METRO_SERIALIZE_STRUCT_ARRAY_MEMBER(*reader, entities);
             }
         }
     }

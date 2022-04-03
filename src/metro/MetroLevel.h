@@ -1,6 +1,6 @@
 #pragma once
 #include "MetroTypes.h"
-#include "entities/MetroEntityFactory.h"
+#include "entities/MetroEntitiesFactoryInterface.h"
 
 class MetroTexture;
 class MetroModelBase;

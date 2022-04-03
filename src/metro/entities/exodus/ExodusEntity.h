@@ -1,7 +1,7 @@
 #pragma once
-#include "MetroUObject.h"
+#include "ExodusUObject.h"
 
-struct UEntityStaticSarams : public UObjectStaticParams {
+struct UEntityStaticParamsExodus : public UObjectStaticParams {
     INHERITED_CLASS(UObjectStaticParams);
 
     CharString  collision_sound;
@@ -47,8 +47,8 @@ struct InventoryItemStaticParams {
     void Serialize(MetroReflectionStream& s);
 };
 
-struct InventoryItemObjectStaticParams : public UEntityStaticSarams {
-    INHERITED_CLASS(UObjectStaticParams);
+struct InventoryItemObjectStaticParams : public UEntityStaticParamsExodus {
+    INHERITED_CLASS(UEntityStaticParamsExodus);
 
     InventoryItemStaticParams   inventory_item;
     CharString                  hr_class;
@@ -130,8 +130,8 @@ struct HudItemStaticParams {
 
 // UEntities
 
-struct UEntity : public UObjectEffect {
-    INHERITED_CLASS(UObjectEffect);
+struct UEntityExodus : public UObjectEffectExodus {
+    INHERITED_CLASS(UObjectEffectExodus);
 
     void Serialize(MetroReflectionStream& s) override;
 
@@ -195,8 +195,8 @@ struct FlaresData {
     color4f     cmul;
 };
 
-struct UEntityLamp : public UEntity {
-    INHERITED_CLASS(UEntity);
+struct UEntityLampExodus : public UEntityExodus {
+    INHERITED_CLASS(UEntityExodus);
 
     void Serialize(MetroReflectionStream& s) override;
 
@@ -229,8 +229,8 @@ struct UEntityLamp : public UEntity {
     FlaresData  flares_data;
 };
 
-struct UInventoryItemObject : public UEntity {
-    INHERITED_CLASS(UEntity);
+struct UInventoryItemObjectExodus : public UEntityExodus {
+    INHERITED_CLASS(UEntityExodus);
 
     void Serialize(MetroReflectionStream& s) override;
 
@@ -241,32 +241,32 @@ struct UInventoryItemObject : public UEntity {
     bool        anim_simplification; // ??? which class should this member be in ???
 };
 
-struct UUpgradeItem : public UInventoryItemObject {
-    INHERITED_CLASS(UInventoryItemObject);
+struct UUpgradeItemExodus : public UInventoryItemObjectExodus {
+    INHERITED_CLASS(UInventoryItemObjectExodus);
 
     void Serialize(MetroReflectionStream& s) override;
 
     CharString  upgrade_id;
 };
 
-struct UDeviceUpgrade : public UUpgradeItem {
-    INHERITED_CLASS(UUpgradeItem);
+struct UDeviceUpgradeExodus : public UUpgradeItemExodus {
+    INHERITED_CLASS(UUpgradeItemExodus);
 };
 
-struct UPlayerTimerBase : public UDeviceUpgrade {
-    INHERITED_CLASS(UDeviceUpgrade);
+struct UPlayerTimerBaseExodus : public UDeviceUpgradeExodus {
+    INHERITED_CLASS(UDeviceUpgradeExodus);
 };
 
-struct UPlayerTimer : public UPlayerTimerBase {
-    INHERITED_CLASS(UPlayerTimerBase);
+struct UPlayerTimerExodus : public UPlayerTimerBaseExodus {
+    INHERITED_CLASS(UPlayerTimerBaseExodus);
 };
 
-struct UPlayerTimerHudItemObject : public UPlayerTimer {
-    INHERITED_CLASS(UPlayerTimer);
+struct UPlayerTimerHudItemObjectExodus : public UPlayerTimerExodus {
+    INHERITED_CLASS(UPlayerTimerExodus);
 };
 
-struct UWeaponItem : public UUpgradeItem {
-    INHERITED_CLASS(UUpgradeItem);
+struct UWeaponItemExodus : public UUpgradeItemExodus {
+    INHERITED_CLASS(UUpgradeItemExodus);
 
     void Serialize(MetroReflectionStream& s) override;
 

@@ -925,7 +925,7 @@ bool ExporterFBX::ExportLevel(const MetroLevel& level, const fs::path& filePath)
                 mat4 pose = MatFromPose(level.GetEntityTransform(i));
                 vec3 pos, scale;
                 quat rot;
-                MatDecompose(pose, pos, scale, rot);
+                MatDecomposeSimple(pose, pos, scale, rot);
 
                 modelNode->LclTranslation.Set(MetroVecToFbxVec(pos));
                 modelNode->LclRotation.Set(MetroRotToFbxRot(rot));

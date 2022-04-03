@@ -1,7 +1,7 @@
-#include "MetroEntity.h"
+#include "ExodusEntity.h"
 #include "metro/reflection/MetroReflection.h"
 
-void UEntityStaticSarams::Serialize(MetroReflectionStream& s) {
+void UEntityStaticParamsExodus::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
 
     METRO_SERIALIZE_MEMBER_CHOOSE(s, collision_sound);
@@ -90,7 +90,7 @@ void PlayerTimerHudItemObjectStaticParams::Serialize(MetroReflectionStream& s) {
 
 // UEntities
 
-void UEntity::Serialize(MetroReflectionStream& s) {
+void UEntityExodus::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, health);
     METRO_SERIALIZE_MEMBER(s, dying_mask);
     METRO_SERIALIZE_MEMBER(s, physics_flags);
@@ -181,13 +181,12 @@ void FlaresData::Serialize(MetroReflectionStream& s) {
         METRO_SERIALIZE_MEMBER_CHOOSE(s, bone);
         METRO_SERIALIZE_MEMBER(s, axis);
         METRO_SERIALIZE_MEMBER(s, cmul);
-    }
-    else {
+    } else {
         // read old properties
     }
 }
 
-void UEntityLamp::Serialize(MetroReflectionStream& s) {
+void UEntityLampExodus::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_BASE_CLASS(s);
 
     METRO_SERIALIZE_MEMBER(s, initial_state);
@@ -202,8 +201,7 @@ void UEntityLamp::Serialize(MetroReflectionStream& s) {
         METRO_SERIALIZE_STRUCT_MEMBER(s, main_light);
         METRO_SERIALIZE_MEMBER(s, color_to_aux);
         METRO_SERIALIZE_MEMBER(s, sync_color_to_aux);
-    }
-    else {
+    } else {
         // read old properties
     }
     if (version >= kVersionExodus) {
@@ -212,8 +210,7 @@ void UEntityLamp::Serialize(MetroReflectionStream& s) {
         METRO_SERIALIZE_MEMBER(s, secondary_power);
         METRO_SERIALIZE_MEMBER(s, secondary_radius);
         METRO_SERIALIZE_MEMBER(s, secondary_mul_by_ao);
-    }
-    else {
+    } else {
         // read old properties
     }
     METRO_SERIALIZE_MEMBER(s, backlight);
@@ -230,7 +227,7 @@ void UEntityLamp::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_STRUCT_MEMBER(s, flares_data);
 }
 
-void UInventoryItemObject::Serialize(MetroReflectionStream& s) {
+void UInventoryItemObjectExodus::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, flags0);
     METRO_SERIALIZE_MEMBER(s, trade_weight);
     METRO_SERIALIZE_MEMBER(s, ui_force_slot_id);
@@ -240,14 +237,14 @@ void UInventoryItemObject::Serialize(MetroReflectionStream& s) {
     METRO_SERIALIZE_MEMBER(s, anim_simplification);
 }
 
-void UUpgradeItem::Serialize(MetroReflectionStream& s) {
+void UUpgradeItemExodus::Serialize(MetroReflectionStream& s) {
     //
     METRO_SERIALIZE_BASE_CLASS(s);
     //
     METRO_SERIALIZE_MEMBER(s, upgrade_id);
 }
 
-void UWeaponItem::Serialize(MetroReflectionStream& s) {
+void UWeaponItemExodus::Serialize(MetroReflectionStream& s) {
     //
     METRO_SERIALIZE_BASE_CLASS(s);
     //

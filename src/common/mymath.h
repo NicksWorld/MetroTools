@@ -260,13 +260,21 @@ inline mat4 MatFromPose(const pose_43T& m43T) {
 #endif
     return m;
 }
-inline void MatDecompose(const mat4& m, vec3& offset, vec3& scale, quat& rotation) {
-    quat _rotation;
-    vec3 skew;
-    vec4 persp;
-    glm::decompose(m, scale, _rotation, offset, skew, persp);
-    //Keep in mind that the resulting quaternion in not correct. It returns its conjugate!
-    rotation = glm::conjugate(_rotation);
+inline void MatDecomposeSimple(const mat4& m, vec3& offset, vec3& scale, quat& rotation) {
+    // extract offset
+    offset = vec3(m[3]);
+
+    // cast our transform matrix to rotation matrix
+    mat3 rotMat = m;
+
+    // now extract scale and remove it from the new matrix
+    for (size_t i = 0; i < 3; ++i) {
+        scale[i] = glm::length(rotMat[i]);
+        rotMat[i] = glm::normalize(rotMat[i]);
+    }
+
+    // now cast the pure rotation matrix to the quaternion
+    rotation = glm::quat_cast(rotMat);
 }
 inline const float* MatToPtr(const mat4& m) {
     return rcast<const float*>(&m);
@@ -311,6 +319,18 @@ constexpr color32u Color4FTo32U(const color4f& color) {
                          scast<uint8_t>(Clamp(color.g * 255.0f, 0.0f, 255.0f)),
                          scast<uint8_t>(Clamp(color.b * 255.0f, 0.0f, 255.0f)),
                          scast<uint8_t>(Clamp(color.a * 255.0f, 0.0f, 255.0f)));
+}
+
+inline color4f Color32UTo4F(const color32u& color) {
+    const uint8_t r =  color.value        & 0xFF;
+    const uint8_t g = (color.value >>  8) & 0xFF;
+    const uint8_t b = (color.value >> 16) & 0xFF;
+    const uint8_t a = (color.value >> 24) & 0xFF;
+
+    return color4f(scast<float>(r) / 255.0f,
+                   scast<float>(g) / 255.0f,
+                   scast<float>(b) / 255.0f,
+                   scast<float>(a) / 255.0f);
 }
 
 

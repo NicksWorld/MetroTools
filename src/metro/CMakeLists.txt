@@ -5,6 +5,7 @@ add_library(metro STATIC)
 add_library(MetroTools::Metro ALIAS metro)
 set_target_properties(metro PROPERTIES CXX_STANDARD 17)
 target_include_directories(metro PUBLIC ..)
+
 target_sources(metro PRIVATE
     MetroBinArchive.cpp
     MetroBinArchive.h
@@ -51,12 +52,22 @@ target_sources(metro PRIVATE
     VFXReader.cpp
     VFXReader.h
     classes/MetroClasses.h
-    entities/MetroEntity.cpp
-    entities/MetroEntityFactory.cpp
-    entities/MetroUObject.cpp
-    entities/MetroEntity.h
-    entities/MetroEntityFactory.h
+    entities/exodus/ExodusEntity.h
+    entities/exodus/ExodusEntity.cpp
+    entities/exodus/ExodusEntityFactory.h
+    entities/exodus/ExodusEntityFactory.cpp
+    entities/exodus/ExodusUObject.h
+    entities/exodus/ExodusUObject.cpp
+    entities/redux/ReduxEntityFactory.h
+    entities/redux/ReduxEntityFactory.cpp
+    entities/redux/ReduxUObject.h
+    entities/redux/ReduxUObject.cpp
+    entities/redux/ReduxEntity.h
+    entities/redux/ReduxEntity.cpp
+    entities/MetroEntitiesFactoryInterface.h
+    entities/MetroEntitiesFactory.cpp
     entities/MetroUObject.h
+    entities/MetroUObject.cpp
     physics/MetroPhysics.cpp
     physics/MetroPhysics.h
     reflection/MetroReflection.cpp
@@ -72,7 +83,9 @@ target_sources(metro PRIVATE
     scripts/MetroScript.cpp
     scripts/MetroScript.h
     vfs/MetroVFS.cpp
-    vfs/MetroVFS.h)
+    vfs/MetroVFS.h
+)
+
 target_link_libraries(metro 
     PRIVATE
         MetroTools::Common
@@ -83,4 +96,5 @@ target_link_libraries(metro
         QuickLz::QuickLz
         Jansson::Jansson
     PUBLIC
-        Crunch::Crunch)
+        Crunch::Crunch
+)

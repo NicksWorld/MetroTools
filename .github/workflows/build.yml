@@ -19,7 +19,7 @@ jobs:
         md out
         cd out
         call "${{env.VS_PATH}}\VC\Auxiliary\Build\vcvars64.bat"
-        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM="${{env.VS_PATH}}\COMMON7\IDE\COMMONEXTENSIONS\MICROSOFT\CMAKE\Ninja\ninja.exe" ../
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release ../
         cmake --build . --config Release
 
     - name: Run windeployqt.exe

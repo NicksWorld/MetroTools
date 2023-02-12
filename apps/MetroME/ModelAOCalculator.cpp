@@ -1,5 +1,5 @@
 #include "metro/MetroModel.h"
-#include <embree3/rtcore.h>
+#include <embree4/rtcore.h>
 #include <tbb/tbb.h>
 
 #ifdef max
@@ -117,9 +117,7 @@ static float CalcAOForVertex(const vec4& pos, const vec3& normal, const MyArray<
     for (const vec3& s : samples) {
         vec3 sample = tbn * s;
 
-        RTCIntersectContext intersectCtx;
-        rtcInitIntersectContext(&intersectCtx);
-        RTCRay ray;
+        RTCRay ray = {};
         ray.mask = kInvalidValue32;
         ray.flags = 0;
         ray.time = 0.0f;
@@ -132,7 +130,7 @@ static float CalcAOForVertex(const vec4& pos, const vec3& normal, const MyArray<
         ray.tnear = kRayStartBias;
         ray.tfar = std::numeric_limits<float>::max();
 
-        rtcOccluded1(embreeScene, &intersectCtx, &ray);
+        rtcOccluded1(embreeScene, &ray);
         if (ray.tfar <= ray.tnear) { // hit
             occlusion += 1.0f;  //#TODO_SK: implement distance weighting ??? something simple like clamp(1.0f - (hitDistance / maximumRange))
         }

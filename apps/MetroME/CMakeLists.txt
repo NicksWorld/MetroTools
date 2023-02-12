@@ -75,7 +75,7 @@ target_link_libraries(MetroME PRIVATE
     Physx2utils::Physx2utils
     Physx3utils::Physx3utils
 
-    Embree3::Embree3
+    Embree4::Embree4
     Tbb::Tbb
 
     meshoptimizer
@@ -83,6 +83,6 @@ target_link_libraries(MetroME PRIVATE
 
     d2d1.lib
     dwrite.lib
-    embree3.lib
+    embree4.lib
     tbb.lib
 )
